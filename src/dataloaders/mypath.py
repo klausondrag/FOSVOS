@@ -1,4 +1,4 @@
-from path_abstract import PathAbstract
+from src.path_abstract import PathAbstract
 
 
 class Path(PathAbstract):

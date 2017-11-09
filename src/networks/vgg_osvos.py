@@ -1,16 +1,16 @@
 import math
 import os
+import sys
 from copy import deepcopy
 
-import numpy as np
 import scipy.io
 import torch
 import torch.nn as nn
 import torch.nn.modules as modules
-import sys
+
 sys.path.append('OSVOS-PyTorch')
-from dataloaders.mypath import Path
-from layers.osvos_layers import center_crop, interp_surgery
+from src.dataloaders import Path
+from src.layers.osvos_layers import center_crop, interp_surgery
 
 
 class OSVOS(nn.Module):
