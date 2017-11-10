@@ -81,7 +81,7 @@ load_caffe_vgg = 1
 resume_epoch = 0  # Default is 0, change if want to resume
 
 # Network definition
-modelName = str(exp_name
+modelName = str(exp_name)
 if resume_epoch == 0:
     if load_caffe_vgg:
         net = vo.OSVOS(pretrained=2)
