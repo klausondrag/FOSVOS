@@ -1,5 +1,4 @@
 class PathAbstract(object):
-
     @staticmethod
     def db_root_dir():
         raise NotImplementedError
@@ -31,6 +30,6 @@ class PathAbstract(object):
     @staticmethod
     def models_dir():
         raise NotImplementedError
-    #@staticmethod
-    #def matlab_code():
-    #    raise NotImplementedError
+        # @staticmethod
+        # def matlab_code():
+        #    raise NotImplementedError

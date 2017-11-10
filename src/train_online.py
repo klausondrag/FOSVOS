@@ -13,6 +13,7 @@ if 'experiments' in os.getcwd():
 else:
     sys.path.append('OSVOS-PyTorch')
 from dataloaders.mypath import Path
+
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch
 
@@ -61,7 +62,7 @@ parentEpoch = 240
 # Parameters in p are used for the name of the model
 p = {
     'trainBatch': 1,  # Number of Images in each mini-batch
-    }
+}
 
 parentModelName = exp_name
 # Select which GPU, -1 if CPU
@@ -74,11 +75,12 @@ else:
 
 # Network definition
 net = vo.OSVOS(pretrained=0)
-net.load_state_dict(torch.load(os.path.join(save_dir, parentModelName+'_epoch-'+str(parentEpoch-1)+'.pth'),
+net.load_state_dict(torch.load(os.path.join(save_dir, parentModelName + '_epoch-' + str(parentEpoch - 1) + '.pth'),
                                map_location=lambda storage, loc: storage))
 
 # Logging into Tensorboard
-log_dir = os.path.join(save_dir, 'runs', datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname()+'-'+seq_name)
+log_dir = os.path.join(save_dir, 'runs',
+                       datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname() + '-' + seq_name)
 writer = SummaryWriter(log_dir=log_dir)
 # y = net.forward(Variable(torch.randn(1, 3, 480, 854)))
 # writer.add_graph(net, y[-1])
@@ -97,7 +99,6 @@ if vis_net:
     g = viz.make_dot(y, net.state_dict())
     g.view()
 
-
 # Use the following optimizer
 lr = 1e-8
 wd = 0.0002
@@ -105,12 +106,12 @@ optimizer = optim.SGD([
     {'params': [pr[1] for pr in net.stages.named_parameters() if 'weight' in pr[0]], 'weight_decay': wd},
     {'params': [pr[1] for pr in net.stages.named_parameters() if 'bias' in pr[0]], 'lr': lr * 2},
     {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'weight' in pr[0]], 'weight_decay': wd},
-    {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'bias' in pr[0]], 'lr': lr*2},
+    {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'bias' in pr[0]], 'lr': lr * 2},
     {'params': [pr[1] for pr in net.upscale.named_parameters() if 'weight' in pr[0]], 'lr': 0},
     {'params': [pr[1] for pr in net.upscale_.named_parameters() if 'weight' in pr[0]], 'lr': 0},
-    {'params': net.fuse.weight, 'lr': lr/100, 'weight_decay': wd},
-    {'params': net.fuse.bias, 'lr': 2*lr/100},
-    ], lr=lr, momentum=0.9)
+    {'params': net.fuse.weight, 'lr': lr / 100, 'weight_decay': wd},
+    {'params': net.fuse.bias, 'lr': 2 * lr / 100},
+], lr=lr, momentum=0.9)
 
 # Preparation of the data loaders
 # Define augmentation transformations as a composition
@@ -125,7 +126,6 @@ trainloader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num
 # Testing dataset and its iterator
 db_test = db.DAVIS2016(train=False, db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
 testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
-
 
 num_img_tr = len(trainloader)
 num_img_ts = len(testloader)
@@ -154,11 +154,11 @@ for epoch in range(0, nEpochs):
         running_loss_tr += loss.data[0]
 
         # Print stuff
-        if epoch % (nEpochs//20) == (nEpochs//20 - 1):
+        if epoch % (nEpochs // 20) == (nEpochs // 20 - 1):
             running_loss_tr /= num_img_tr
             loss_tr.append(running_loss_tr)
 
-            print('[Epoch: %d, numImages: %5d]' % (epoch+1, ii + 1))
+            print('[Epoch: %d, numImages: %5d]' % (epoch + 1, ii + 1))
             print('Loss: %f' % running_loss_tr)
             writer.add_scalar('data/total_loss_epoch', running_loss_tr, epoch)
 
@@ -176,15 +176,15 @@ for epoch in range(0, nEpochs):
 
     # Save the model
     if (epoch % snapshot) == snapshot - 1 and epoch != 0:
-        torch.save(net.state_dict(), os.path.join(save_dir, seq_name + '_epoch-'+str(epoch) + '.pth'))
+        torch.save(net.state_dict(), os.path.join(save_dir, seq_name + '_epoch-' + str(epoch) + '.pth'))
 
 stop_time = timeit.default_timer()
 print('Online training time: ' + str(stop_time - start_time))
 
-
 # Testing Phase
 if vis_res:
     import matplotlib.pyplot as plt
+
     plt.close("all")
     plt.ion()
     f, ax_arr = plt.subplots(1, 3)

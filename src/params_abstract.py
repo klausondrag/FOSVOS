@@ -1,5 +1,4 @@
 class ParamsAbstract(object):
-
     @staticmethod
     def lr():
         return 1e-8

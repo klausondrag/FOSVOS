@@ -15,7 +15,6 @@ from six.moves import urllib
 
 
 class SBDSegmentation(data.Dataset):
-
     URL = "http://www.eecs.berkeley.edu/Research/Projects/CS/vision/grouping/semantic_contours/benchmark.tgz"
     FILE = "benchmark.tgz"
     MD5 = '82b4d87ceb2ed10f6038a1cba92111cb'
@@ -49,7 +48,7 @@ class SBDSegmentation(data.Dataset):
         self.im_ids = []
         self.images = []
         self.masks = []
-        with open(os.path.join(self.dataset_dir, split+'.txt'), "r") as lines:
+        with open(os.path.join(self.dataset_dir, split + '.txt'), "r") as lines:
             for line in lines:
                 _image = os.path.join(_image_dir, line.rstrip('\n') + ".jpg")
                 _mask = os.path.join(_mask_dir, line.rstrip('\n') + ".mat")
@@ -65,7 +64,7 @@ class SBDSegmentation(data.Dataset):
         if (not self._check_preprocess()) or preprocess:
             print('Preprocessing the dataset, this will take long, but it will be done only once.')
             self._preprocess()
-            
+
         # Build the list of objects
         self.obj_list = []
         for ii in range(len(self.im_ids)):
@@ -81,7 +80,7 @@ class SBDSegmentation(data.Dataset):
 
         _img = Image.open(self.images[_im_ii]).convert('RGB')
         _mask = scipy.io.loadmat(self.masks[_im_ii])["GTinst"][0]["Segmentation"][0]
-        _target = (_mask == (_obj_ii+1)).astype(np.float).reshape([_img.size[1], _img.size[0], 1])
+        _target = (_mask == (_obj_ii + 1)).astype(np.float).reshape([_img.size[1], _img.size[0], 1])
 
         if self.transform is not None:
             _img = self.transform(_img)
@@ -107,7 +106,7 @@ class SBDSegmentation(data.Dataset):
 
     def _check_preprocess(self):
         # Check that the file with categories is there and with correct size
-        _obj_list_file = os.path.join(self.dataset_dir, self.split+'_instances.txt')
+        _obj_list_file = os.path.join(self.dataset_dir, self.split + '_instances.txt')
         if not os.path.isfile(_obj_list_file):
             return False
         else:
@@ -125,12 +124,12 @@ class SBDSegmentation(data.Dataset):
 
             _mask_ids = np.unique(_mask)
             n_obj = _mask_ids[-1]
-            assert(n_obj == len(_cat_ids))
+            assert (n_obj == len(_cat_ids))
 
             self.obj_dict[self.im_ids[ii]] = np.squeeze(_cat_ids, 1).tolist()
 
         # Save it to file for future reference
-        with open(os.path.join(self.dataset_dir, self.split+'_instances.txt'), 'w') as outfile:
+        with open(os.path.join(self.dataset_dir, self.split + '_instances.txt'), 'w') as outfile:
             outfile.write('{{\n\t"{:s}": {:s}'.format(self.im_ids[0], json.dumps(self.obj_dict[self.im_ids[0]])))
             for ii in range(1, len(self.im_ids)):
                 outfile.write(',\n\t"{:s}": {:s}'.format(self.im_ids[ii], json.dumps(self.obj_dict[self.im_ids[ii]])))
@@ -179,8 +178,10 @@ if __name__ == '__main__':
     import helpers
     import torch
     import torchvision.transforms as transforms
+
     transform = transforms.ToTensor()
-    dataset = SBDSegmentation('/Users/jpont/Workspace/gt_dbs/SBD', split='train', transform=transform, target_transform=transform, download=True)
+    dataset = SBDSegmentation('/Users/jpont/Workspace/gt_dbs/SBD', split='train', transform=transform,
+                              target_transform=transform, download=True)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=2)
 
     for i, data in enumerate(dataloader):

@@ -61,9 +61,11 @@ class VOCSegmentationPoint(data.Dataset):
         self.area_thres = area_thres
 
         if self.area_thres == 0:
-            self.fname = os.path.join(self.root, self.BASE_DIR, 'ImageSets', 'Segmentation', self.split + '_instances.txt')
+            self.fname = os.path.join(self.root, self.BASE_DIR, 'ImageSets', 'Segmentation',
+                                      self.split + '_instances.txt')
         else:
-            self.fname = os.path.join(self.root, self.BASE_DIR, 'ImageSets', 'Segmentation', self.split + '_instances_area_thres-' + str(area_thres) + '.txt')
+            self.fname = os.path.join(self.root, self.BASE_DIR, 'ImageSets', 'Segmentation',
+                                      self.split + '_instances_area_thres-' + str(area_thres) + '.txt')
 
         if download:
             self._download()
@@ -254,17 +256,15 @@ if __name__ == '__main__':
 
     transform = tr.ToTensor()
     dataset = VOCSegmentationPoint(root='/media/eec/external/Databases/Segmentation/PASCAL', split='trainval',
-                              transform=transform, inputRes=(512, 512), outputRes=(512, 512), area_thres=500)
+                                   transform=transform, inputRes=(512, 512), outputRes=(512, 512), area_thres=500)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=1)
 
     for i, data in enumerate(dataloader):
         plt.figure()
         plt.imshow(overlay_mask(tens2image(data['image']), tens2image(data['gt'])))
         plt.figure()
-        plt.imshow(overlay_mask(tens2image(data['image']), tens2image(data['point'])>.5))
+        plt.imshow(overlay_mask(tens2image(data['image']), tens2image(data['point']) > .5))
         if i == 10:
             break
 
     plt.show(block=True)
-
-

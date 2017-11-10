@@ -33,4 +33,3 @@ class Path(PathAbstract):
     @staticmethod
     def models_dir():
         return "/Users/leltaixe/Code/tracking/MOTAnnoSeg/OSVOS-PyTorch/models"
-

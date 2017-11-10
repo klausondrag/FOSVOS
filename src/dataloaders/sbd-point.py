@@ -13,6 +13,7 @@ import json
 import scipy.io
 
 from .mypath import Path
+
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch
 if Path.is_custom_opencv():
@@ -48,7 +49,7 @@ class SBDSegmentationPoint(data.Dataset):
                  area_thres=0):
 
         self.root = root
-        self.dataset_dir = os.path.join(self.root, 'benchmark_RELEASE','dataset')
+        self.dataset_dir = os.path.join(self.root, 'benchmark_RELEASE', 'dataset')
         _mask_dir = os.path.join(self.dataset_dir, 'inst')
         _cat_dir = os.path.join(self.dataset_dir, 'cls')
         _image_dir = os.path.join(self.dataset_dir, 'img')
@@ -63,7 +64,8 @@ class SBDSegmentationPoint(data.Dataset):
         if self.area_thres == 0:
             self.fname = os.path.join(self.dataset_dir, self.split + '_instances.txt')
         else:
-            self.fname = os.path.join(self.dataset_dir, self.split + '_instances_area_thres-' + str(area_thres) + '.txt')
+            self.fname = os.path.join(self.dataset_dir,
+                                      self.split + '_instances_area_thres-' + str(area_thres) + '.txt')
 
         if download:
             self._download()
@@ -74,7 +76,7 @@ class SBDSegmentationPoint(data.Dataset):
 
         # train/val/test splits are pre-cut
         _splits_dir = self.dataset_dir
-        _split_f = os.path.join(_splits_dir, split+'.txt')
+        _split_f = os.path.join(_splits_dir, split + '.txt')
 
         self.im_ids = []
         self.images = []
@@ -100,7 +102,7 @@ class SBDSegmentationPoint(data.Dataset):
         if (not self._check_preprocess()) or preprocess:
             print('Preprocessing the dataset, this will take long, but it will be done only once.')
             self._preprocess()
-            
+
         # Build the list of objects
         self.obj_list = []
         for ii in range(len(self.im_ids)):
@@ -169,14 +171,14 @@ class SBDSegmentationPoint(data.Dataset):
 
             _mask_ids = np.unique(_mask)
             n_obj = _mask_ids[-1]
-            assert(n_obj == len(_cat_ids))
-            
+            assert (n_obj == len(_cat_ids))
+
             for jj in range(n_obj):
                 temp = np.where(_mask == jj + 1)
                 obj_area = len(temp[0])
                 if obj_area < self.area_thres:
                     _cat_ids[jj] = -1
-                    
+
             self.obj_dict[self.im_ids[ii]] = np.squeeze(_cat_ids, 1).tolist()
 
         with open(self.fname, 'w') as outfile:

@@ -61,7 +61,7 @@ class DAVIS2016(Dataset):
             img_list = map(lambda x: os.path.join('JPEGImages/480p/', str(seq_name), x), names_img)
             name_label = np.sort(os.listdir(os.path.join(db_root_dir, 'Annotations/480p/', str(seq_name))))
             labels = [os.path.join('Annotations/480p/', str(seq_name), name_label[0])]
-            labels.extend([None]*(len(names_img)-1))
+            labels.extend([None] * (len(names_img) - 1))
             if self.train:
                 img_list = [img_list[0]]
                 labels = [labels[0]]
@@ -111,8 +111,8 @@ class DAVIS2016(Dataset):
         img = np.subtract(img, np.array(self.meanval, dtype=np.float32))
 
         if self.labels[idx] is not None:
-                gt = np.array(label, dtype=np.float32)
-                gt = gt/np.max([gt.max(), 1e-8])
+            gt = np.array(label, dtype=np.float32)
+            gt = gt / np.max([gt.max(), 1e-8])
 
         return img, gt
 

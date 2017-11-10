@@ -30,7 +30,6 @@ import networks.vgg_osvos as vo
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 from dataloaders.helpers import *
 
-
 # PyTorch includes
 import torch
 from torch.autograd import Variable
@@ -134,7 +133,6 @@ optimizer = optim.SGD([
     {'params': net.fuse.bias, 'lr': 2 * lr / 100, 'initial_lr': 2 * lr / 100},
 ], lr=lr, momentum=0.9)
 
-
 # Preparation of the data loaders
 # Define augmentation transformations as a composition
 composed_transforms = transforms.Compose([tr.RandomHorizontalFlip(),
@@ -178,7 +176,7 @@ for epoch in range(resume_epoch, nEpochs):
         for i in range(0, len(outputs)):
             losses[i] = class_balanced_cross_entropy_loss(outputs[i], gts, size_average=False)
             running_loss_tr[i] += losses[i].data[0]
-        loss = (1 - epoch / nEpochs)*sum(losses[:-1]) + losses[-1]
+        loss = (1 - epoch / nEpochs) * sum(losses[:-1]) + losses[-1]
 
         # Print stuff
         if ii % num_img_tr == num_img_tr - 1:
@@ -244,7 +242,7 @@ writer.close()
 # Test parent network
 net = vo.OSVOS(pretrained=0)
 parentModelName = exp_name
-net.load_state_dict(torch.load(os.path.join(save_dir, parentModelName + '_epoch-' + str(nEpochs-1) + '.pth'),
+net.load_state_dict(torch.load(os.path.join(save_dir, parentModelName + '_epoch-' + str(nEpochs - 1) + '.pth'),
                                map_location=lambda storage, loc: storage))
 with open(os.path.join(Path.db_root_dir(), 'val_seqs.txt'), 'r') as f:
     seqs = f.readlines()

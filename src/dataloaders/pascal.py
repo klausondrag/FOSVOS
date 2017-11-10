@@ -53,7 +53,7 @@ class VOCSegmentation(data.Dataset):
 
         # train/val/test splits are pre-cut
         _splits_dir = os.path.join(_voc_root, 'ImageSets', 'Segmentation')
-        _split_f = os.path.join(_splits_dir, split+'.txt')
+        _split_f = os.path.join(_splits_dir, split + '.txt')
 
         self.im_ids = []
         self.images = []
@@ -79,7 +79,7 @@ class VOCSegmentation(data.Dataset):
         if (not self._check_preprocess()) or preprocess:
             print('Preprocessing the dataset, this will take long, but it will be done only once.')
             self._preprocess()
-            
+
         # Build the list of objects
         self.obj_list = []
         for ii in range(len(self.im_ids)):
@@ -94,7 +94,8 @@ class VOCSegmentation(data.Dataset):
         _obj_ii = self.obj_list[index][1]
 
         _img = Image.open(self.images[_im_ii]).convert('RGB')
-        _target = (np.array(Image.open(self.masks[_im_ii])) == (_obj_ii+1)).astype(np.float).reshape([_img.size[1], _img.size[0], 1])
+        _target = (np.array(Image.open(self.masks[_im_ii])) == (_obj_ii + 1)).astype(np.float).reshape(
+            [_img.size[1], _img.size[0], 1])
 
         if self.transform is not None:
             _img = self.transform(_img)
@@ -119,7 +120,8 @@ class VOCSegmentation(data.Dataset):
         return True
 
     def _check_preprocess(self):
-        _obj_list_file = os.path.join(self.root, self.BASE_DIR, 'ImageSets', 'Segmentation', self.split+'_instances.txt')
+        _obj_list_file = os.path.join(self.root, self.BASE_DIR, 'ImageSets', 'Segmentation',
+                                      self.split + '_instances.txt')
         if not os.path.isfile(_obj_list_file):
             return False
         else:
@@ -141,12 +143,13 @@ class VOCSegmentation(data.Dataset):
             _cats = np.array(Image.open(self.categories[ii]))
             _cat_ids = []
             for jj in range(n_obj):
-                tmp = np.where(_mask == jj+1)
+                tmp = np.where(_mask == jj + 1)
                 _cat_ids.append(int(_cats[tmp[0][0], tmp[1][0]]))
 
             self.obj_dict[self.im_ids[ii]] = _cat_ids
 
-        with open(os.path.join(self.root, self.BASE_DIR, 'ImageSets', 'Segmentation', self.split+'_instances.txt'), 'w') as outfile:
+        with open(os.path.join(self.root, self.BASE_DIR, 'ImageSets', 'Segmentation', self.split + '_instances.txt'),
+                  'w') as outfile:
             outfile.write('{{\n\t"{:s}": {:s}'.format(self.im_ids[0], json.dumps(self.obj_dict[self.im_ids[0]])))
             for ii in range(1, len(self.im_ids)):
                 outfile.write(',\n\t"{:s}": {:s}'.format(self.im_ids[ii], json.dumps(self.obj_dict[self.im_ids[ii]])))
@@ -194,8 +197,10 @@ if __name__ == '__main__':
     import helpers
     import torch
     import torchvision.transforms as transforms
+
     transform = transforms.ToTensor()
-    dataset = VOCSegmentation('/Users/jpont/Workspace/gt_dbs/Pascal/', split='trainval', transform=transform, target_transform=transform)
+    dataset = VOCSegmentation('/Users/jpont/Workspace/gt_dbs/Pascal/', split='trainval', transform=transform,
+                              target_transform=transform)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=2)
 
     for i, data in enumerate(dataloader):

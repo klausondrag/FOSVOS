@@ -114,7 +114,7 @@ class OSVOS(nn.Module):
         elif pretrained == 2:
             print("Loading weights from Caffe VGG")
             # Load weights from Caffe
-            caffe_weights = scipy.io.loadmat(os.path.join(Path.models_dir(),'vgg_hed_caffe.mat'))
+            caffe_weights = scipy.io.loadmat(os.path.join(Path.models_dir(), 'vgg_hed_caffe.mat'))
             # Core network
             caffe_ind = 0
             for ind, layer in enumerate(self.stages.parameters()):

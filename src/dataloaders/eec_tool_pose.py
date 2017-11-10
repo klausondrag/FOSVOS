@@ -6,6 +6,7 @@ import sys
 import json
 
 from .mypath import Path
+
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch
 if Path.is_custom_opencv():
@@ -139,7 +140,7 @@ class ToolDataset(Dataset):
         for land in range(0, labels.shape[0]):
             gt[:, :, land] = (make_gaussian((h, w), self.sigma, (labels[land, 0], labels[land, 1])))
         return gt
-    
+
     def store_gt_asmatfile(self):
         gt_tool = np.zeros((2, 3, len(self.img_list)), dtype=np.float32)
         for i in range(0, len(self.img_list)):

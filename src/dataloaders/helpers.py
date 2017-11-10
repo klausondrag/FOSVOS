@@ -12,7 +12,7 @@ def tens2image(im):
         return tmp.transpose((1, 2, 0))
 
 
-def overlay_mask(im, ma, color=np.array([255, 0, 0])/255.0):
+def overlay_mask(im, ma, color=np.array([255, 0, 0]) / 255.0):
     assert np.max(im) <= 1.0
 
     ma = ma.astype(np.bool)

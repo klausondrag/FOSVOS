@@ -33,6 +33,7 @@ class CocoCaptions(data.Dataset):
             u'A mountain that has a plane flying overheard in the distance.',
             u'A mountain view with a plume of smoke in the background']
     """
+
     def __init__(self, root, annFile, transform=None, target_transform=None):
         from pycocotools.coco import COCO
         self.root = os.path.expanduser(root)
@@ -169,6 +170,7 @@ if __name__ == "__main__":
     import helpers
     import torch
     import torchvision.transforms as transforms
+
     transform = transforms.ToTensor()
     dataset = CocoSegmentation('/Users/jpont/Workspace/gt_dbs/COCO/images/val2014',
                                '/Users/jpont/Workspace/gt_dbs/COCO/annotations/instances_val2014.json',
