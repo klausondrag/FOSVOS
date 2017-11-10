@@ -21,6 +21,7 @@ scipy = "==0.19.1"
 tensorboardx = "==0.8"
 werkzeug = "==0.12.2"
 "bb297d5" = {file = "http://download.pytorch.org/whl/cu80/torch-0.2.0.post3-cp36-cp36m-manylinux1_x86_64.whl"}
+matplotlib = "*"
 # torchvision = "==0.1.9"
 
 
