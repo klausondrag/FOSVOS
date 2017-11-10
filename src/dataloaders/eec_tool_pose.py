@@ -5,7 +5,7 @@ import os
 import sys
 import json
 
-from mypath import Path
+from .mypath import Path
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch
 if Path.is_custom_opencv():
@@ -13,7 +13,7 @@ if Path.is_custom_opencv():
 
 from torch.utils.data import Dataset
 from matplotlib import pyplot as plt
-from helpers import *
+from .helpers import *
 
 
 class ToolDataset(Dataset):

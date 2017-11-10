@@ -4,8 +4,8 @@ import errno
 import hashlib
 import os
 import sys
-from helpers import *
-from mypath import Path
+from .helpers import *
+from .mypath import Path
 import tarfile
 import numpy as np
 import matplotlib.pyplot as plt

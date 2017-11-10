@@ -8,9 +8,9 @@ import torch
 import torch.nn as nn
 import torch.nn.modules as modules
 
-sys.path.append('OSVOS-PyTorch')
-from src.dataloaders import Path
-from src.layers.osvos_layers import center_crop, interp_surgery
+sys.path.append('..')
+from dataloaders.mypath import Path
+from layers.osvos_layers import center_crop, interp_surgery
 
 
 class OSVOS(nn.Module):

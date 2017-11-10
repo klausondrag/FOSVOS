@@ -15,7 +15,7 @@ if 'experiments' in os.getcwd():
 else:
     sys.path.append('OSVOS-PyTorch')
 
-from mypath import Path
+from dataloaders.mypath import Path
 
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch
@@ -81,7 +81,7 @@ load_caffe_vgg = 1
 resume_epoch = 0  # Default is 0, change if want to resume
 
 # Network definition
-modelName = exp_name
+modelName = str(exp_name
 if resume_epoch == 0:
     if load_caffe_vgg:
         net = vo.OSVOS(pretrained=2)

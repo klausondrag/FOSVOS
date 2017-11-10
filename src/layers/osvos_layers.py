@@ -70,10 +70,10 @@ def upsample_filt(size):
 def interp_surgery(lay):
         m, k, h, w = lay.weight.data.size()
         if m != k:
-            print 'input + output channels need to be the same'
+            print('input + output channels need to be the same')
             raise
         if h != w:
-            print 'filters need to be square'
+            print('filters need to be square')
             raise
         filt = upsample_filt(h)
 

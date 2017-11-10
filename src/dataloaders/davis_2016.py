@@ -2,7 +2,7 @@ from __future__ import division
 
 import sys
 
-from src.dataloaders import Path
+from .mypath import Path
 
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch

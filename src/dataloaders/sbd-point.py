@@ -5,14 +5,14 @@ import hashlib
 import os
 import sys
 import tarfile
-from helpers import *
+from .helpers import *
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 import json
 import scipy.io
 
-from mypath import Path
+from .mypath import Path
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch
 if Path.is_custom_opencv():
