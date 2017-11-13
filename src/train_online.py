@@ -2,9 +2,8 @@
 from __future__ import division
 
 import os
-import sys
-import numpy as np
 import socket
+import sys
 import timeit
 from datetime import datetime
 
@@ -12,7 +11,7 @@ if 'experiments' in os.getcwd():
     sys.path.append('../../OSVOS-PyTorch')
 else:
     sys.path.append('OSVOS-PyTorch')
-from dataloaders.mypath import Path
+from config.mypath import Path
 
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch

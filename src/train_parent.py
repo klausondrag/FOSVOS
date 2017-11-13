@@ -6,16 +6,16 @@ import socket
 # import matlab.engine
 import sys
 import timeit
-import numpy as np
-import scipy.misc as sm
 from datetime import datetime
+
+import scipy.misc as sm
 
 if 'experiments' in os.getcwd():
     sys.path.append('../../OSVOS-PyTorch')
 else:
     sys.path.append('OSVOS-PyTorch')
 
-from dataloaders.mypath import Path
+from config.mypath import Path
 
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch

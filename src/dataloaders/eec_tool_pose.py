@@ -1,11 +1,13 @@
 from __future__ import division
-from PIL import Image
-import scipy.io as sio
+
+import json
 import os
 import sys
-import json
 
-from .mypath import Path
+import scipy.io as sio
+from PIL import Image
+
+from config.mypath import Path
 
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch

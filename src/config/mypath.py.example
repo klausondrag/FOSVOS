@@ -1,4 +1,6 @@
-from src.path_abstract import PathAbstract
+# example configuration. Copy this file and rename it to mypath.py (will be ignored in git)
+
+from config.path_abstract import PathAbstract
 
 
 class Path(PathAbstract):

@@ -2,15 +2,17 @@ from __future__ import print_function, division
 
 import errno
 import hashlib
+import json
 import os
 import sys
-from .helpers import *
-from .mypath import Path
 import tarfile
-import numpy as np
-import matplotlib.pyplot as plt
+
 import cv2
-import json
+import matplotlib.pyplot as plt
+import numpy as np
+
+from config.mypath import Path
+from .helpers import *
 
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch
