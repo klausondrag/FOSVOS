@@ -2,6 +2,7 @@ from __future__ import division
 
 import sys
 
+from pathlib import Path as P
 from config.mypath import Path
 
 if Path.is_custom_pytorch():
@@ -42,18 +43,38 @@ class DAVIS2016(Dataset):
 
         if self.seq_name is None:
 
-            # Initialize the original DAVIS splits for training the parent network
-            with open(os.path.join(db_root_dir, fname + '.txt')) as f:
-                seqs = f.readlines()
-                img_list = []
-                labels = []
-                for seq in seqs:
-                    images = np.sort(os.listdir(os.path.join(db_root_dir, 'JPEGImages/480p/', seq.strip())))
-                    images_path = map(lambda x: os.path.join('JPEGImages/480p/', seq.strip(), x), images)
-                    img_list.extend(images_path)
-                    lab = np.sort(os.listdir(os.path.join(db_root_dir, 'Annotations/480p/', seq.strip())))
-                    lab_path = map(lambda x: os.path.join('Annotations/480p/', seq.strip(), x), lab)
-                    labels.extend(lab_path)
+            path_db_root = P(db_root_dir)
+            path_sequences = path_db_root / 'ImageSets' / '480p'
+            file_extension = '.txt'
+            if self.train:
+                fname = 'train'
+            else:
+                fname = 'val'
+
+            sequences_file = path_sequences / (fname + file_extension)
+            with open(sequences_file) as f:
+                sequences = f.readlines()
+                # sequences[0] == '/JPEGImages/480p/bear/00000.jpg /Annotations/480p/bear/00000.png '
+                sequences = [s.split() for s in sequences]
+                img_list, labels = zip(*sequences)
+                path_db_root.joinpath(*img_list[0].split('/'))
+                img_list = [str(path_db_root.joinpath(*i.split('/')))
+                            for i in img_list]
+                labels = [str(path_db_root.joinpath(*l.split('/')))
+                          for l in labels]
+
+                # # Initialize the original DAVIS splits for training the parent network
+                # with open(os.path.join(db_root_dir, fname + '.txt')) as f:
+                #     seqs = f.readlines()
+                #     img_list = []
+                #     labels = []
+                #     for seq in seqs:
+                #         images = np.sort(os.listdir(os.path.join(db_root_dir, 'JPEGImages/480p/', seq.strip())))
+                #         images_path = map(lambda x: os.path.join('JPEGImages/480p/', seq.strip(), x), images)
+                #         img_list.extend(images_path)
+                #         lab = np.sort(os.listdir(os.path.join(db_root_dir, 'Annotations/480p/', seq.strip())))
+                #         lab_path = map(lambda x: os.path.join('Annotations/480p/', seq.strip(), x), lab)
+                #         labels.extend(lab_path)
         else:
 
             # Initialize the per sequence images for online training
@@ -123,16 +144,18 @@ class DAVIS2016(Dataset):
 
 
 if __name__ == '__main__':
-    import custom_transforms as tr
+    from dataloaders.custom_transforms import RandomHorizontalFlip, Resize, ToTensor
+    from dataloaders.helpers import *
+
     import torch
     from torchvision import transforms
     from matplotlib import pyplot as plt
 
     # transforms = transforms.Compose([RandomHorizontalFlip(),
     #                                  ScaleNRotate(rots=(-30, 30), scales=(.75, 1.25))])
-    transforms = transforms.Compose([tr.RandomHorizontalFlip(), tr.Resize(scales=[0.5, 0.8, 1]), tr.ToTensor()])
+    transforms = transforms.Compose([RandomHorizontalFlip(), Resize(scales=[0.5, 0.8, 1]), ToTensor()])
 
-    dataset = DAVIS2016(db_root_dir='/media/eec/external/Databases/Segmentation/DAVIS-2016',
+    dataset = DAVIS2016(db_root_dir=Path.db_root_dir(),
                         train=True, transform=transforms)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=1)
 

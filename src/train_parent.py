@@ -76,7 +76,7 @@ vis_net = 0  # Visualize the network?
 snapshot = 40  # Store a model every snapshot epochs
 nAveGrad = 10
 
-load_caffe_vgg = 1
+load_caffe_vgg = 0
 resume_epoch = 0  # Default is 0, change if want to resume
 
 # Network definition
