@@ -41,9 +41,12 @@ from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 
 # Select which GPU, -1 if CPU
-if socket.gethostname() == 'eec':
+hostname = socket.gethostname()
+if hostname == 'eec':
     gpu_id = 1
-elif 'SGE_GPU' not in os.environ.keys() and socket.gethostname() != 'reinhold':
+elif hostname == 'hpccremers6':
+    gpu_id = 1
+elif 'SGE_GPU' not in os.environ.keys() and hostname  != 'reinhold':
     gpu_id = -1
 else:
     gpu_id = int(os.environ['SGE_GPU'])
