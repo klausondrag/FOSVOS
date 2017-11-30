@@ -1,24 +1,24 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "838d9c2043cb44cb20e54fa44da0e0d568c6516f224dc4c9cfbc68774ed54fc7"
+            "sha256": "107863cd9da62748f4ec0986fe4040d79a0d6e4d97c88b47eac53b9282aaf9f3"
         },
         "host-environment-markers": {
             "implementation_name": "cpython",
-            "implementation_version": "3.6.3",
+            "implementation_version": "3.5.2",
             "os_name": "posix",
             "platform_machine": "x86_64",
             "platform_python_implementation": "CPython",
-            "platform_release": "4.13.0-16-lowlatency",
+            "platform_release": "4.10.0-40-generic",
             "platform_system": "Linux",
-            "platform_version": "#19-Ubuntu SMP PREEMPT Wed Oct 11 19:51:52 UTC 2017",
-            "python_full_version": "3.6.3",
-            "python_version": "3.6",
+            "platform_version": "#44~16.04.1-Ubuntu SMP Thu Nov 9 15:37:44 UTC 2017",
+            "python_full_version": "3.5.2",
+            "python_version": "3.5",
             "sys_platform": "linux"
         },
         "pipfile-spec": 6,
         "requires": {
-            "python_version": "3.6"
+            "python_version": "3.5"
         },
         "sources": [
             {
@@ -30,7 +30,7 @@
     },
     "default": {
         "bb297d5": {
-            "file": "http://download.pytorch.org/whl/cu80/torch-0.2.0.post3-cp36-cp36m-manylinux1_x86_64.whl"
+            "file": "http://download.pytorch.org/whl/cu80/torch-0.2.0.post3-cp35-cp35m-manylinux1_x86_64.whl"
         },
         "cycler": {
             "hashes": [
