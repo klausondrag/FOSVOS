@@ -54,9 +54,9 @@ exp_dir = Path.exp_dir()
 vis_net = 0  # Visualize the network?
 vis_res = 0  # Visualize the results?
 nAveGrad = 5
-nEpochs = 2000 * nAveGrad  # Number of epochs for training
+nEpochs = 1  # 2000 * nAveGrad  # Number of epochs for training
 snapshot = nEpochs  # Store a model every snapshot epochs
-parentEpoch = 240
+parentEpoch = 1  # 240
 
 # Parameters in p are used for the name of the model
 p = {
@@ -174,7 +174,7 @@ for epoch in range(0, nEpochs):
             aveGrad = 0
 
     # Save the model
-    if (epoch % snapshot) == snapshot - 1 and epoch != 0:
+    if (epoch % snapshot) == snapshot - 1:  # and epoch != 0:
         torch.save(net.state_dict(), os.path.join(save_dir, seq_name + '_epoch-' + str(epoch) + '.pth'))
 
 stop_time = timeit.default_timer()
