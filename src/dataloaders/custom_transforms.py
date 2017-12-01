@@ -34,6 +34,8 @@ class ScaleNRotate(object):
             sc = self.scales[random.randint(0, len(self.scales) - 1)]
 
         for elem in sample.keys():
+            if elem in ['fname', 'seq_name']:
+                continue
             tmp = sample[elem]
 
             h, w = tmp.shape[:2]
@@ -73,7 +75,7 @@ class Resize(object):
         sc = self.scales[random.randint(0, len(self.scales) - 1)]
 
         for elem in sample.keys():
-            if elem == "fname":
+            if elem in ['fname', 'seq_name']:
                 continue
             else:
                 tmp = sample[elem]
@@ -97,7 +99,7 @@ class RandomHorizontalFlip(object):
 
         if random.random() < 0.5:
             for elem in sample.keys():
-                if elem == "fname":
+                if elem in ['fname', 'seq_name']:
                     continue
                 else:
                     tmp = sample[elem]
@@ -113,7 +115,7 @@ class ToTensor(object):
     def __call__(self, sample):
 
         for elem in sample.keys():
-            if elem == "fname":
+            if elem in ['fname', 'seq_name']:
                 continue
             else:
                 tmp = sample[elem]

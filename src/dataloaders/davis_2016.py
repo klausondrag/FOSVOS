@@ -58,9 +58,13 @@ class DAVIS2016(Dataset):
                 sequences = [s.split() for s in sequences]
                 img_list, labels = zip(*sequences)
                 path_db_root.joinpath(*img_list[0].split('/'))
+
+                tmp_list = [i.split('/') for i in img_list]
+                seq_list = [i[-2] for i in tmp_list]  # seq_list[0] = bear
+                fname_list = [i[-1].split('.')[0] for i in tmp_list]  # seq_list[0] = 00000
                 img_list = [str(path_db_root.joinpath(*i.split('/')))
                             for i in img_list]
-                labels = [str(path_db_root.joinpath(*l.split('/')))
+                labels = [str(P(*l.split('/')))
                           for l in labels]
 
                 # # Initialize the original DAVIS splits for training the parent network
@@ -89,6 +93,8 @@ class DAVIS2016(Dataset):
 
         assert (len(labels) == len(img_list))
 
+        self.seq_list = seq_list
+        self.fname_list = fname_list
         self.img_list = img_list
         self.labels = labels
 
@@ -103,7 +109,10 @@ class DAVIS2016(Dataset):
 
         sample = {'image': img, 'gt': gt}
 
-        if self.seq_name is not None:
+        if self.seq_name is None:
+            sample['seq_name'] = self.seq_list[idx]
+            sample['fname'] = self.fname_list[idx]
+        else:
             fname = os.path.join(self.seq_name, "%05d" % idx)
             sample['fname'] = fname
 

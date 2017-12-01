@@ -263,7 +263,8 @@ for seq_name in seqs:
     # Main Testing Loop
     for ii, sample_batched in enumerate(testloader):
 
-        img, gt, fname = sample_batched['image'], sample_batched['gt'], sample_batched['fname']
+        img, gt, seq_name, fname = sample_batched['image'], sample_batched['gt'], \
+                                   sample_batched['seq_name'], sample_batched['fname']
 
         # Forward of the mini-batch
         inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
@@ -280,6 +281,9 @@ for seq_name in seqs:
             gt_ = np.transpose(gt.numpy()[jj, :, :, :], (1, 2, 0))
             gt_ = np.squeeze(gt)
 
+            save_dir_seq = os.path.join(save_dir, parentModelName, seq_name[jj])
+            if not os.path.exists(save_dir_seq):
+                os.makedirs(save_dir_seq)
             # Save the result, attention to the index jj
             sm.imsave(os.path.join(save_dir_seq, os.path.basename(fname[jj]) + '.png'), pred)
 # save_dir = os.path.join(Path.save_root_dir(), parentModelName)
