@@ -250,6 +250,10 @@ parentModelName = exp_name
 net.load_state_dict(torch.load(os.path.join(save_dir, parentModelName + '_epoch-' + str(nEpochs - 1) + '.pth'),
                                map_location=lambda storage, loc: storage))
 
+if gpu_id >= 0:
+    torch.cuda.set_device(device=gpu_id)
+    net.cuda()
+
 db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor())
 testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=2)
 for ii, sample_batched in enumerate(testloader):
