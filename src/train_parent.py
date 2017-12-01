@@ -242,50 +242,43 @@ for epoch in range(resume_epoch, nEpochs):
 
 writer.close()
 
+
 # Test parent network
+print('Testing Network')
 net = vo.OSVOS(pretrained=0)
 parentModelName = exp_name
 net.load_state_dict(torch.load(os.path.join(save_dir, parentModelName + '_epoch-' + str(nEpochs - 1) + '.pth'),
                                map_location=lambda storage, loc: storage))
-with open(os.path.join(Path.db_root_dir(), 'val_seqs.txt'), 'r') as f:
-    seqs = f.readlines()
-seqs = map(lambda seq: seq.strip(), seqs)
-for seq_name in seqs:
-    # Testing dataset and its iterator
-    db_test = db.DAVIS2016(mode='val', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
-    testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=2)
 
-    save_dir_seq = os.path.join(save_dir, parentModelName, seq_name)
-    if not os.path.exists(save_dir_seq):
-        os.makedirs(save_dir_seq)
+db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor())
+testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=2)
+for ii, sample_batched in enumerate(testloader):
 
-    print('Testing Network')
-    # Main Testing Loop
-    for ii, sample_batched in enumerate(testloader):
+    img, gt, seq_name, fname = sample_batched['image'], sample_batched['gt'], \
+                               sample_batched['seq_name'], sample_batched['fname']
 
-        img, gt, seq_name, fname = sample_batched['image'], sample_batched['gt'], \
-                                   sample_batched['seq_name'], sample_batched['fname']
+    # Forward of the mini-batch
+    inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
+    if gpu_id >= 0:
+        inputs, gts = inputs.cuda(), gts.cuda()
 
-        # Forward of the mini-batch
-        inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
-        if gpu_id >= 0:
-            inputs, gts = inputs.cuda(), gts.cuda()
+    outputs = net.forward(inputs)
 
-        outputs = net.forward(inputs)
+    for jj in range(int(inputs.size()[0])):
+        pred = np.transpose(outputs[-1].cpu().data.numpy()[jj, :, :, :], (1, 2, 0))
+        pred = 1 / (1 + np.exp(-pred))
+        pred = np.squeeze(pred)
+        img_ = np.transpose(img.numpy()[jj, :, :, :], (1, 2, 0))
+        gt_ = np.transpose(gt.numpy()[jj, :, :, :], (1, 2, 0))
+        gt_ = np.squeeze(gt)
 
-        for jj in range(int(inputs.size()[0])):
-            pred = np.transpose(outputs[-1].cpu().data.numpy()[jj, :, :, :], (1, 2, 0))
-            pred = 1 / (1 + np.exp(-pred))
-            pred = np.squeeze(pred)
-            img_ = np.transpose(img.numpy()[jj, :, :, :], (1, 2, 0))
-            gt_ = np.transpose(gt.numpy()[jj, :, :, :], (1, 2, 0))
-            gt_ = np.squeeze(gt)
+        save_dir_seq = os.path.join(save_dir, parentModelName, seq_name[jj])
+        if not os.path.exists(save_dir_seq):
+            os.makedirs(save_dir_seq)
+        # Save the result, attention to the index jj
+        sm.imsave(os.path.join(save_dir_seq, fname[jj] + '.png'), pred)
 
-            save_dir_seq = os.path.join(save_dir, parentModelName, seq_name[jj])
-            if not os.path.exists(save_dir_seq):
-                os.makedirs(save_dir_seq)
-            # Save the result, attention to the index jj
-            sm.imsave(os.path.join(save_dir_seq, os.path.basename(fname[jj]) + '.png'), pred)
+
 # save_dir = os.path.join(Path.save_root_dir(), parentModelName)
 # eng = matlab.engine.start_matlab('-nodesktop -nodisplay -nosplash -nojvm -r '
 #                                  '"cd {};run initialization.m"'.format(Path.matlab_code()))
