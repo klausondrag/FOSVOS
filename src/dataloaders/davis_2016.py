@@ -52,7 +52,7 @@ class DAVIS2016(Dataset):
                 fname = 'val'
 
             sequences_file = path_sequences / (fname + file_extension)
-            with open(sequences_file) as f:
+            with open(str(sequences_file)) as f:
                 sequences = f.readlines()
                 # sequences[0] == '/JPEGImages/480p/bear/00000.jpg /Annotations/480p/bear/00000.png '
                 sequences = [s.split() for s in sequences]
