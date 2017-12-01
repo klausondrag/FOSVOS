@@ -61,10 +61,10 @@ p = {
 
 # # Setting other parameters
 exp_name = os.path.dirname(os.path.abspath(__file__)).split('/')[-1]
-nEpochs = 2# 240  # Number of epochs for training (500.000/2079)
+nEpochs = 1  # 240  # Number of epochs for training (500.000/2079)
 useTest = 1  # See evolution of the test set when training?
 testBatch = 1  # Testing Batch
-nTestInterval = 5  # Run on test set every nTestInterval epochs
+nTestInterval = 1  # Run on test set every nTestInterval epochs
 db_root_dir = Path.db_root_dir()
 save_dir_root = Path.save_root_dir()
 
@@ -207,7 +207,7 @@ for epoch in range(resume_epoch, nEpochs):
             aveGrad = 0
 
     # Save the model
-    if (epoch % snapshot) == snapshot - 1 and epoch != 0:
+    if (epoch % snapshot) == snapshot - 1:  # and epoch != 0:
         torch.save(net.state_dict(), os.path.join(save_dir, modelName + '_epoch-' + str(epoch) + '.pth'))
 
     # One testing epoch
