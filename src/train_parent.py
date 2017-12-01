@@ -252,7 +252,7 @@ with open(os.path.join(Path.db_root_dir(), 'val_seqs.txt'), 'r') as f:
 seqs = map(lambda seq: seq.strip(), seqs)
 for seq_name in seqs:
     # Testing dataset and its iterator
-    db_test = db.DAVIS2016(train='val', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
+    db_test = db.DAVIS2016(mode='val', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
     testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=2)
 
     save_dir_seq = os.path.join(save_dir, parentModelName, seq_name)
