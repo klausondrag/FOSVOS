@@ -119,11 +119,11 @@ composed_transforms = transforms.Compose([tr.RandomHorizontalFlip(),
                                           # tr.ScaleNRotate(rots=(-30, 30), scales=(.75, 1.25)),
                                           tr.ToTensor()])
 # Training dataset and its iterator
-db_train = db.DAVIS2016(train=True, db_root_dir=db_root_dir, transform=composed_transforms, seq_name=seq_name)
+db_train = db.DAVIS2016(mode='train', db_root_dir=db_root_dir, transform=composed_transforms, seq_name=seq_name)
 trainloader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=1)
 
 # Testing dataset and its iterator
-db_test = db.DAVIS2016(train=False, db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
+db_test = db.DAVIS2016(mode='val', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
 testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
 
 num_img_tr = len(trainloader)

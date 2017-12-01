@@ -20,7 +20,7 @@ from torch.utils.data import Dataset
 class DAVIS2016(Dataset):
     """DAVIS 2016 dataset constructed using the PyTorch built-in functionalities"""
 
-    def __init__(self, train=True,
+    def __init__(self, mode='train',
                  inputRes=None,
                  db_root_dir='/media/eec/external/Databases/Segmentation/DAVIS-2016',
                  transform=None,
@@ -29,27 +29,27 @@ class DAVIS2016(Dataset):
         """Loads image to label pairs for tool pose estimation
         db_root_dir: dataset directory with subfolders "JPEGImages" and "Annotations"
         """
-        self.train = train
+        self.mode = mode.lower()
         self.inputRes = inputRes
         self.db_root_dir = db_root_dir
         self.transform = transform
         self.meanval = meanval
         self.seq_name = seq_name
 
-        if self.train:
-            fname = 'train_seqs'
+        mode_fname_mapping = {
+            'train': 'train',
+            'val': 'trainval',
+            'test': 'val',
+        }
+        if self.mode in mode_fname_mapping:
+            fname = mode_fname_mapping[self.mode]
         else:
-            fname = 'val_seqs'
+            raise Exception('Mode {} does not exist. Must be one of [\'train\', \'val\', \'test\']')
 
         if self.seq_name is None:
-
             path_db_root = P(db_root_dir)
             path_sequences = path_db_root / 'ImageSets' / '480p'
             file_extension = '.txt'
-            if self.train:
-                fname = 'train'
-            else:
-                fname = 'val'
 
             sequences_file = path_sequences / (fname + file_extension)
             with open(str(sequences_file)) as f:
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     transforms = transforms.Compose([RandomHorizontalFlip(), Resize(scales=[0.5, 0.8, 1]), ToTensor()])
 
     dataset = DAVIS2016(db_root_dir=Path.db_root_dir(),
-                        train=True, transform=transforms)
+                        mode='train', transform=transforms)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=1)
 
     for i, data in enumerate(dataloader):
