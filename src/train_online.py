@@ -54,16 +54,16 @@ exp_dir = Path.exp_dir()
 vis_net = 0  # Visualize the network?
 vis_res = 0  # Visualize the results?
 nAveGrad = 5
-nEpochs = 1  # 2000 * nAveGrad  # Number of epochs for training
+nEpochs = 2000 * nAveGrad  # Number of epochs for training
 snapshot = nEpochs  # Store a model every snapshot epochs
-parentEpoch = 1  # 240
+parentEpoch = 240  # 240
 
 # Parameters in p are used for the name of the model
 p = {
     'trainBatch': 1,  # Number of Images in each mini-batch
 }
 
-parentModelName = exp_name
+parentModelName = 'src'
 # Select which GPU, -1 if CPU
 hostname = socket.gethostname()
 if hostname == 'eec':
