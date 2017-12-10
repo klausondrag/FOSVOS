@@ -20,12 +20,14 @@ import networks.vgg_osvos as vo
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 from dataloaders.helpers import *
 
+from util import gpu_handler
 from config.mypath import Path
 
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())
 if Path.is_custom_opencv():
     sys.path.insert(0, Path.custom_opencv())
+gpu_handler.select_gpu_by_hostname()
 
 # Select which GPU, -1 if CPU
 hostname = socket.gethostname()
@@ -98,9 +100,7 @@ if vis_net:
     g = viz.make_dot(y, net.state_dict())
     g.view()
 
-if gpu_id >= 0:
-    torch.cuda.set_device(device=gpu_id)
-    net.cuda()
+net = gpu_handler.cast_cuda_if_possible(net, verbose=True)
 
 # Use the following optimizer
 lr = 1e-8
@@ -156,8 +156,7 @@ for epoch in range(resume_epoch, nEpochs):
 
         # Forward-Backward of the mini-batch
         inputs, gts = Variable(inputs), Variable(gts)
-        if gpu_id >= 0:
-            inputs, gts = inputs.cuda(), gts.cuda()
+        inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
         outputs = net.forward(inputs)
 
@@ -204,8 +203,7 @@ for epoch in range(resume_epoch, nEpochs):
 
             # Forward pass of the mini-batch
             inputs, gts = Variable(inputs, volatile=True), Variable(gts, volatile=True)
-            if gpu_id >= 0:
-                inputs, gts = inputs.cuda(), gts.cuda()
+            inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
             outputs = net.forward(inputs)
 
@@ -236,9 +234,7 @@ parentModelName = exp_name
 net.load_state_dict(torch.load(os.path.join(save_dir, parentModelName + '_epoch-' + str(nEpochs - 1) + '.pth'),
                                map_location=lambda storage, loc: storage))
 
-if gpu_id >= 0:
-    torch.cuda.set_device(device=gpu_id)
-    net.cuda()
+net = gpu_handler.cast_cuda_if_possible(net, verbose=True)
 
 db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor())
 testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=2)
@@ -249,8 +245,7 @@ for ii, sample_batched in enumerate(testloader):
 
     # Forward of the mini-batch
     inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
-    if gpu_id >= 0:
-        inputs, gts = inputs.cuda(), gts.cuda()
+    inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
     outputs = net.forward(inputs)
 

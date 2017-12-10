@@ -1,5 +1,5 @@
 import socket
-from typing import Optional
+from typing import Optional, Union, List
 
 import torch
 
@@ -26,11 +26,15 @@ def select_gpu_by_hostname(hostname: Optional[str] = None) -> None:
     select_gpu_by_id(gpu_id)
 
 
-def cast_cuda_if_possible(net: torch.nn.Module, verbose: bool = False) -> torch.nn.Module:
+def cast_cuda_if_possible(net: Union[List[torch.nn.Module], torch.nn.Module],
+                          verbose: bool = False) -> Union[List[torch.nn.Module], torch.nn.Module]:
     if torch.cuda.is_available():
         if verbose:
             log.info('Using cuda')
-        return net.cuda()
+        if type(net) is list:
+            return [n.cuda() for n in net]
+        else:
+            return net.cuda()
     else:
         if verbose:
             log.warn('Not using cuda')

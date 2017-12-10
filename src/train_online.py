@@ -20,10 +20,12 @@ import networks.vgg_osvos as vo
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 from dataloaders.helpers import *
 
+from util import gpu_handler
 from config.mypath import Path
 
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch
+gpu_handler.select_gpu_by_hostname()
 
 # Setting of parameters
 if 'SEQ_NAME' not in os.environ.keys():
@@ -54,16 +56,6 @@ p = {
 }
 
 parentModelName = 'src'
-# Select which GPU, -1 if CPU
-hostname = socket.gethostname()
-if hostname == 'eec':
-    gpu_id = 1
-elif hostname == 'hpccremers6':
-    gpu_id = 1
-elif 'SGE_GPU' not in os.environ.keys() and hostname != 'reinhold':
-    gpu_id = -1
-else:
-    gpu_id = int(os.environ['SGE_GPU'])
 
 # Network definition
 net = vo.OSVOS(pretrained=0)
@@ -77,16 +69,13 @@ writer = SummaryWriter(log_dir=log_dir)
 # y = net.forward(Variable(torch.randn(1, 3, 480, 854)))
 # writer.add_graph(net, y[-1])
 
-if gpu_id >= 0:
-    torch.cuda.set_device(device=gpu_id)
-    net.cuda()
+net = gpu_handler.cast_cuda_if_possible(net, verbose=True)
 
 # Visualize the network
 if vis_net:
     x = torch.randn(1, 3, 480, 854)
     x = Variable(x)
-    if gpu_id >= 0:
-        x = x.cuda()
+    x = gpu_handler.cast_cuda_if_possible(x)
     y = net.forward(x)
     g = viz.make_dot(y, net.state_dict())
     g.view()
@@ -136,8 +125,7 @@ for epoch in range(0, nEpochs):
 
         # Forward-Backward of the mini-batch
         inputs, gts = Variable(inputs), Variable(gts)
-        if gpu_id >= 0:
-            inputs, gts = inputs.cuda(), gts.cuda()
+        inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
         outputs = net.forward(inputs)
 
@@ -193,8 +181,7 @@ for ii, sample_batched in enumerate(testloader):
 
     # Forward of the mini-batch
     inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
-    if gpu_id >= 0:
-        inputs, gts = inputs.cuda(), gts.cuda()
+    inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
     outputs = net.forward(inputs)
 
