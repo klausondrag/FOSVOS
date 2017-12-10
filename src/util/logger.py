@@ -1,6 +1,7 @@
 import logging
-from colorlog import ColoredFormatter
 from pathlib import Path
+
+from colorlog import ColoredFormatter
 
 _formatter = ColoredFormatter(
     "%(asctime)s %(log_color)s%(levelname)-8s%(reset)s [%(name)s]%(reset)s %(message)s",
