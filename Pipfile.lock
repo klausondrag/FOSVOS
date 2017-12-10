@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "107863cd9da62748f4ec0986fe4040d79a0d6e4d97c88b47eac53b9282aaf9f3"
+            "sha256": "d1a0c0df94ebcc0f5df77d31009cd602a83b8a511012cbdfad4b2b41eaa65f07"
         },
         "host-environment-markers": {
             "implementation_name": "cpython",
@@ -9,9 +9,9 @@
             "os_name": "posix",
             "platform_machine": "x86_64",
             "platform_python_implementation": "CPython",
-            "platform_release": "4.10.0-40-generic",
+            "platform_release": "4.10.0-42-generic",
             "platform_system": "Linux",
-            "platform_version": "#44~16.04.1-Ubuntu SMP Thu Nov 9 15:37:44 UTC 2017",
+            "platform_version": "#46~16.04.1-Ubuntu SMP Mon Dec 4 15:57:59 UTC 2017",
             "python_full_version": "3.5.2",
             "python_version": "3.5",
             "sys_platform": "linux"
@@ -31,6 +31,13 @@
     "default": {
         "bb297d5": {
             "file": "http://download.pytorch.org/whl/cu80/torch-0.2.0.post3-cp35-cp35m-manylinux1_x86_64.whl"
+        },
+        "colorlog": {
+            "hashes": [
+                "sha256:d1b20ea87caab804803db445bcdc2084668005eab5353cb551e3913a19ad7523",
+                "sha256:f7c0efd9d960b43929027aa2b5a6c80d8ebec3e8d87cdec8b92696bf57428284"
+            ],
+            "version": "==3.1.0"
         },
         "cycler": {
             "hashes": [
