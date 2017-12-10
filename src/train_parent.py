@@ -29,19 +29,6 @@ if Path.is_custom_opencv():
     sys.path.insert(0, Path.custom_opencv())
 gpu_handler.select_gpu_by_hostname()
 
-# Select which GPU, -1 if CPU
-hostname = socket.gethostname()
-if hostname == 'eec':
-    gpu_id = 1
-elif hostname == 'hpccremers6':
-    gpu_id = 1
-elif 'SGE_GPU' not in os.environ.keys() and hostname != 'reinhold':
-    gpu_id = -1
-else:
-    gpu_id = int(os.environ['SGE_GPU'])
-
-print('Using GPU: {} '.format(gpu_id))
-
 # Setting of parameters
 # Parameters in p are used for the name of the model
 p = {

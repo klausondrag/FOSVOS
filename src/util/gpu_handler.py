@@ -16,6 +16,7 @@ _gpu_id_default_value = -1
 
 
 def select_gpu_by_id(gpu_id: int = _gpu_id_default_value) -> None:
+    log.info('Using GPU {}'.format(str(gpu_id)))
     torch.cuda.set_device(device=gpu_id)
 
 
