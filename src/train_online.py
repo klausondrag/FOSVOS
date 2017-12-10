@@ -126,7 +126,7 @@ db_train = db.DAVIS2016(mode='train', db_root_dir=db_root_dir, transform=compose
 trainloader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=1)
 
 # Testing dataset and its iterator
-db_test = db.DAVIS2016(mode='val', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
+db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
 testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
 
 num_img_tr = len(trainloader)

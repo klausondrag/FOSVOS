@@ -38,7 +38,6 @@ class DAVIS2016(Dataset):
 
         mode_fname_mapping = {
             'train': 'train',
-            'val': 'trainval',
             'test': 'val',
         }
         if self.mode in mode_fname_mapping:
@@ -46,48 +45,42 @@ class DAVIS2016(Dataset):
         else:
             raise Exception('Mode {} does not exist. Must be one of [\'train\', \'val\', \'test\']')
 
-        if self.seq_name is None:
-            path_db_root = P(db_root_dir)
-            path_sequences = path_db_root / 'ImageSets' / '480p'
-            file_extension = '.txt'
+        path_db_root = P(db_root_dir)
+        path_sequences = path_db_root / 'ImageSets' / '480p'
+        file_extension = '.txt'
 
-            sequences_file = path_sequences / (fname + file_extension)
-            with open(str(sequences_file)) as f:
-                sequences = f.readlines()
-                # sequences[0] == '/JPEGImages/480p/bear/00000.jpg /Annotations/480p/bear/00000.png '
-                sequences = [s.split() for s in sequences]
-                img_list, labels = zip(*sequences)
-                path_db_root.joinpath(*img_list[0].split('/'))
+        sequences_file = path_sequences / (fname + file_extension)
+        with open(str(sequences_file)) as f:
+            sequences = f.readlines()
+            # sequences[0] == '/JPEGImages/480p/bear/00000.jpg /Annotations/480p/bear/00000.png '
+            sequences = [s.split() for s in sequences]
+            img_list, labels = zip(*sequences)
+            path_db_root.joinpath(*img_list[0].split('/'))
+            tmp_list = [i.split('/') for i in img_list]
 
-                tmp_list = [i.split('/') for i in img_list]
-                seq_list = [i[-2] for i in tmp_list]  # seq_list[0] = bear
-                fname_list = [i[-1].split('.')[0] for i in tmp_list]  # seq_list[0] = 00000
-                img_list = [str(path_db_root.joinpath(*i.split('/')))
-                            for i in img_list]
-                labels = [str(P(*l.split('/')))
-                          for l in labels]
+            seq_list = [i[-2] for i in tmp_list]  # seq_list[0] = bear
+            fname_list = [i[-1].split('.')[0] for i in tmp_list]  # seq_list[0] = 00000
+            img_list = [str(path_db_root.joinpath(*i.split('/')))
+                        for i in img_list]
+            labels = [str(P(*l.split('/')))
+                      for l in labels]
 
-                # # Initialize the original DAVIS splits for training the parent network
-                # with open(os.path.join(db_root_dir, fname + '.txt')) as f:
-                #     seqs = f.readlines()
-                #     img_list = []
-                #     labels = []
-                #     for seq in seqs:
-                #         images = np.sort(os.listdir(os.path.join(db_root_dir, 'JPEGImages/480p/', seq.strip())))
-                #         images_path = map(lambda x: os.path.join('JPEGImages/480p/', seq.strip(), x), images)
-                #         img_list.extend(images_path)
-                #         lab = np.sort(os.listdir(os.path.join(db_root_dir, 'Annotations/480p/', seq.strip())))
-                #         lab_path = map(lambda x: os.path.join('Annotations/480p/', seq.strip(), x), lab)
-                #         labels.extend(lab_path)
-        else:
-
+        if self.seq_name is not None:
+            if self.mode == 'train':
+                img_list = [img_list[0]]
+                labels = [labels[0]]
+            else:
+                tmp = [(s, f, i, l if index == 0 else None)
+                       for index, (s, f, i, l) in enumerate(zip(seq_list, fname_list, img_list, labels))
+                       if s == self.seq_name]
+                seq_list, fname_list, img_list, labels = list(zip(*tmp))
             # Initialize the per sequence images for online training
-            names_img = np.sort(os.listdir(os.path.join(db_root_dir, 'JPEGImages/480p/', str(seq_name))))
-            img_list = map(lambda x: os.path.join('JPEGImages/480p/', str(seq_name), x), names_img)
-            name_label = np.sort(os.listdir(os.path.join(db_root_dir, 'Annotations/480p/', str(seq_name))))
-            labels = [os.path.join('Annotations/480p/', str(seq_name), name_label[0])]
-            labels.extend([None] * (len(names_img) - 1))
-            if self.train:
+#            names_img = np.sort(os.listdir(os.path.join(db_root_dir, 'JPEGImages/480p/', str(seq_name))))
+#            img_list = map(lambda x: os.path.join('JPEGImages/480p/', str(seq_name), x), names_img)
+#            name_label = np.sort(os.listdir(os.path.join(db_root_dir, 'Annotations/480p/', str(seq_name))))
+#            labels = [os.path.join('Annotations/480p/', str(seq_name), name_label[0])]
+#            labels.extend([None] * (len(names_img) - 1))
+            if self.mode == 'train':
                 img_list = [img_list[0]]
                 labels = [labels[0]]
 
