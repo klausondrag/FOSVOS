@@ -1,28 +1,18 @@
-# Package Includes
-from __future__ import division
-
 import os
 import socket
-# import matlab.engine
 import sys
 import timeit
 from datetime import datetime
 
 import scipy.misc as sm
+from tensorboardX import SummaryWriter
 
-if 'experiments' in os.getcwd():
-    sys.path.append('../../OSVOS-PyTorch')
-else:
-    sys.path.append('OSVOS-PyTorch')
+import torch
+from torch.autograd import Variable
+import torch.optim as optim
+from torchvision import transforms
+from torch.utils.data import DataLoader
 
-from config.mypath import Path
-
-if Path.is_custom_pytorch():
-    sys.path.append(Path.custom_pytorch())  # Custom PyTorch
-if Path.is_custom_opencv():
-    sys.path.insert(0, Path.custom_opencv())
-
-# Custom includes
 import visualize as viz
 from dataloaders import davis_2016 as db
 from dataloaders import custom_transforms as tr
@@ -30,15 +20,12 @@ import networks.vgg_osvos as vo
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 from dataloaders.helpers import *
 
-# PyTorch includes
-import torch
-from torch.autograd import Variable
-import torch.optim as optim
-from torchvision import transforms
-from torch.utils.data import DataLoader
+from config.mypath import Path
 
-# Tensorboard include
-from tensorboardX import SummaryWriter
+if Path.is_custom_pytorch():
+    sys.path.append(Path.custom_pytorch())
+if Path.is_custom_opencv():
+    sys.path.insert(0, Path.custom_opencv())
 
 # Select which GPU, -1 if CPU
 hostname = socket.gethostname()
@@ -46,7 +33,7 @@ if hostname == 'eec':
     gpu_id = 1
 elif hostname == 'hpccremers6':
     gpu_id = 1
-elif 'SGE_GPU' not in os.environ.keys() and hostname  != 'reinhold':
+elif 'SGE_GPU' not in os.environ.keys() and hostname != 'reinhold':
     gpu_id = -1
 else:
     gpu_id = int(os.environ['SGE_GPU'])
@@ -242,7 +229,6 @@ for epoch in range(resume_epoch, nEpochs):
 
 writer.close()
 
-
 # Test parent network
 print('Testing Network')
 net = vo.OSVOS(pretrained=0)
@@ -281,7 +267,6 @@ for ii, sample_batched in enumerate(testloader):
             os.makedirs(save_dir_seq)
         # Save the result, attention to the index jj
         sm.imsave(os.path.join(save_dir_seq, fname[jj] + '.png'), pred)
-
 
 # save_dir = os.path.join(Path.save_root_dir(), parentModelName)
 # eng = matlab.engine.start_matlab('-nodesktop -nodisplay -nosplash -nojvm -r '

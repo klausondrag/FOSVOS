@@ -1,22 +1,17 @@
-# Package Includes
-from __future__ import division
-
 import os
 import socket
 import sys
 import timeit
 from datetime import datetime
 
-if 'experiments' in os.getcwd():
-    sys.path.append('../../OSVOS-PyTorch')
-else:
-    sys.path.append('OSVOS-PyTorch')
-from config.mypath import Path
+from tensorboardX import SummaryWriter
 
-if Path.is_custom_pytorch():
-    sys.path.append(Path.custom_pytorch())  # Custom PyTorch
+import torch
+from torch.autograd import Variable
+import torch.optim as optim
+from torchvision import transforms
+from torch.utils.data import DataLoader
 
-# Custom includes
 from dataloaders import davis_2016 as db
 from dataloaders import custom_transforms as tr
 import visualize as viz
@@ -25,15 +20,10 @@ import networks.vgg_osvos as vo
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 from dataloaders.helpers import *
 
-# PyTorch includes
-import torch
-from torch.autograd import Variable
-import torch.optim as optim
-from torchvision import transforms
-from torch.utils.data import DataLoader
+from config.mypath import Path
 
-# Tensorboard include
-from tensorboardX import SummaryWriter
+if Path.is_custom_pytorch():
+    sys.path.append(Path.custom_pytorch())  # Custom PyTorch
 
 # Setting of parameters
 if 'SEQ_NAME' not in os.environ.keys():
@@ -70,7 +60,7 @@ if hostname == 'eec':
     gpu_id = 1
 elif hostname == 'hpccremers6':
     gpu_id = 1
-elif 'SGE_GPU' not in os.environ.keys() and hostname  != 'reinhold':
+elif 'SGE_GPU' not in os.environ.keys() and hostname != 'reinhold':
     gpu_id = -1
 else:
     gpu_id = int(os.environ['SGE_GPU'])
