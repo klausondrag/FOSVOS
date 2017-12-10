@@ -1,4 +1,5 @@
 import timeit
+from typing import List
 
 import torch
 from tensorboardX import SummaryWriter
@@ -16,7 +17,7 @@ log = get_logger(__file__)
 
 def train(n_epochs: int, data_loader: DataLoader, net: torch.nn.Module,
           optimizer: Optimizer, writer: SummaryWriter, sequence_name: str,
-          snapshot_every_n: int, n_avg_gradient: int) -> None:
+          snapshot_every_n: int, n_avg_gradient: int) -> List[float]:
     log.info('Start of training of sequence {}'.format(sequence_name))
 
     log_every_n = n_epochs // 20
