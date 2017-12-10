@@ -191,7 +191,7 @@ if vis_res:
     plt.ion()
     f, ax_arr = plt.subplots(1, 3)
 
-save_dir_res = os.path.join('Results', seq_name)
+save_dir_res = os.path.join('results', seq_name)
 if not os.path.exists(save_dir_res):
     os.makedirs(save_dir_res)
 
