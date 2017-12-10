@@ -111,58 +111,10 @@ trainloader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num
 db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
 testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
 
-num_img_tr = len(trainloader)
-num_img_ts = len(testloader)
-loss_tr = []
-aveGrad = 0
 
-log.info("Start of Online Training, sequence: " + seq_name)
-start_time = timeit.default_timer()
-# Main Training and Testing Loop
-for epoch in range(0, nEpochs):
-    # One training epoch
-    running_loss_tr = 0
-    for ii, sample_batched in enumerate(trainloader):
+from util.online import train
 
-        inputs, gts = sample_batched['image'], sample_batched['gt']
-
-        # Forward-Backward of the mini-batch
-        inputs, gts = Variable(inputs), Variable(gts)
-        inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
-
-        outputs = net.forward(inputs)
-
-        # Compute the fuse loss
-        loss = class_balanced_cross_entropy_loss(outputs[-1], gts, size_average=False)
-        running_loss_tr += loss.data[0]
-
-        # Print stuff
-        if epoch % (nEpochs // 20) == (nEpochs // 20 - 1):
-            running_loss_tr /= num_img_tr
-            loss_tr.append(running_loss_tr)
-
-            log.info('[Epoch: %d, numImages: %5d]' % (epoch + 1, ii + 1))
-            log.info('Loss: %f' % running_loss_tr)
-            writer.add_scalar('data/total_loss_epoch', running_loss_tr, epoch)
-
-        # Backward the averaged gradient
-        loss /= nAveGrad
-        loss.backward()
-        aveGrad += 1
-
-        # Update the weights once in nAveGrad forward passes
-        if aveGrad % nAveGrad == 0:
-            writer.add_scalar('data/total_loss_iter', loss.data[0], ii + num_img_tr * epoch)
-            optimizer.step()
-            optimizer.zero_grad()
-            aveGrad = 0
-
-    # Save the model
-    if (epoch % snapshot) == snapshot - 1:  # and epoch != 0:
-        torch.save(net.state_dict(), os.path.join(save_dir, seq_name + '_epoch-' + str(epoch) + '.pth'))
-
-stop_time = timeit.default_timer()
-log.info('Online training time: ' + str(stop_time - start_time))
+train(nEpochs, trainloader, net, optimizer, writer, seq_name, snapshot, nAveGrad)
 
 # Testing Phase
 if vis_res:

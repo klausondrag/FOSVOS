@@ -1,16 +1,16 @@
 # example configuration. Copy this file and rename it to mypath.py (will be ignored in git)
 
-from .path_abstract import PathAbstract
+from .path_config_abstract import PathConfigAbstract
 
 
-class PathConfig(PathAbstract):
+class PathConfig(PathConfigAbstract):
     @staticmethod
     def db_root_dir():
-        return '/Users/lealtaixe/Datasets/DAVIS/'
+        return '/media/klaus/Ondrag/DAVIS'
 
     @staticmethod
     def save_root_dir():
-        return './'
+        return './models'
 
     @staticmethod
     def exp_dir():
@@ -34,4 +34,4 @@ class PathConfig(PathAbstract):
 
     @staticmethod
     def models_dir():
-        return "/Users/leltaixe/Code/tracking/MOTAnnoSeg/OSVOS-PyTorch/models"
+        return './models'
