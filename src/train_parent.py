@@ -21,6 +21,7 @@ from layers.osvos_layers import class_balanced_cross_entropy_loss
 from dataloaders.helpers import *
 
 from util import gpu_handler
+from util.logger import get_logger
 from config.mypath import Path
 
 if Path.is_custom_pytorch():
@@ -28,6 +29,8 @@ if Path.is_custom_pytorch():
 if Path.is_custom_opencv():
     sys.path.insert(0, Path.custom_opencv())
 gpu_handler.select_gpu_by_hostname()
+
+log = get_logger(__file__)
 
 # Setting of parameters
 # Parameters in p are used for the name of the model
@@ -67,7 +70,7 @@ if resume_epoch == 0:
         net = vo.OSVOS(pretrained=1)
 else:
     net = vo.OSVOS(pretrained=0)
-    print("Updating weights from: {}".format(
+    log.info("Updating weights from: {}".format(
         os.path.join(save_dir, modelName + '_epoch-' + str(resume_epoch - 1) + '.pth')))
     net.load_state_dict(
         torch.load(os.path.join(save_dir, modelName + '_epoch-' + str(resume_epoch - 1) + '.pth'),
@@ -132,7 +135,7 @@ loss_tr = []
 loss_ts = []
 aveGrad = 0
 
-print("Training Network")
+log.info("Training Network")
 # Main Training and Testing Loop
 for epoch in range(resume_epoch, nEpochs):
     start_time = timeit.default_timer()
@@ -159,13 +162,13 @@ for epoch in range(resume_epoch, nEpochs):
             running_loss_tr = [x / num_img_tr for x in running_loss_tr]
             loss_tr.append(running_loss_tr[-1])
             writer.add_scalar('data/total_loss_epoch', running_loss_tr[-1], epoch)
-            print('[Epoch: %d, numImages: %5d]' % (epoch, ii + 1))
+            log.info('[Epoch: %d, numImages: %5d]' % (epoch, ii + 1))
             for l in range(0, len(running_loss_tr)):
-                print('Loss %d: %f' % (l, running_loss_tr[l]))
+                log.info('Loss %d: %f' % (l, running_loss_tr[l]))
                 running_loss_tr[l] = 0
 
             stop_time = timeit.default_timer()
-            print("Execution time: " + str(stop_time - start_time))
+            log.info("Execution time: " + str(stop_time - start_time))
 
         # Backward the averaged gradient
         loss /= nAveGrad
@@ -206,16 +209,16 @@ for epoch in range(resume_epoch, nEpochs):
                 running_loss_ts = [x / num_img_ts for x in running_loss_ts]
                 loss_ts.append(running_loss_ts[-1])
 
-                print('[Epoch: %d, numImages: %5d]' % (epoch, ii + 1))
+                log.info('[Epoch: %d, numImages: %5d]' % (epoch, ii + 1))
                 writer.add_scalar('data/test_loss_epoch', running_loss_ts[-1], epoch)
                 for l in range(0, len(running_loss_ts)):
-                    print('***Testing *** Loss %d: %f' % (l, running_loss_ts[l]))
+                    log.info('***Testing *** Loss %d: %f' % (l, running_loss_ts[l]))
                     running_loss_ts[l] = 0
 
 writer.close()
 
 # Test parent network
-print('Testing Network')
+log.info('Testing Network')
 net = vo.OSVOS(pretrained=0)
 parentModelName = exp_name
 net.load_state_dict(torch.load(os.path.join(save_dir, parentModelName + '_epoch-' + str(nEpochs - 1) + '.pth'),

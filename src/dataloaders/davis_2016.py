@@ -1,14 +1,15 @@
-from __future__ import division
-
 import sys
-
 from pathlib import Path as P
+
+from util.logger import get_logger
 from config.mypath import Path
 
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch
 if Path.is_custom_opencv():
     sys.path.insert(0, Path.custom_opencv())
+
+log = get_logger(__file__)
 
 import numpy as np
 import cv2
@@ -75,11 +76,11 @@ class DAVIS2016(Dataset):
                        if s == self.seq_name]
                 seq_list, fname_list, img_list, labels = list(zip(*tmp))
             # Initialize the per sequence images for online training
-#            names_img = np.sort(os.listdir(os.path.join(db_root_dir, 'JPEGImages/480p/', str(seq_name))))
-#            img_list = map(lambda x: os.path.join('JPEGImages/480p/', str(seq_name), x), names_img)
-#            name_label = np.sort(os.listdir(os.path.join(db_root_dir, 'Annotations/480p/', str(seq_name))))
-#            labels = [os.path.join('Annotations/480p/', str(seq_name), name_label[0])]
-#            labels.extend([None] * (len(names_img) - 1))
+            #            names_img = np.sort(os.listdir(os.path.join(db_root_dir, 'JPEGImages/480p/', str(seq_name))))
+            #            img_list = map(lambda x: os.path.join('JPEGImages/480p/', str(seq_name), x), names_img)
+            #            name_label = np.sort(os.listdir(os.path.join(db_root_dir, 'Annotations/480p/', str(seq_name))))
+            #            labels = [os.path.join('Annotations/480p/', str(seq_name), name_label[0])]
+            #            labels.extend([None] * (len(names_img) - 1))
             if self.mode == 'train':
                 img_list = [img_list[0]]
                 labels = [labels[0]]
@@ -91,7 +92,7 @@ class DAVIS2016(Dataset):
         self.img_list = img_list
         self.labels = labels
 
-        print('Done initializing ' + fname + ' Dataset')
+        log.info('Done initializing ' + fname + ' Dataset')
 
     def __len__(self):
         return len(self.img_list)

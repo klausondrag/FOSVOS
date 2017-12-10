@@ -1,6 +1,5 @@
 import math
 import os
-import sys
 from copy import deepcopy
 from pathlib import Path as P
 
@@ -9,9 +8,11 @@ import torch
 import torch.nn as nn
 import torch.nn.modules as modules
 
-sys.path.append('..')
 from config.mypath import Path
 from layers.osvos_layers import center_crop, interp_surgery
+from util.logger import get_logger
+
+log = get_logger(__file__)
 
 
 class OSVOS(nn.Module):
@@ -24,7 +25,7 @@ class OSVOS(nn.Module):
                     ['M', 512, 512, 512]]
         in_channels = [3, 64, 128, 256, 512]
 
-        print("Constructing OSVOS architecture..")
+        log.info("Constructing OSVOS architecture...")
         stages = modules.ModuleList()
         side_prep = modules.ModuleList()
         score_dsn = modules.ModuleList()
@@ -55,7 +56,7 @@ class OSVOS(nn.Module):
 
         self.fuse = nn.Conv2d(64, 1, kernel_size=1, padding=0)
 
-        print("Initializing weights..")
+        log.info("Initializing weights")
         self._initialize_weights(pretrained)
 
     def forward(self, x):
@@ -97,7 +98,7 @@ class OSVOS(nn.Module):
             self.load_from_caffe()
 
     def load_from_pytorch(self) -> None:
-        print("Loading weights from PyTorch VGG")
+        log.info('Loading weights from PyTorch VGG')
         vgg_structure = [64, 64, 'M', 128, 128, 'M', 256, 256, 256,
                          'M', 512, 512, 512, 'M', 512, 512, 512, 'M']
         _vgg = VGG(make_layers(vgg_structure))
@@ -117,7 +118,7 @@ class OSVOS(nn.Module):
                     k += 1
 
     def load_from_caffe(self) -> None:
-        print("Loading weights from Caffe VGG")
+        log.info('Loading weights from Caffe VGG')
         caffe_weights = scipy.io.loadmat(os.path.join(Path.models_dir(), 'vgg_hed_caffe.mat'))
 
         caffe_ind = 0

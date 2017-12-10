@@ -21,11 +21,14 @@ from layers.osvos_layers import class_balanced_cross_entropy_loss
 from dataloaders.helpers import *
 
 from util import gpu_handler
+from util.logger import get_logger
 from config.mypath import Path
 
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch
 gpu_handler.select_gpu_by_hostname()
+
+log = get_logger(__file__)
 
 # Setting of parameters
 if 'SEQ_NAME' not in os.environ.keys():
@@ -113,7 +116,7 @@ num_img_ts = len(testloader)
 loss_tr = []
 aveGrad = 0
 
-print("Start of Online Training, sequence: " + seq_name)
+log.info("Start of Online Training, sequence: " + seq_name)
 start_time = timeit.default_timer()
 # Main Training and Testing Loop
 for epoch in range(0, nEpochs):
@@ -138,8 +141,8 @@ for epoch in range(0, nEpochs):
             running_loss_tr /= num_img_tr
             loss_tr.append(running_loss_tr)
 
-            print('[Epoch: %d, numImages: %5d]' % (epoch + 1, ii + 1))
-            print('Loss: %f' % running_loss_tr)
+            log.info('[Epoch: %d, numImages: %5d]' % (epoch + 1, ii + 1))
+            log.info('Loss: %f' % running_loss_tr)
             writer.add_scalar('data/total_loss_epoch', running_loss_tr, epoch)
 
         # Backward the averaged gradient
@@ -159,7 +162,7 @@ for epoch in range(0, nEpochs):
         torch.save(net.state_dict(), os.path.join(save_dir, seq_name + '_epoch-' + str(epoch) + '.pth'))
 
 stop_time = timeit.default_timer()
-print('Online training time: ' + str(stop_time - start_time))
+log.info('Online training time: ' + str(stop_time - start_time))
 
 # Testing Phase
 if vis_res:
@@ -173,7 +176,7 @@ save_dir_res = os.path.join('results', seq_name)
 if not os.path.exists(save_dir_res):
     os.makedirs(save_dir_res)
 
-print('Testing Network')
+log.info('Testing Network')
 # Main Testing Loop
 for ii, sample_batched in enumerate(testloader):
 
