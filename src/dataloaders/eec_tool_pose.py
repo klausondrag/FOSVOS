@@ -7,12 +7,12 @@ import sys
 import scipy.io as sio
 from PIL import Image
 
-from config.mypath import Path
+from config.mypath import PathConfig
 
-if Path.is_custom_pytorch():
-    sys.path.append(Path.custom_pytorch())  # Custom PyTorch
-if Path.is_custom_opencv():
-    sys.path.insert(0, Path.custom_opencv())
+if PathConfig.is_custom_pytorch():
+    sys.path.append(PathConfig.custom_pytorch())  # Custom PyTorch
+if PathConfig.is_custom_opencv():
+    sys.path.insert(0, PathConfig.custom_opencv())
 
 from torch.utils.data import Dataset
 from matplotlib import pyplot as plt

@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.modules as modules
 
-from config.mypath import Path
+from config.mypath import PathConfig
 from layers.osvos_layers import center_crop, interp_surgery
 from util.logger import get_logger
 
@@ -104,7 +104,7 @@ class OSVOS(nn.Module):
         _vgg = VGG(make_layers(vgg_structure))
 
         # Load the weights from saved model
-        _vgg.load_state_dict(torch.load(os.path.join(Path.models_dir(), 'vgg16-397923af.pth'),
+        _vgg.load_state_dict(torch.load(os.path.join(PathConfig.models_dir(), 'vgg16-397923af.pth'),
                                         map_location=lambda storage, loc: storage))
         # _vgg.load_state_dict(model_zoo.load_url('https://download.pytorch.org/models/vgg16-397923af.pth'))
 
@@ -119,7 +119,7 @@ class OSVOS(nn.Module):
 
     def load_from_caffe(self) -> None:
         log.info('Loading weights from Caffe VGG')
-        caffe_weights = scipy.io.loadmat(os.path.join(Path.models_dir(), 'vgg_hed_caffe.mat'))
+        caffe_weights = scipy.io.loadmat(os.path.join(PathConfig.models_dir(), 'vgg_hed_caffe.mat'))
 
         caffe_ind = 0
         for ind, layer in enumerate(self.stages.parameters()):

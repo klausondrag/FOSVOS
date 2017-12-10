@@ -22,10 +22,10 @@ from dataloaders.helpers import *
 
 from util import gpu_handler
 from util.logger import get_logger
-from config.mypath import Path
+from config.mypath import PathConfig
 
-if Path.is_custom_pytorch():
-    sys.path.append(Path.custom_pytorch())  # Custom PyTorch
+if PathConfig.is_custom_pytorch():
+    sys.path.append(PathConfig.custom_pytorch())  # Custom PyTorch
 gpu_handler.select_gpu_by_hostname()
 
 log = get_logger(__file__)
@@ -36,8 +36,8 @@ if 'SEQ_NAME' not in os.environ.keys():
 else:
     seq_name = str(os.environ['SEQ_NAME'])
 
-db_root_dir = Path.db_root_dir()
-save_dir_root = Path.save_root_dir()
+db_root_dir = PathConfig.db_root_dir()
+save_dir_root = PathConfig.save_root_dir()
 exp_name = os.path.dirname(os.path.abspath(__file__)).split('/')[-1]
 
 save_dir = './models'
@@ -45,7 +45,7 @@ save_dir = './models'
 if not os.path.exists(save_dir):
     os.makedirs(os.path.join(save_dir))
 
-exp_dir = Path.exp_dir()
+exp_dir = PathConfig.exp_dir()
 vis_net = 0  # Visualize the network?
 vis_res = 0  # Visualize the results?
 nAveGrad = 5

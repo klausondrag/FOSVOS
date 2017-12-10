@@ -12,13 +12,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.io
 
-from config.mypath import Path
+from config.mypath import PathConfig
 from .helpers import *
 
-if Path.is_custom_pytorch():
-    sys.path.append(Path.custom_pytorch())  # Custom PyTorch
-if Path.is_custom_opencv():
-    sys.path.insert(0, Path.custom_opencv())
+if PathConfig.is_custom_pytorch():
+    sys.path.append(PathConfig.custom_pytorch())  # Custom PyTorch
+if PathConfig.is_custom_opencv():
+    sys.path.insert(0, PathConfig.custom_opencv())
 
 import torch.utils.data as data
 from PIL import Image

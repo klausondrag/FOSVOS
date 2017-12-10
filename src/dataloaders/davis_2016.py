@@ -2,12 +2,12 @@ import sys
 from pathlib import Path as P
 
 from util.logger import get_logger
-from config.mypath import Path
+from config.mypath import PathConfig
 
-if Path.is_custom_pytorch():
-    sys.path.append(Path.custom_pytorch())  # Custom PyTorch
-if Path.is_custom_opencv():
-    sys.path.insert(0, Path.custom_opencv())
+if PathConfig.is_custom_pytorch():
+    sys.path.append(PathConfig.custom_pytorch())  # Custom PyTorch
+if PathConfig.is_custom_opencv():
+    sys.path.insert(0, PathConfig.custom_opencv())
 
 log = get_logger(__file__)
 
@@ -158,7 +158,7 @@ if __name__ == '__main__':
     #                                  ScaleNRotate(rots=(-30, 30), scales=(.75, 1.25))])
     transforms = transforms.Compose([RandomHorizontalFlip(), Resize(scales=[0.5, 0.8, 1]), ToTensor()])
 
-    dataset = DAVIS2016(db_root_dir=Path.db_root_dir(),
+    dataset = DAVIS2016(db_root_dir=PathConfig.db_root_dir(),
                         mode='train', transform=transforms)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=1)
 
