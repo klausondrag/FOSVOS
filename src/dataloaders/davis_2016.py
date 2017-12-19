@@ -42,7 +42,10 @@ class DAVIS2016(Dataset):
             'test': 'val',
         }
         if self.mode in mode_fname_mapping:
-            fname = mode_fname_mapping[self.mode]
+            if self.seq_name is None:
+                fname = mode_fname_mapping[self.mode]
+            else:
+                fname = 'trainval'
         else:
             raise Exception('Mode {} does not exist. Must be one of [\'train\', \'val\', \'test\']')
 
@@ -67,23 +70,23 @@ class DAVIS2016(Dataset):
                       for l in labels]
 
         if self.seq_name is not None:
+            tmp = [(s, f, i, l)
+                   for s, f, i, l in zip(seq_list, fname_list, img_list, labels)
+                   if s == self.seq_name]
+            tmp = [(s, f, i, l if index == 0 else None)
+                   for index, (s, f, i, l) in enumerate(tmp)]
+            seq_list, fname_list, img_list, labels = list(zip(*tmp))
             if self.mode == 'train':
+                seq_list = [seq_list[0]]
+                fname_list = [fname_list[0]]
                 img_list = [img_list[0]]
                 labels = [labels[0]]
-            else:
-                tmp = [(s, f, i, l if index == 0 else None)
-                       for index, (s, f, i, l) in enumerate(zip(seq_list, fname_list, img_list, labels))
-                       if s == self.seq_name]
-                seq_list, fname_list, img_list, labels = list(zip(*tmp))
             # Initialize the per sequence images for online training
             #            names_img = np.sort(os.listdir(os.path.join(db_root_dir, 'JPEGImages/480p/', str(seq_name))))
             #            img_list = map(lambda x: os.path.join('JPEGImages/480p/', str(seq_name), x), names_img)
             #            name_label = np.sort(os.listdir(os.path.join(db_root_dir, 'Annotations/480p/', str(seq_name))))
             #            labels = [os.path.join('Annotations/480p/', str(seq_name), name_label[0])]
             #            labels.extend([None] * (len(names_img) - 1))
-            if self.mode == 'train':
-                img_list = [img_list[0]]
-                labels = [labels[0]]
 
         assert (len(labels) == len(img_list))
 
