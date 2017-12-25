@@ -9,7 +9,7 @@ log = get_logger(__file__)
 
 _hostname_to_gpu_id = {
     'eec': 1,
-    'hpccremers6': 1
+    'hpccremers6': 0
 }
 
 _gpu_id_default_value = -1
