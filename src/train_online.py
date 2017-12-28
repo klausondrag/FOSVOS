@@ -50,8 +50,8 @@ vis_net = 0  # Visualize the network?
 vis_res = 0  # Visualize the results?
 nAveGrad = 5
 start_epoch = 0
-nEpochs = 2000 * nAveGrad  # Number of epochs for training
-snapshot = nEpochs  # Store a model every snapshot epochs
+nEpochs = 400 * nAveGrad  # Number of epochs for training
+snapshot = 100  # Store a model every snapshot epochs
 parentEpoch = 240  # 240
 
 # Parameters in p are used for the name of the model
