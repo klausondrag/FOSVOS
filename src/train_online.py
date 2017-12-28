@@ -49,6 +49,7 @@ exp_dir = Path.exp_dir()
 vis_net = 0  # Visualize the network?
 vis_res = 0  # Visualize the results?
 nAveGrad = 5
+start_epoch = 0
 nEpochs = 2000 * nAveGrad  # Number of epochs for training
 snapshot = nEpochs  # Store a model every snapshot epochs
 parentEpoch = 240  # 240
@@ -119,7 +120,7 @@ aveGrad = 0
 log.info("Start of Online Training, sequence: " + seq_name)
 start_time = timeit.default_timer()
 # Main Training and Testing Loop
-for epoch in range(0, nEpochs):
+for epoch in range(start_epoch, nEpochs):
     # One training epoch
     running_loss_tr = 0
     for ii, sample_batched in enumerate(trainloader):
