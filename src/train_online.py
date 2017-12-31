@@ -237,4 +237,16 @@ def train(seq_name, nEpochs, train_and_test=True):
                 plt.pause(0.001)
 
 
-train('boat', nEpochs, train_and_test=False)
+sequences = ['bear', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey', 'kite-walk', 'mallard-water',
+             'paragliding', 'rollerblade', 'soccerball', 'tennis', 'blackswan', 'breakdance', 'car-roundabout',
+             'dance-jump', 'drift-chicane', 'flamingo', 'horsejump-high', 'libby', 'motocross-bumps',
+             'paragliding-launch', 'scooter-black', 'stroller', 'train', 'bmx-bumps', 'breakdance-flare', 'car-shadow',
+             'dance-twirl', 'drift-straight', 'goat', 'horsejump-low', 'lucia', 'motocross-jump', 'parkour',
+             'scooter-gray', 'surf', 'bmx-trees', 'bus', 'car-turn', 'dog', 'drift-turn', 'hike', 'kite-surf',
+             'mallard-fly', 'motorbike', 'rhino', 'soapbox', 'swing']
+already_done = []
+# already_done = ['bear', 'blackswan', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey']
+sequences = [s for s in sequences if s not in already_done]
+[train(s, nEpochs) for s in sequences]
+
+# train('boat', nEpochs, train_and_test=False)
