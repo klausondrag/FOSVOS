@@ -67,6 +67,7 @@ parentModelName = 'src'
 # parentEpoch = 1000
 
 def train(seq_name, nEpochs, train_and_test=True):
+    speeds_training = []
     if train_and_test:
         # db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
         # testloaderx = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
@@ -127,12 +128,15 @@ def train(seq_name, nEpochs, train_and_test=True):
         testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
 
         num_img_tr = len(trainloader)
+        num_img_ts = len(testloader)
         loss_tr = []
         aveGrad = 0
 
         log.info("Start of Online Training, sequence: " + seq_name)
+        start_time = timeit.default_timer()
         # Main Training and Testing Loop
         for epoch in range(start_epoch, nEpochs):
+            epoch_start_time = timeit.default_timer()
             # One training epoch
             running_loss_tr = 0
             for ii, sample_batched in enumerate(trainloader):
@@ -175,9 +179,17 @@ def train(seq_name, nEpochs, train_and_test=True):
                 torch.save(net.state_dict(), os.path.join(save_dir, seq_name + '_epoch-' + str(epoch) + '.pth'))
 
             epoch_stop_time = timeit.default_timer()
+            t = epoch_stop_time - epoch_start_time
+            log.info('epoch {0} {1}: {2} sec'.format(seq_name, str(epoch), str(t)))
+            speeds_training.append(t)
+
             # outputs = net.forward(testitest_i)
             # loss = class_balanced_cross_entropy_loss(outputs[-1], testitest_g, size_average=False)
             # log.info('Testitest: {}'.format(str(loss)))
+
+        stop_time = timeit.default_timer()
+        log.info('Train {0}: total training time {1} sec'.format(seq_name, str(stop_time - start_time)))
+        log.info('Train {0}: time per sample {1} sec'.format(seq_name, np.asarray(t).mean()))
 
         # Testing Phase
         if vis_res:
@@ -201,6 +213,7 @@ def train(seq_name, nEpochs, train_and_test=True):
         os.makedirs(save_dir_res)
 
     log.info('Testing Network')
+    test_start_time = timeit.default_timer()
     # Main Testing Loop
     for ii, sample_batched in enumerate(testloader):
 
@@ -235,6 +248,12 @@ def train(seq_name, nEpochs, train_and_test=True):
                 ax_arr[1].imshow(gt_)
                 ax_arr[2].imshow(im_normalize(pred))
                 plt.pause(0.001)
+
+    test_stop_time = timeit.default_timer()
+    log.info('Test {0}: total training time {1} sec'.format(seq_name, str(test_stop_time - test_start_time)))
+    log.info('Test {0}: {1} images'.format(seq_name, str((len(testloader)))))
+    log.info(
+        'Test {0}: time per sample {1} sec'.format(seq_name, str((test_stop_time - test_start_time) / len(testloader))))
 
 
 sequences = ['bear', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey', 'kite-walk', 'mallard-water',
