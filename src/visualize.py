@@ -3,6 +3,8 @@ import torch
 from torch.autograd import Variable
 from torchvision import models
 
+import networks.vgg_osvos as vo
+
 
 def make_dot(var, params):
     """ Produces Graphviz representation of PyTorch autograd graph
@@ -59,11 +61,12 @@ def make_dot(var, params):
 
 
 if __name__ == "__main__":
-    inputs = torch.randn(1, 3, 224, 224)
-    resnet18 = models.resnet18()
-    # vgg16 = models.vgg16()
-    # vgg16_pre = models.vgg16(pretrained=True)
-    y = resnet18(Variable(inputs))
-    # print(y)
-    g = make_dot(y, resnet18.state_dict())
+    # net = models.vgg16()
+    # net = models.vgg16(pretrained=True)
+    # net = models.resnet18()
+    net = vo.OSVOS(pretrained=1)
+
+    inputs = Variable(torch.randn(1, 3, 224, 224))
+    y = net(inputs)
+    g = make_dot(y, net.state_dict())
     g.view()
