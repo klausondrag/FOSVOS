@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 import visualize as viz
 from dataloaders import davis_2016 as db
 from dataloaders import custom_transforms as tr
-import networks.vgg_osvos as vo
+import networks.osvos_vgg as vo
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 from dataloaders.helpers import *
 
@@ -65,11 +65,11 @@ resume_epoch = 0  # Default is 0, change if want to resume
 modelName = str(exp_name)
 if resume_epoch == 0:
     if load_caffe_vgg:
-        net = vo.OSVOS(pretrained=2)
+        net = vo.OSVOS_VGG(pretrained=2)
     else:
-        net = vo.OSVOS(pretrained=1)
+        net = vo.OSVOS_VGG(pretrained=1)
 else:
-    net = vo.OSVOS(pretrained=0)
+    net = vo.OSVOS_VGG(pretrained=0)
     log.info("Updating weights from: {}".format(
         os.path.join(save_dir, modelName + '_epoch-' + str(resume_epoch - 1) + '.pth')))
     net.load_state_dict(
@@ -219,7 +219,7 @@ writer.close()
 
 # Test parent network
 log.info('Testing Network')
-net = vo.OSVOS(pretrained=0)
+net = vo.OSVOS_VGG(pretrained=0)
 parentModelName = exp_name
 net.load_state_dict(torch.load(os.path.join(save_dir, parentModelName + '_epoch-' + str(nEpochs - 1) + '.pth'),
                                map_location=lambda storage, loc: storage))

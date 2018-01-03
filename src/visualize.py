@@ -3,7 +3,7 @@ import torch
 from torch.autograd import Variable
 from torchvision import models
 
-import networks.vgg_osvos as vo
+import networks.osvos_vgg as vo
 
 
 def make_dot(var, params):
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     # net = models.vgg16()
     # net = models.vgg16(pretrained=True)
     # net = models.resnet18()
-    net = vo.OSVOS(pretrained=1)
+    net = vo.OSVOS_VGG(pretrained=1)
 
     inputs = Variable(torch.randn(1, 3, 224, 224))
     y = net(inputs)

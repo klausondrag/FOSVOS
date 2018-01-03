@@ -16,7 +16,7 @@ from dataloaders import davis_2016 as db
 from dataloaders import custom_transforms as tr
 import visualize as viz
 import scipy.misc as sm
-import networks.vgg_osvos as vo
+import networks.osvos_vgg as vo
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 from dataloaders.helpers import *
 
@@ -77,7 +77,7 @@ def train(seq_name, nEpochs, train_and_test=True):
         # testitest_i, testitest_g = gpu_handler.cast_cuda_if_possible([testitest_i, testitest_g])
 
         # Network definition
-        net = vo.OSVOS(pretrained=0)
+        net = vo.OSVOS_VGG(pretrained=0)
         net.load_state_dict(
             torch.load(os.path.join(save_dir, parentModelName + '_epoch-' + str(parentEpoch - 1) + '.pth'),
                        map_location=lambda storage, loc: storage))
@@ -199,7 +199,7 @@ def train(seq_name, nEpochs, train_and_test=True):
             plt.ion()
             f, ax_arr = plt.subplots(1, 3)
     else:
-        net = vo.OSVOS(pretrained=0)
+        net = vo.OSVOS_VGG(pretrained=0)
         # nEpochs = 10000
         net.load_state_dict(torch.load(os.path.join(save_dir, 'boat' + '_epoch-' + str(nEpochs - 1) + '.pth'),
                                        map_location=lambda storage, loc: storage))
