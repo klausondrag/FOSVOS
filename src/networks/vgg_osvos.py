@@ -36,7 +36,7 @@ class OSVOS(nn.Module):
         # Construct the network
         for i in range(0, len(lay_list)):
             # Make the layers of the stages
-            stages.append(make_layers_osvos(lay_list[i], in_channels[i]))
+            stages.append(self._make_layers_osvos(lay_list[i], in_channels[i]))
 
             # Attention, side_prep and score_dsn start from layer 2
             if i > 0:
@@ -59,6 +59,18 @@ class OSVOS(nn.Module):
 
         log.info("Initializing weights")
         self._initialize_weights(pretrained)
+
+    @staticmethod
+    def _make_layers_osvos(cfg, in_channels):
+        layers = []
+        for v in cfg:
+            if v == 'M':
+                layers.append(nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True))
+            else:
+                conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
+                layers.extend([conv2d, nn.ReLU(inplace=True)])
+                in_channels = v
+        return nn.Sequential(*layers)
 
     def forward(self, x):
         crop_h, crop_w = int(x.size()[-2]), int(x.size()[-1])
@@ -94,15 +106,15 @@ class OSVOS(nn.Module):
                 m.weight.data = interp_surgery(m)
 
         if pretrained == 1:
-            self.load_from_pytorch()
+            self._load_from_pytorch()
         elif pretrained == 2:
-            self.load_from_caffe()
+            self._load_from_caffe()
 
-    def load_from_pytorch(self) -> None:
+    def _load_from_pytorch(self) -> None:
         log.info('Loading weights from PyTorch VGG')
         _vgg = vgg16(pretrained=True)
 
-        inds = find_conv_layers(_vgg)
+        inds = self._find_conv_layers(_vgg)
         k = 0
         for i in range(len(self.stages)):
             for j in range(len(self.stages[i])):
@@ -111,7 +123,15 @@ class OSVOS(nn.Module):
                     self.stages[i][j].bias = deepcopy(_vgg.features[inds[k]].bias)
                     k += 1
 
-    def load_from_caffe(self) -> None:
+    @staticmethod
+    def _find_conv_layers(_vgg):
+        inds = []
+        for i in range(len(_vgg.features)):
+            if isinstance(_vgg.features[i], nn.Conv2d):
+                inds.append(i)
+        return inds
+
+    def _load_from_caffe(self) -> None:
         log.info('Loading weights from Caffe VGG')
         caffe_weights = scipy.io.loadmat(os.path.join(Path.models_dir(), 'vgg_hed_caffe.mat'))
 
@@ -126,23 +146,3 @@ class OSVOS(nn.Module):
                 assert (layer.data.shape == c_b.shape)
                 layer.data = c_b
                 caffe_ind += 1
-
-
-def find_conv_layers(_vgg):
-    inds = []
-    for i in range(len(_vgg.features)):
-        if isinstance(_vgg.features[i], nn.Conv2d):
-            inds.append(i)
-    return inds
-
-
-def make_layers_osvos(cfg, in_channels):
-    layers = []
-    for v in cfg:
-        if v == 'M':
-            layers.append(nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True))
-        else:
-            conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
-            layers.extend([conv2d, nn.ReLU(inplace=True)])
-            in_channels = v
-    return nn.Sequential(*layers)
