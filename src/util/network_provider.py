@@ -3,6 +3,7 @@ from pathlib import Path
 import torch
 
 from networks.osvos_vgg import OSVOS_VGG
+from util import gpu_handler
 from util.logger import get_logger
 
 log = get_logger(__file__)
@@ -20,16 +21,17 @@ class NetworkProvider:
         self.network = self.network_type(**kwargs)
 
     def _get_file_path(self, epoch: int) -> str:
-        return str(self.save_dir / '{0}_epoch-{1}.pth'.format(self.name, str(epoch - 1)))
+        return str(self.save_dir / '{0}_epoch-{1}.pth'.format(self.name, str(epoch)))
 
     def load(self, epoch: int) -> None:
-        file_path = self._get_file_path(epoch)
-        log.info("Updating weights from: {0}".format(file_path))
-        net.load_state_dict(torch.load(file_path, map_location=lambda storage, loc: storage))
-        self.network = net
+        file_path = self._get_file_path(epoch - 1)
+        log.info("Loading weights from: {0}".format(file_path))
+        self.network.load_state_dict(torch.load(file_path, map_location=lambda storage, loc: storage))
 
     def save(self, epoch: int) -> None:
-        pass
+        file_path = self._get_file_path(epoch)
+        log.info("Saving weights to: {0}".format(file_path))
+        torch.save(self.network.state_dict(), file_path)
 
 
 save_dir = Path('models')
@@ -47,3 +49,11 @@ else:
     np.init_network(pretrained=0)
     np.load(resume_epoch)
 net = np.network
+net = gpu_handler.cast_cuda_if_possible(net, verbose=True)
+
+# parent test
+nEpochs = 240
+np.init_network(pretrained=0)
+np.load(nEpochs)
+net = np.network
+net = gpu_handler.cast_cuda_if_possible(net, verbose=True)
