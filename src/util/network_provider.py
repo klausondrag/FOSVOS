@@ -17,8 +17,10 @@ class NetworkProvider:
         self.save_dir = save_dir
         self.network = None
 
-    def init_network(self, **kwargs) -> None:
-        self.network = self.network_type(**kwargs)
+    def init_network(self, **kwargs) -> object:
+        net = self.network_type(**kwargs)
+        self.network = net
+        return net
 
     def _get_file_path(self, epoch: int) -> str:
         return str(self.save_dir / '{0}_epoch-{1}.pth'.format(self.name, str(epoch)))
@@ -42,18 +44,16 @@ resume_epoch = 0
 load_caffe_vgg = False
 if resume_epoch == 0:
     if load_caffe_vgg:
-        np.init_network(pretrained=2)
+        net = np.init_network(pretrained=2)
     else:
-        np.init_network(pretrained=1)
+        net = np.init_network(pretrained=1)
 else:
-    np.init_network(pretrained=0)
+    net = np.init_network(pretrained=0)
     np.load(resume_epoch)
-net = np.network
 net = gpu_handler.cast_cuda_if_possible(net, verbose=True)
 
 # parent test
 nEpochs = 240
-np.init_network(pretrained=0)
-np.load(nEpochs)
-net = np.network
+net = np.init_network(pretrained=0)
 net = gpu_handler.cast_cuda_if_possible(net, verbose=True)
+np.load(nEpochs)
