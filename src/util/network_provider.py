@@ -60,10 +60,18 @@ else:
 # parent test
 net = np.init_network(pretrained=0)
 np.load(nEpochs)
+epoch = 1
+np.save(epoch)
 
 # online
 np = NetworkProvider('vgg16_blackswan', OSVOS_VGG, save_dir, name_parent='vgg16')
 
 # online train
+net = np.init_network(pretrained=0)
+np.load(nEpochs, use_parent=True)
+epoch = 1
+np.save(epoch)
+
+# online test
 net = np.init_network(pretrained=0)
 np.load(nEpochs, use_parent=True)
