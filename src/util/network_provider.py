@@ -19,6 +19,7 @@ class NetworkProvider:
 
     def init_network(self, **kwargs) -> object:
         net = self.network_type(**kwargs)
+        net = gpu_handler.cast_cuda_if_possible(net, verbose=True)
         self.network = net
         return net
 
@@ -50,10 +51,8 @@ if resume_epoch == 0:
 else:
     net = np.init_network(pretrained=0)
     np.load(resume_epoch)
-net = gpu_handler.cast_cuda_if_possible(net, verbose=True)
 
 # parent test
 nEpochs = 240
 net = np.init_network(pretrained=0)
-net = gpu_handler.cast_cuda_if_possible(net, verbose=True)
 np.load(nEpochs)
