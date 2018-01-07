@@ -23,6 +23,7 @@ from dataloaders.helpers import *
 from util import gpu_handler
 from util.logger import get_logger
 from config.mypath import Path
+from util.network_provider import NetworkProvider
 
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())
@@ -47,13 +48,6 @@ nTestInterval = 5  # 5  # Run on test set every nTestInterval epochs
 db_root_dir = Path.db_root_dir()
 save_dir_root = Path.save_root_dir()
 
-if 'experiments' in os.getcwd():
-    save_dir = os.path.join(save_dir_root, 'experiments', exp_name)
-else:
-    save_dir = './models'
-
-if not os.path.exists(save_dir):
-    os.makedirs(os.path.join(save_dir))
 vis_net = 0  # Visualize the network?
 snapshot = 40  # 40  # Store a model every snapshot epochs
 nAveGrad = 10
@@ -62,19 +56,21 @@ load_caffe_vgg = 0
 resume_epoch = 0  # Default is 0, change if want to resume
 
 # Network definition
-modelName = str(exp_name)
+modelName = 'vgg16'
+
+save_dir = Path('models')
+save_dir.mkdir(exist_ok=True)
+
+np = NetworkProvider(modelName, vo.OSVOS_VGG, save_dir)
+
 if resume_epoch == 0:
     if load_caffe_vgg:
-        net = vo.OSVOS_VGG(pretrained=2)
+        net = np.init_network(pretrained=2)
     else:
-        net = vo.OSVOS_VGG(pretrained=1)
+        net = np.init_network(pretrained=1)
 else:
-    net = vo.OSVOS_VGG(pretrained=0)
-    log.info("Updating weights from: {}".format(
-        os.path.join(save_dir, modelName + '_epoch-' + str(resume_epoch - 1) + '.pth')))
-    net.load_state_dict(
-        torch.load(os.path.join(save_dir, modelName + '_epoch-' + str(resume_epoch - 1) + '.pth'),
-                   map_location=lambda storage, loc: storage))
+    net = np.init_network(pretrained=0)
+    np.load(resume_epoch)
 
 # Logging into Tensorboard
 log_dir = os.path.join(save_dir, 'runs', datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname())
@@ -89,8 +85,6 @@ if vis_net:
     y = net.forward(x)
     g = viz.make_dot(y, net.state_dict())
     g.view()
-
-net = gpu_handler.cast_cuda_if_possible(net, verbose=True)
 
 # Use the following optimizer
 lr = 1e-8
@@ -184,7 +178,7 @@ for epoch in range(resume_epoch, nEpochs):
 
     # Save the model
     if (epoch % snapshot) == snapshot - 1 and epoch != 0:
-        torch.save(net.state_dict(), os.path.join(save_dir, modelName + '_epoch-' + str(epoch) + '.pth'))
+        np.save(epoch)
 
     # One testing epoch
     if useTest and epoch % nTestInterval == (nTestInterval - 1):
@@ -219,12 +213,9 @@ writer.close()
 
 # Test parent network
 log.info('Testing Network')
-net = vo.OSVOS_VGG(pretrained=0)
-parentModelName = exp_name
-net.load_state_dict(torch.load(os.path.join(save_dir, parentModelName + '_epoch-' + str(nEpochs - 1) + '.pth'),
-                               map_location=lambda storage, loc: storage))
-
-net = gpu_handler.cast_cuda_if_possible(net, verbose=True)
+parentModelName = modelName
+net = np.init_network(pretrained=0)
+np.load(nEpochs)
 
 db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor())
 testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=2)
