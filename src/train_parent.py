@@ -73,8 +73,8 @@ else:
     np.load(resume_epoch)
 
 # Logging into Tensorboard
-log_dir = os.path.join(save_dir, 'runs', datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname())
-writer = SummaryWriter(log_dir=log_dir, comment='-parent')
+log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname())
+writer = SummaryWriter(log_dir=str(log_dir), comment='-parent')
 y = net.forward(Variable(torch.randn(1, 3, 480, 854)))
 writer.add_graph(net, y[-1])
 
@@ -238,11 +238,11 @@ for ii, sample_batched in enumerate(testloader):
         gt_ = np.transpose(gt.numpy()[jj, :, :, :], (1, 2, 0))
         gt_ = np.squeeze(gt)
 
-        save_dir_seq = os.path.join(save_dir, parentModelName, seq_name[jj])
-        if not os.path.exists(save_dir_seq):
-            os.makedirs(save_dir_seq)
+        save_dir_seq = save_dir / parentModelName / seq_name[jj]
+        save_dir_seq.mkdir(exist_ok=True)
         # Save the result, attention to the index jj
-        sm.imsave(os.path.join(save_dir_seq, fname[jj] + '.png'), pred)
+        file_name = save_dir_seq / '{0}.png'.format(fname[jj])
+        sm.imsave(str(file_name), pred)
 
 # save_dir = os.path.join(Path.save_root_dir(), parentModelName)
 # eng = matlab.engine.start_matlab('-nodesktop -nodisplay -nosplash -nojvm -r '
