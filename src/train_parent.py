@@ -18,7 +18,6 @@ from dataloaders import davis_2016 as db
 from dataloaders import custom_transforms as tr
 import networks.osvos_vgg as vo
 from layers.osvos_layers import class_balanced_cross_entropy_loss
-from dataloaders.helpers import *
 
 from util import gpu_handler
 from util.logger import get_logger
@@ -40,7 +39,6 @@ p = {
 }
 
 # # Setting other parameters
-exp_name = os.path.dirname(os.path.abspath(__file__)).split('/')[-1]
 nEpochs = 240  # 240  # Number of epochs for training (500.000/2079)
 useTest = 1  # See evolution of the test set when training?
 testBatch = 1  # Testing Batch
@@ -240,12 +238,7 @@ for ii, sample_batched in enumerate(testloader):
 
         save_dir_seq = save_dir / parentModelName / seq_name[jj]
         save_dir_seq.mkdir(exist_ok=True)
+
         # Save the result, attention to the index jj
         file_name = save_dir_seq / '{0}.png'.format(fname[jj])
         sm.imsave(str(file_name), pred)
-
-# save_dir = os.path.join(Path.save_root_dir(), parentModelName)
-# eng = matlab.engine.start_matlab('-nodesktop -nodisplay -nosplash -nojvm -r '
-#                                  '"cd {};run initialization.m"'.format(Path.matlab_code()))
-# eng.sweep_threshold(save_dir, 'DAVIS', 'val', 200, 0)
-# eng.quit()
