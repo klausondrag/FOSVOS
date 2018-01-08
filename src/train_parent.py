@@ -6,6 +6,7 @@ from datetime import datetime
 
 import scipy.misc as sm
 from tensorboardX import SummaryWriter
+import numpy as np
 
 import torch
 from torch.autograd import Variable
