@@ -56,12 +56,10 @@ p = {
     'trainBatch': 1,  # Number of Images in each mini-batch
 }
 
-# 'vgg16'
-
-net_provider = NetworkProvider('vgg16_blackswan', vo.OSVOS_VGG, save_dir, name_parent='src')
+net_provider = NetworkProvider('vgg16_blackswan', vo.OSVOS_VGG, save_dir)
 
 
-def train(seq_name, nEpochs, train_and_test=True):
+def train(seq_name, nEpochs, name_parent='vgg16', train_and_test=True):
     speeds_training = []
     if train_and_test:
         # db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
@@ -72,9 +70,9 @@ def train(seq_name, nEpochs, train_and_test=True):
         # testitest_i, testitest_g = gpu_handler.cast_cuda_if_possible([testitest_i, testitest_g])
 
         # Network definition
-        net_provider.name = net_provider.name_parent + '_' + seq_name
+        net_provider.name = name_parent + '_' + seq_name
         net = net_provider.init_network(pretrained=0)
-        net_provider.load(parentEpoch, use_parent=True)
+        net_provider.load(parentEpoch, name=name_parent)
 
         # Logging into Tensorboard
         log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname()
@@ -193,9 +191,9 @@ def train(seq_name, nEpochs, train_and_test=True):
             f, ax_arr = plt.subplots(1, 3)
     else:
         # nEpochs = 10000
-        net_provider.name = net_provider.name_parent + '_' + seq_name
+        net_provider.name = name_parent + '_' + seq_name
         net = net_provider.init_network(pretrained=0)
-        net_provider.load(parentEpoch, use_parent=True)
+        net_provider.load(parentEpoch)
 
         db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
         testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
