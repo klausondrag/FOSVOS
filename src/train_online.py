@@ -38,13 +38,9 @@ else:
     seq_name = str(os.environ['SEQ_NAME'])
 
 db_root_dir = Path.db_root_dir()
-save_dir_root = Path.save_root_dir()
-exp_name = os.path.dirname(os.path.abspath(__file__)).split('/')[-1]
 
-save_dir = './models'
-
-if not os.path.exists(save_dir):
-    os.makedirs(os.path.join(save_dir))
+save_dir = Path('models')
+save_dir.mkdir(exist_ok=True)
 
 exp_dir = Path.exp_dir()
 vis_net = 0  # Visualize the network?
@@ -60,10 +56,10 @@ p = {
     'trainBatch': 1,  # Number of Images in each mini-batch
 }
 
+parentModelName = 'vgg16'
 parentModelName = 'src'
 
-save_dir = Path('models')
-net_provider = NetworkProvider('vgg16_blackswan', vo.OSVOS_VGG, save_dir, name_parent='vgg16')
+net_provider = NetworkProvider('vgg16_blackswan', vo.OSVOS_VGG, save_dir, name_parent=parentModelName)
 
 
 # parentModelName = 'OSVOS'
@@ -86,9 +82,9 @@ def train(seq_name, nEpochs, train_and_test=True):
         net_provider.load(parentEpoch, use_parent=True)
 
         # Logging into Tensorboard
-        log_dir = os.path.join(save_dir, 'runs',
-                               datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname() + '-' + seq_name)
-        writer = SummaryWriter(log_dir=log_dir)
+        log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname()
+                                       + '-' + seq_name)
+        writer = SummaryWriter(log_dir=str(log_dir))
         # y = net.forward(Variable(torch.randn(1, 3, 480, 854)))
         # writer.add_graph(net, y[-1])
 
@@ -209,10 +205,8 @@ def train(seq_name, nEpochs, train_and_test=True):
         db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
         testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
 
-    # save_dir_res = os.path.join('results', seq_name + '_' + str(nEpochs))
-    save_dir_res = os.path.join('results', seq_name)
-    if not os.path.exists(save_dir_res):
-        os.makedirs(save_dir_res)
+    save_dir_res = Path('results') / seq_name
+    save_dir_res.mkdir(exist_ok=True)
 
     log.info('Testing Network')
     test_start_time = timeit.default_timer()
@@ -233,7 +227,9 @@ def train(seq_name, nEpochs, train_and_test=True):
             pred = np.squeeze(pred)
 
             # Save the result, attention to the index jj
-            sm.imsave(os.path.join(save_dir_res, os.path.basename(fname[jj]) + '.png'), pred)
+            log.info(str(fname))
+            file_name = save_dir_res / '{0}.png'.format(fname[jj])
+            sm.imsave(file_name, pred)
 
             if vis_res:
                 img_ = np.transpose(img.numpy()[jj, :, :, :], (1, 2, 0))
