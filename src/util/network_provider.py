@@ -39,42 +39,43 @@ class NetworkProvider:
         torch.save(self.network.state_dict(), file_path)
 
 
+# code below is simply for showing the use case
+if False:
+    # parent
+    save_dir = Path('models')
+    net_provider = NetworkProvider('vgg16', OSVOS_VGG, save_dir)
 
-# parent
-save_dir = Path('models')
-np = NetworkProvider('vgg16', OSVOS_VGG, save_dir)
+    resume_epoch = 0
+    load_caffe_vgg = False
+    nEpochs = 240
 
-resume_epoch = 0
-load_caffe_vgg = False
-nEpochs = 240
-
-# parent train
-if resume_epoch == 0:
-    if load_caffe_vgg:
-        net = np.init_network(pretrained=2)
+    # parent train
+    if resume_epoch == 0:
+        if load_caffe_vgg:
+            net = net_provider.init_network(pretrained=2)
+        else:
+            net = net_provider.init_network(pretrained=1)
     else:
-        net = np.init_network(pretrained=1)
-else:
-    net = np.init_network(pretrained=0)
-    np.load(resume_epoch)
+        net = net_provider.init_network(pretrained=0)
+        net_provider.load(resume_epoch)
 
-epoch = 1
-np.save(epoch)
+    epoch = 1
+    net_provider.save(epoch)
 
-# parent test
-net = net_provider.init_network(pretrained=0)
-net_provider.load(nEpochs)
+    # parent test
+    net = net_provider.init_network(pretrained=0)
+    net_provider.load(nEpochs)
 
-# online
-save_dir = Path('models')
-net_provider = NetworkProvider('vgg16_blackswan', OSVOS_VGG, save_dir, name_parent='vgg16')
+    # online
+    save_dir = Path('models')
+    net_provider = NetworkProvider('vgg16_blackswan', OSVOS_VGG, save_dir, name_parent='vgg16')
 
-# online train
-net = net_provider.init_network(pretrained=0)
-net_provider.load(nEpochs, use_parent=True)
-epoch = 1
-net_provider.save(epoch)
+    # online train
+    net = net_provider.init_network(pretrained=0)
+    net_provider.load(nEpochs, use_parent=True)
+    epoch = 1
+    net_provider.save(epoch)
 
-# online test
-net = net_provider.init_network(pretrained=0)
-net_provider.load(nEpochs, use_parent=True)
+    # online test
+    net = net_provider.init_network(pretrained=0)
+    net_provider.load(nEpochs, use_parent=True)
