@@ -39,13 +39,14 @@ class NetworkProvider:
         torch.save(self.network.state_dict(), file_path)
 
 
-save_dir = Path('models')
 
 # parent
+save_dir = Path('models')
+np = NetworkProvider('vgg16', OSVOS_VGG, save_dir)
+
 resume_epoch = 0
 load_caffe_vgg = False
 nEpochs = 240
-np = NetworkProvider('vgg16', OSVOS_VGG, save_dir)
 
 # parent train
 if resume_epoch == 0:
@@ -61,18 +62,19 @@ epoch = 1
 np.save(epoch)
 
 # parent test
-net = np.init_network(pretrained=0)
-np.load(nEpochs)
+net = net_provider.init_network(pretrained=0)
+net_provider.load(nEpochs)
 
 # online
-np = NetworkProvider('vgg16_blackswan', OSVOS_VGG, save_dir, name_parent='vgg16')
+save_dir = Path('models')
+net_provider = NetworkProvider('vgg16_blackswan', OSVOS_VGG, save_dir, name_parent='vgg16')
 
 # online train
-net = np.init_network(pretrained=0)
-np.load(nEpochs, use_parent=True)
+net = net_provider.init_network(pretrained=0)
+net_provider.load(nEpochs, use_parent=True)
 epoch = 1
-np.save(epoch)
+net_provider.save(epoch)
 
 # online test
-net = np.init_network(pretrained=0)
-np.load(nEpochs, use_parent=True)
+net = net_provider.init_network(pretrained=0)
+net_provider.load(nEpochs, use_parent=True)

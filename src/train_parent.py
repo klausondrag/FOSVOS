@@ -59,16 +59,16 @@ modelName = 'vgg16'
 save_dir = Path('models')
 save_dir.mkdir(exist_ok=True)
 
-np = NetworkProvider(modelName, vo.OSVOS_VGG, save_dir)
+net_provider = NetworkProvider(modelName, vo.OSVOS_VGG, save_dir)
 
 if resume_epoch == 0:
     if load_caffe_vgg:
-        net = np.init_network(pretrained=2)
+        net = net_provider.init_network(pretrained=2)
     else:
-        net = np.init_network(pretrained=1)
+        net = net_provider.init_network(pretrained=1)
 else:
-    net = np.init_network(pretrained=0)
-    np.load(resume_epoch)
+    net = net_provider.init_network(pretrained=0)
+    net_provider.load(resume_epoch)
 
 # Logging into Tensorboard
 log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname())
@@ -176,7 +176,7 @@ for epoch in range(resume_epoch, nEpochs):
 
     # Save the model
     if (epoch % snapshot) == snapshot - 1 and epoch != 0:
-        np.save(epoch)
+        net_provider.save(epoch)
 
     # One testing epoch
     if useTest and epoch % nTestInterval == (nTestInterval - 1):
@@ -212,8 +212,8 @@ writer.close()
 # Test parent network
 log.info('Testing Network')
 parentModelName = modelName
-net = np.init_network(pretrained=0)
-np.load(nEpochs)
+net = net_provider.init_network(pretrained=0)
+net_provider.load(nEpochs)
 
 db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor())
 testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=2)
