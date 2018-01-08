@@ -23,6 +23,7 @@ from dataloaders.helpers import *
 from util import gpu_handler
 from util.logger import get_logger
 from config.mypath import Path
+from util.network_provider import NetworkProvider
 
 if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch
@@ -61,6 +62,9 @@ p = {
 
 parentModelName = 'src'
 
+save_dir = Path('models')
+net_provider = NetworkProvider('vgg16_blackswan', vo.OSVOS_VGG, save_dir, name_parent='vgg16')
+
 
 # parentModelName = 'OSVOS'
 # parentModelName = 'blackswan'
@@ -77,11 +81,9 @@ def train(seq_name, nEpochs, train_and_test=True):
         # testitest_i, testitest_g = gpu_handler.cast_cuda_if_possible([testitest_i, testitest_g])
 
         # Network definition
-        net = vo.OSVOS_VGG(pretrained=0)
-        net.load_state_dict(
-            torch.load(os.path.join(save_dir, parentModelName + '_epoch-' + str(parentEpoch - 1) + '.pth'),
-                       map_location=lambda storage, loc: storage))
-        net = gpu_handler.cast_cuda_if_possible(net, verbose=True)
+        net_provider.name = net_provider.name_parent + '_' + seq_name
+        net = net_provider.init_network(pretrained=0)
+        net_provider.load(parentEpoch, use_parent=True)
 
         # Logging into Tensorboard
         log_dir = os.path.join(save_dir, 'runs',
@@ -176,7 +178,7 @@ def train(seq_name, nEpochs, train_and_test=True):
 
             # Save the model
             if (epoch % snapshot) == snapshot - 1:  # and epoch != 0:
-                torch.save(net.state_dict(), os.path.join(save_dir, seq_name + '_epoch-' + str(epoch) + '.pth'))
+                net_provider.save(epoch)
 
             epoch_stop_time = timeit.default_timer()
             t = epoch_stop_time - epoch_start_time
@@ -199,11 +201,11 @@ def train(seq_name, nEpochs, train_and_test=True):
             plt.ion()
             f, ax_arr = plt.subplots(1, 3)
     else:
-        net = vo.OSVOS_VGG(pretrained=0)
         # nEpochs = 10000
-        net.load_state_dict(torch.load(os.path.join(save_dir, 'boat' + '_epoch-' + str(nEpochs - 1) + '.pth'),
-                                       map_location=lambda storage, loc: storage))
-        net = gpu_handler.cast_cuda_if_possible(net, verbose=True)
+        net_provider.name = net_provider.name_parent + '_' + seq_name
+        net = net_provider.init_network(pretrained=0)
+        net_provider.load(parentEpoch, use_parent=True)
+
         db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
         testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
 
