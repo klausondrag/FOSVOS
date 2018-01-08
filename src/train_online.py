@@ -1,4 +1,3 @@
-import os
 import socket
 import sys
 import timeit
@@ -20,7 +19,6 @@ import scipy.misc as sm
 import networks.osvos_vgg as vo
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 from dataloaders.helpers import *
-
 from util import gpu_handler
 from util.logger import get_logger
 from config.mypath import Path as P
@@ -32,17 +30,7 @@ gpu_handler.select_gpu_by_hostname()
 
 log = get_logger(__file__)
 
-# Setting of parameters
-if 'SEQ_NAME' not in os.environ.keys():
-    seq_name = 'blackswan'
-else:
-    seq_name = str(os.environ['SEQ_NAME'])
-
 db_root_dir = P.db_root_dir()
-
-save_dir = Path('models')
-save_dir.mkdir(exist_ok=True)
-
 exp_dir = P.exp_dir()
 is_visualizing_network = False
 is_visualizing_result = False
@@ -56,6 +44,8 @@ p = {
     'trainBatch': 1,  # Number of Images in each mini-batch
 }
 
+save_dir = Path('models')
+save_dir.mkdir(exist_ok=True)
 net_provider = NetworkProvider('vgg16_blackswan', vo.OSVOS_VGG, save_dir)
 
 
