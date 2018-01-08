@@ -43,8 +43,8 @@ save_dir = Path('models')
 save_dir.mkdir(exist_ok=True)
 
 exp_dir = Path.exp_dir()
-vis_net = 0  # Visualize the network?
-vis_res = 0  # Visualize the results?
+is_visualizing_network = False
+is_visualizing_result = False
 n_avg_grad = 5
 start_epoch = 0
 snapshot = 100  # Store a model every snapshot epochs
@@ -81,7 +81,7 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
         # writer.add_graph(net, y[-1])
 
         # Visualize the network
-        if vis_net:
+        if is_visualizing_network:
             x = torch.randn(1, 3, 480, 854)
             x = Variable(x)
             x = gpu_handler.cast_cuda_if_possible(x)
@@ -182,7 +182,7 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
         log.info('Train {0}: time per sample {1} sec'.format(seq_name, np.asarray(t).mean()))
 
         # Testing Phase
-        if vis_res:
+        if is_visualizing_result:
             import matplotlib.pyplot as plt
 
             plt.close("all")
@@ -223,7 +223,7 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
             file_name = save_dir_res / '{0}.png'.format(fname[jj])
             sm.imsave(file_name, pred)
 
-            if vis_res:
+            if is_visualizing_result:
                 img_ = np.transpose(img.numpy()[jj, :, :, :], (1, 2, 0))
                 gt_ = np.transpose(gt.numpy()[jj, :, :, :], (1, 2, 0))
                 gt_ = np.squeeze(gt)
