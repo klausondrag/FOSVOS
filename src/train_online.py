@@ -47,7 +47,6 @@ vis_net = 0  # Visualize the network?
 vis_res = 0  # Visualize the results?
 nAveGrad = 5
 start_epoch = 0
-nEpochs = 400 * nAveGrad  # Number of epochs for training
 snapshot = 100  # Store a model every snapshot epochs
 parentEpoch = 240  # 240
 
@@ -59,7 +58,7 @@ p = {
 net_provider = NetworkProvider('vgg16_blackswan', vo.OSVOS_VGG, save_dir)
 
 
-def train(seq_name, nEpochs, name_parent='vgg16', train_and_test=True):
+def train(seq_name, n_epochs, name_parent='vgg16', train_and_test=True):
     speeds_training = []
     if train_and_test:
         # db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
@@ -126,7 +125,7 @@ def train(seq_name, nEpochs, name_parent='vgg16', train_and_test=True):
         log.info("Start of Online Training, sequence: " + seq_name)
         start_time = timeit.default_timer()
         # Main Training and Testing Loop
-        for epoch in range(start_epoch, nEpochs):
+        for epoch in range(start_epoch, n_epochs):
             epoch_start_time = timeit.default_timer()
             # One training epoch
             running_loss_tr = 0
@@ -145,7 +144,7 @@ def train(seq_name, nEpochs, name_parent='vgg16', train_and_test=True):
                 running_loss_tr += loss.data[0]
 
                 # Print stuff
-                if epoch % (nEpochs // 20) == (nEpochs // 20 - 1):
+                if epoch % (n_epochs // 20) == (n_epochs // 20 - 1):
                     running_loss_tr /= num_img_tr
                     loss_tr.append(running_loss_tr)
 
@@ -248,6 +247,8 @@ def train(seq_name, nEpochs, name_parent='vgg16', train_and_test=True):
 
 
 if __name__ == '__main__':
+    n_epochs = 400 * nAveGrad  # Number of epochs for training
+
     sequences = ['bear', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey', 'kite-walk', 'mallard-water',
                  'paragliding', 'rollerblade', 'soccerball', 'tennis', 'blackswan', 'breakdance', 'car-roundabout',
                  'dance-jump', 'drift-chicane', 'flamingo', 'horsejump-high', 'libby', 'motocross-bumps',
@@ -259,5 +260,5 @@ if __name__ == '__main__':
     # already_done = ['bear', 'blackswan', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey']
     sequences = [s for s in sequences if s not in already_done]
 
-    [train(s, nEpochs) for s in sequences]
-    # train('boat', nEpochs, train_and_test=False)
+    [train(s, n_epochs) for s in sequences]
+    # train('boat', n_epochs, train_and_test=False)
