@@ -12,8 +12,8 @@ import torch.optim as optim
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
-from dataloaders import davis_2016 as db
-from dataloaders import custom_transforms as tr
+from dataloaders.davis_2016 import DAVIS2016
+from dataloaders import custom_transforms
 import visualize as viz
 import scipy.misc as sm
 import networks.osvos_vgg as vo
@@ -36,7 +36,7 @@ is_visualizing_network = False
 is_visualizing_result = False
 n_avg_grad = 5
 start_epoch = 0
-snapshot = 100  # Store a model every snapshot epochs
+snapshot_every = 100  # Store a model every snapshot epochs
 parent_epoch = 240  # 240
 
 # Parameters in p are used for the name of the model
@@ -47,6 +47,21 @@ p = {
 save_dir = Path('models')
 save_dir.mkdir(exist_ok=True)
 net_provider = NetworkProvider('vgg16_blackswan', vo.OSVOS_VGG, save_dir)
+
+
+def get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002):
+    optimizer = optim.SGD([
+        {'params': [pr[1] for pr in net.stages.named_parameters() if 'weight' in pr[0]], 'weight_decay': weight_decay},
+        {'params': [pr[1] for pr in net.stages.named_parameters() if 'bias' in pr[0]], 'lr': learning_rate * 2},
+        {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'weight' in pr[0]],
+         'weight_decay': weight_decay},
+        {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'bias' in pr[0]], 'lr': learning_rate * 2},
+        {'params': [pr[1] for pr in net.upscale.named_parameters() if 'weight' in pr[0]], 'lr': 0},
+        {'params': [pr[1] for pr in net.upscale_.named_parameters() if 'weight' in pr[0]], 'lr': 0},
+        {'params': net.fuse.weight, 'lr': learning_rate / 100, 'weight_decay': weight_decay},
+        {'params': net.fuse.bias, 'lr': 2 * learning_rate / 100},
+    ], lr=learning_rate, momentum=0.9)
+    return optimizer
 
 
 def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_test: bool = True) -> None:
@@ -80,32 +95,20 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
             g = viz.make_dot(y, net.state_dict())
             g.view()
 
-        # Use the following optimizer
-        lr = 1e-8
-        wd = 0.0002
-        optimizer = optim.SGD([
-            {'params': [pr[1] for pr in net.stages.named_parameters() if 'weight' in pr[0]], 'weight_decay': wd},
-            {'params': [pr[1] for pr in net.stages.named_parameters() if 'bias' in pr[0]], 'lr': lr * 2},
-            {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'weight' in pr[0]], 'weight_decay': wd},
-            {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'bias' in pr[0]], 'lr': lr * 2},
-            {'params': [pr[1] for pr in net.upscale.named_parameters() if 'weight' in pr[0]], 'lr': 0},
-            {'params': [pr[1] for pr in net.upscale_.named_parameters() if 'weight' in pr[0]], 'lr': 0},
-            {'params': net.fuse.weight, 'lr': lr / 100, 'weight_decay': wd},
-            {'params': net.fuse.bias, 'lr': 2 * lr / 100},
-        ], lr=lr, momentum=0.9)
+        optimizer = get_optimizer(net)
 
         # Preparation of the data loaders
         # Define augmentation transformations as a composition
-        composed_transforms = transforms.Compose([tr.RandomHorizontalFlip(),
-                                                  tr.Resize(),
-                                                  # tr.ScaleNRotate(rots=(-30, 30), scales=(.75, 1.25)),
-                                                  tr.ToTensor()])
+        composed_transforms = transforms.Compose([custom_transforms.RandomHorizontalFlip(),
+                                                  custom_transforms.Resize(),
+                                                  # custom_transforms.ScaleNRotate(rots=(-30, 30), scales=(.75, 1.25)),
+                                                  custom_transforms.ToTensor()])
         # Training dataset and its iterator
-        db_train = db.DAVIS2016(mode='train', db_root_dir=db_root_dir, transform=composed_transforms, seq_name=seq_name)
+        db_train = DAVIS2016(mode='train', db_root_dir=db_root_dir, transform=composed_transforms, seq_name=seq_name)
         trainloader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=1)
 
         # Testing dataset and its iterator
-        db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
+        db_test = DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
         testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
 
         num_img_tr = len(trainloader)
@@ -156,7 +159,7 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
                     counter_gradient = 0
 
             # Save the model
-            if (epoch % snapshot) == snapshot - 1:  # and epoch != 0:
+            if (epoch % snapshot_every) == snapshot_every - 1:  # and epoch != 0:
                 net_provider.save(epoch)
 
             epoch_stop_time = timeit.default_timer()
@@ -185,7 +188,8 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
         net = net_provider.init_network(pretrained=0)
         net_provider.load(parent_epoch)
 
-        db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
+        db_test = DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=custom_transforms.ToTensor(),
+                            seq_name=seq_name)
         testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
 
     save_dir_res = Path('results') / seq_name
