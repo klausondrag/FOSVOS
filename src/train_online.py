@@ -58,7 +58,7 @@ p = {
 net_provider = NetworkProvider('vgg16_blackswan', vo.OSVOS_VGG, save_dir)
 
 
-def train(seq_name, n_epochs, name_parent='vgg16', train_and_test=True):
+def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_test: bool = True) -> None:
     speeds_training = []
     if train_and_test:
         # db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
