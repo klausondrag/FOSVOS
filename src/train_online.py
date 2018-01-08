@@ -45,10 +45,10 @@ save_dir.mkdir(exist_ok=True)
 exp_dir = Path.exp_dir()
 vis_net = 0  # Visualize the network?
 vis_res = 0  # Visualize the results?
-nAveGrad = 5
+n_avg_grad = 5
 start_epoch = 0
 snapshot = 100  # Store a model every snapshot epochs
-parentEpoch = 240  # 240
+parent_epoch = 240  # 240
 
 # Parameters in p are used for the name of the model
 p = {
@@ -71,7 +71,7 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
         # Network definition
         net_provider.name = name_parent + '_' + seq_name
         net = net_provider.init_network(pretrained=0)
-        net_provider.load(parentEpoch, name=name_parent)
+        net_provider.load(parent_epoch, name=name_parent)
 
         # Logging into Tensorboard
         log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname()
@@ -120,7 +120,7 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
         num_img_tr = len(trainloader)
         num_img_ts = len(testloader)
         loss_tr = []
-        aveGrad = 0
+        counter_gradient = 0
 
         log.info("Start of Online Training, sequence: " + seq_name)
         start_time = timeit.default_timer()
@@ -153,16 +153,16 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
                     writer.add_scalar('data/total_loss_epoch', running_loss_tr, epoch)
 
                 # Backward the averaged gradient
-                loss /= nAveGrad
+                loss /= n_avg_grad
                 loss.backward()
-                aveGrad += 1
+                counter_gradient += 1
 
                 # Update the weights once in nAveGrad forward passes
-                if aveGrad % nAveGrad == 0:
+                if counter_gradient % n_avg_grad == 0:
                     writer.add_scalar('data/total_loss_iter', loss.data[0], ii + num_img_tr * epoch)
                     optimizer.step()
                     optimizer.zero_grad()
-                    aveGrad = 0
+                    counter_gradient = 0
 
             # Save the model
             if (epoch % snapshot) == snapshot - 1:  # and epoch != 0:
@@ -192,7 +192,7 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
         # nEpochs = 10000
         net_provider.name = name_parent + '_' + seq_name
         net = net_provider.init_network(pretrained=0)
-        net_provider.load(parentEpoch)
+        net_provider.load(parent_epoch)
 
         db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
         testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
@@ -247,7 +247,7 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
 
 
 if __name__ == '__main__':
-    n_epochs = 400 * nAveGrad  # Number of epochs for training
+    n_epochs = 400 * n_avg_grad  # Number of epochs for training
 
     sequences = ['bear', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey', 'kite-walk', 'mallard-water',
                  'paragliding', 'rollerblade', 'soccerball', 'tennis', 'blackswan', 'breakdance', 'car-roundabout',
