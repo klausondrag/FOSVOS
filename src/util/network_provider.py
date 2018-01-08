@@ -39,43 +39,44 @@ class NetworkProvider:
         torch.save(self.network.state_dict(), file_path)
 
 
-# code below is simply for showing the use case
-if False:
-    # parent
-    save_dir = Path('models')
-    net_provider = NetworkProvider('vgg16', OSVOS_VGG, save_dir)
+if __name__ == '__main__':
+    # code below is simply for showing the use case
+    if False:
+        # parent
+        save_dir = Path('models')
+        net_provider = NetworkProvider('vgg16', OSVOS_VGG, save_dir)
 
-    resume_epoch = 0
-    load_caffe_vgg = False
-    nEpochs = 240
+        resume_epoch = 0
+        load_caffe_vgg = False
+        nEpochs = 240
 
-    # parent train
-    if resume_epoch == 0:
-        if load_caffe_vgg:
-            net = net_provider.init_network(pretrained=2)
+        # parent train
+        if resume_epoch == 0:
+            if load_caffe_vgg:
+                net = net_provider.init_network(pretrained=2)
+            else:
+                net = net_provider.init_network(pretrained=1)
         else:
-            net = net_provider.init_network(pretrained=1)
-    else:
+            net = net_provider.init_network(pretrained=0)
+            net_provider.load(resume_epoch)
+
+        epoch = 1
+        net_provider.save(epoch)
+
+        # parent test
         net = net_provider.init_network(pretrained=0)
-        net_provider.load(resume_epoch)
+        net_provider.load(nEpochs)
 
-    epoch = 1
-    net_provider.save(epoch)
+        # online
+        save_dir = Path('models')
+        net_provider = NetworkProvider('vgg16_blackswan', OSVOS_VGG, save_dir)
 
-    # parent test
-    net = net_provider.init_network(pretrained=0)
-    net_provider.load(nEpochs)
+        # online train
+        net = net_provider.init_network(pretrained=0)
+        net_provider.load(nEpochs, name='vgg16')
+        epoch = 1
+        net_provider.save(epoch)
 
-    # online
-    save_dir = Path('models')
-    net_provider = NetworkProvider('vgg16_blackswan', OSVOS_VGG, save_dir)
-
-    # online train
-    net = net_provider.init_network(pretrained=0)
-    net_provider.load(nEpochs, name='vgg16')
-    epoch = 1
-    net_provider.save(epoch)
-
-    # online test
-    net = net_provider.init_network(pretrained=0)
-    net_provider.load(nEpochs)
+        # online test
+        net = net_provider.init_network(pretrained=0)
+        net_provider.load(nEpochs)
