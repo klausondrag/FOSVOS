@@ -247,16 +247,17 @@ def train(seq_name, nEpochs, name_parent='vgg16', train_and_test=True):
         'Test {0}: time per sample {1} sec'.format(seq_name, str((test_stop_time - test_start_time) / len(testloader))))
 
 
-sequences = ['bear', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey', 'kite-walk', 'mallard-water',
-             'paragliding', 'rollerblade', 'soccerball', 'tennis', 'blackswan', 'breakdance', 'car-roundabout',
-             'dance-jump', 'drift-chicane', 'flamingo', 'horsejump-high', 'libby', 'motocross-bumps',
-             'paragliding-launch', 'scooter-black', 'stroller', 'train', 'bmx-bumps', 'breakdance-flare', 'car-shadow',
-             'dance-twirl', 'drift-straight', 'goat', 'horsejump-low', 'lucia', 'motocross-jump', 'parkour',
-             'scooter-gray', 'surf', 'bmx-trees', 'bus', 'car-turn', 'dog', 'drift-turn', 'hike', 'kite-surf',
-             'mallard-fly', 'motorbike', 'rhino', 'soapbox', 'swing']
-already_done = []
-# already_done = ['bear', 'blackswan', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey']
-sequences = [s for s in sequences if s not in already_done]
-[train(s, nEpochs) for s in sequences]
+if __name__ == '__main__':
+    sequences = ['bear', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey', 'kite-walk', 'mallard-water',
+                 'paragliding', 'rollerblade', 'soccerball', 'tennis', 'blackswan', 'breakdance', 'car-roundabout',
+                 'dance-jump', 'drift-chicane', 'flamingo', 'horsejump-high', 'libby', 'motocross-bumps',
+                 'paragliding-launch', 'scooter-black', 'stroller', 'train', 'bmx-bumps', 'breakdance-flare',
+                 'car-shadow', 'dance-twirl', 'drift-straight', 'goat', 'horsejump-low', 'lucia', 'motocross-jump',
+                 'parkour', 'scooter-gray', 'surf', 'bmx-trees', 'bus', 'car-turn', 'dog', 'drift-turn', 'hike',
+                 'kite-surf', 'mallard-fly', 'motorbike', 'rhino', 'soapbox', 'swing']
+    already_done = []
+    # already_done = ['bear', 'blackswan', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey']
+    sequences = [s for s in sequences if s not in already_done]
 
-# train('boat', nEpochs, train_and_test=False)
+    [train(s, nEpochs) for s in sequences]
+    # train('boat', nEpochs, train_and_test=False)
