@@ -54,13 +54,10 @@ nAveGrad = 10
 load_caffe_vgg = 0
 resume_epoch = 0  # Default is 0, change if want to resume
 
-# Network definition
-modelName = 'vgg16'
-
 save_dir = Path('models')
 save_dir.mkdir(exist_ok=True)
 
-net_provider = NetworkProvider(modelName, vo.OSVOS_VGG, save_dir)
+net_provider = NetworkProvider('vgg16', vo.OSVOS_VGG, save_dir)
 
 if resume_epoch == 0:
     if load_caffe_vgg:
@@ -212,7 +209,6 @@ writer.close()
 
 # Test parent network
 log.info('Testing Network')
-parentModelName = modelName
 net = net_provider.init_network(pretrained=0)
 net_provider.load(nEpochs)
 
@@ -237,7 +233,7 @@ for ii, sample_batched in enumerate(testloader):
         gt_ = np.transpose(gt.numpy()[jj, :, :, :], (1, 2, 0))
         gt_ = np.squeeze(gt)
 
-        save_dir_seq = save_dir / parentModelName / seq_name[jj]
+        save_dir_seq = save_dir / net_provider.name / seq_name[jj]
         save_dir_seq.mkdir(exist_ok=True)
 
         # Save the result, attention to the index jj

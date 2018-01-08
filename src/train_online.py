@@ -56,15 +56,10 @@ p = {
     'trainBatch': 1,  # Number of Images in each mini-batch
 }
 
-parentModelName = 'vgg16'
-parentModelName = 'src'
+# 'vgg16'
 
-net_provider = NetworkProvider('vgg16_blackswan', vo.OSVOS_VGG, save_dir, name_parent=parentModelName)
+net_provider = NetworkProvider('vgg16_blackswan', vo.OSVOS_VGG, save_dir, name_parent='src')
 
-
-# parentModelName = 'OSVOS'
-# parentModelName = 'blackswan'
-# parentEpoch = 1000
 
 def train(seq_name, nEpochs, train_and_test=True):
     speeds_training = []
