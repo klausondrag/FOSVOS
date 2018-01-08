@@ -3,6 +3,7 @@ import socket
 import sys
 import timeit
 from datetime import datetime
+from pathlib import Path
 
 from tensorboardX import SummaryWriter
 
@@ -22,11 +23,11 @@ from dataloaders.helpers import *
 
 from util import gpu_handler
 from util.logger import get_logger
-from config.mypath import Path
+from config.mypath import Path as P
 from util.network_provider import NetworkProvider
 
-if Path.is_custom_pytorch():
-    sys.path.append(Path.custom_pytorch())  # Custom PyTorch
+if P.is_custom_pytorch():
+    sys.path.append(P.custom_pytorch())  # Custom PyTorch
 gpu_handler.select_gpu_by_hostname()
 
 log = get_logger(__file__)
@@ -37,12 +38,12 @@ if 'SEQ_NAME' not in os.environ.keys():
 else:
     seq_name = str(os.environ['SEQ_NAME'])
 
-db_root_dir = Path.db_root_dir()
+db_root_dir = P.db_root_dir()
 
 save_dir = Path('models')
 save_dir.mkdir(exist_ok=True)
 
-exp_dir = Path.exp_dir()
+exp_dir = P.exp_dir()
 is_visualizing_network = False
 is_visualizing_result = False
 n_avg_grad = 5
