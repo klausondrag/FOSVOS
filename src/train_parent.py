@@ -57,23 +57,27 @@ save_dir.mkdir(exist_ok=True)
 
 net_provider = NetworkProvider('vgg16', vo.OSVOS_VGG, save_dir)
 
-if start_epoch == 0:
-    if should_load_vgg_caffe:
-        net = net_provider.init_network(pretrained=2)
+
+def _load_network_train(net_provider: NetworkProvider, start_epoch: int, should_load_vgg_caffe: bool) -> None:
+    if start_epoch == 0:
+        if should_load_vgg_caffe:
+            net_provider.init_network(pretrained=2)
+        else:
+            net_provider.init_network(pretrained=1)
     else:
-        net = net_provider.init_network(pretrained=1)
-else:
-    net = net_provider.init_network(pretrained=0)
-    net_provider.load(start_epoch)
+        net_provider.init_network(pretrained=0)
+        net_provider.load(start_epoch)
+
+
+def _load_network_test(net_provider: NetworkProvider, n_epochs: int) -> None:
+    net_provider.init_network(pretrained=0)
+    net_provider.load(n_epochs)
 
 
 def _get_summary_writer() -> SummaryWriter:
     log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname())
     summary_writer = SummaryWriter(log_dir=str(log_dir), comment='-parent')
     return summary_writer
-
-
-summary_writer = _get_summary_writer()
 
 
 def visualize_network():
@@ -233,14 +237,24 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path
             sm.imsave(str(file_name), pred)
 
 
-def train_and_test():
-    pass
+n_epochs = 400
 
 
-optimizer = _get_optimizer(net)
-trainloader = _get_data_loader_train()
+def train_and_test(should_train: bool = True, should_test: bool = True) -> None:
+    if should_train:
+        _load_network_train(net_provider, start_epoch, should_load_vgg_caffe)
+        data_loader = _get_data_loader_train()
+        optimizer = _get_optimizer(net_provider.network)
+        summary_writer = _get_summary_writer()
 
-testloader = _get_data_loader_test()
+    if should_test:
+        _load_network_test(net_provider, n_epochs)
+        data_loader = _get_data_loader_test()
+        save_dir_images = Path('results') / net_provider.name
+        save_dir_images.mkdir(parents=True, exist_ok=True)
+
+        _test(net_provider, data_loader, save_dir_images)
+
 
 if should_visualize_network:
     visualize_network()
