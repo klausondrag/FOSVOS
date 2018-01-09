@@ -217,14 +217,14 @@ def _train():
     writer.close()
 
 
-def _test(net_provider: NetworkProvider, data_loader: DataLoader) -> None:
+def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path) -> None:
     log.info('Testing Network')
 
     net = net_provider.network
 
-    for ii, sample_batched in enumerate(data_loader):
-        img, gt, seq_name, fname = sample_batched['image'], sample_batched['gt'], \
-                                   sample_batched['seq_name'], sample_batched['fname']
+    for minibatch in data_loader:
+        img, gt, seq_name, fname = minibatch['image'], minibatch['gt'], \
+                                   minibatch['seq_name'], minibatch['fname']
 
         # Forward of the mini-batch
         inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
@@ -232,19 +232,19 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader) -> None:
 
         outputs = net.forward(inputs)
 
-        for jj in range(int(inputs.size()[0])):
-            pred = np.transpose(outputs[-1].cpu().data.numpy()[jj, :, :, :], (1, 2, 0))
+        for index in range(inputs.size()[0]):
+            pred = np.transpose(outputs[-1].cpu().data.numpy()[index, :, :, :], (1, 2, 0))
             pred = 1 / (1 + np.exp(-pred))
             pred = np.squeeze(pred)
-            img_ = np.transpose(img.numpy()[jj, :, :, :], (1, 2, 0))
-            gt_ = np.transpose(gt.numpy()[jj, :, :, :], (1, 2, 0))
+            img_ = np.transpose(img.numpy()[index, :, :, :], (1, 2, 0))
+            gt_ = np.transpose(gt.numpy()[index, :, :, :], (1, 2, 0))
             gt_ = np.squeeze(gt)
 
-            save_dir_seq = save_dir / net_provider.name / seq_name[jj]
+            save_dir_seq = save_dir / net_provider.name / seq_name[index]
             save_dir_seq.mkdir(exist_ok=True)
 
             # Save the result, attention to the index jj
-            file_name = save_dir_seq / '{0}.png'.format(fname[jj])
+            file_name = save_dir_seq / '{0}.png'.format(fname[index])
             sm.imsave(str(file_name), pred)
 
 
