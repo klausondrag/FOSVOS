@@ -45,11 +45,11 @@ nTestInterval = 5
 db_root_dir = P.db_root_dir()
 save_dir_root = P.save_root_dir()
 
-should_visualize_network = False
+is_visualizing_network = False
 snapshot = 40
 nAveGrad = 10
 
-should_load_vgg_caffe = False
+is_loading_vgg_caffe = False
 start_epoch = 0
 
 save_dir = Path('models')
@@ -58,9 +58,9 @@ save_dir.mkdir(parents=True, exist_ok=True)
 net_provider = NetworkProvider('vgg16', vo.OSVOS_VGG, save_dir)
 
 
-def _load_network_train(net_provider: NetworkProvider, start_epoch: int, should_load_vgg_caffe: bool) -> None:
+def _load_network_train(net_provider: NetworkProvider, start_epoch: int, is_loading_vgg_caffe: bool) -> None:
     if start_epoch == 0:
-        if should_load_vgg_caffe:
+        if is_loading_vgg_caffe:
             net_provider.init_network(pretrained=2)
         else:
             net_provider.init_network(pretrained=1)
@@ -240,14 +240,14 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path
 n_epochs = 400
 
 
-def train_and_test(should_train: bool = True, should_test: bool = True) -> None:
-    if should_train:
-        _load_network_train(net_provider, start_epoch, should_load_vgg_caffe)
+def train_and_test(net_provider: NetworkProvider, is_training: bool = True, is_testing: bool = True) -> None:
+    if is_training:
+        _load_network_train(net_provider, start_epoch, is_loading_vgg_caffe)
         data_loader = _get_data_loader_train()
         optimizer = _get_optimizer(net_provider.network)
         summary_writer = _get_summary_writer()
 
-    if should_test:
+    if is_testing:
         _load_network_test(net_provider, n_epochs)
         data_loader = _get_data_loader_test()
         save_dir_images = Path('results') / net_provider.name
@@ -256,8 +256,8 @@ def train_and_test(should_train: bool = True, should_test: bool = True) -> None:
         _test(net_provider, data_loader, save_dir_images)
 
 
-if should_visualize_network:
+if is_visualizing_network:
     visualize_network()
 if __name__ == '__main__':
     settings = None
-    train_and_test(net_provider, 'bear', settings, should_train=True)
+    train_and_test(net_provider, 'bear', settings, is_training=True)

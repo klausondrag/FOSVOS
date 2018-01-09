@@ -38,10 +38,10 @@ Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'n_avg_grad', 'sna
 
 
 def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Settings,
-                   should_train: bool = True, should_test: bool = True) -> None:
+                   is_training: bool = True, is_testing: bool = True) -> None:
     _set_network_name(net_provider, settings.parent_name, seq_name)
 
-    if should_train:
+    if is_training:
         _load_network_train(net_provider, settings.parent_epoch, settings.parent_name)
         data_loader = _get_data_loader_train(seq_name, settings.train_batch_size)
         optimizer = _get_optimizer(net_provider.network)
@@ -50,8 +50,8 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
         _train(net_provider, data_loader, optimizer, summary_writer, seq_name, settings.start_epoch, settings.n_epochs,
                settings.snapshot_every_n)
 
-    if should_test:
-        _load_network_test(net_provider, settings.n_epochs, settings.parent_epoch, settings.parent_name, should_train)
+    if is_testing:
+        _load_network_test(net_provider, settings.n_epochs, settings.parent_epoch, settings.parent_name, is_training)
         data_loader = _get_data_loader_test(seq_name)
         save_dir_images = Path('results') / seq_name
         save_dir_images.mkdir(parents=True, exist_ok=True)
@@ -72,9 +72,9 @@ def _load_network_train(net_provider: NetworkProvider, parent_epoch: int, parent
 
 
 def _load_network_test(net_provider: NetworkProvider, n_epochs: int, parent_epoch: int, parent_name: str,
-                       should_train: bool) -> None:
+                       is_training: bool) -> None:
     net_provider.init_network(pretrained=0)
-    if should_train:
+    if is_training:
         net_provider.load(n_epochs)
     else:
         net_provider.load(parent_epoch, name=parent_name)
@@ -283,4 +283,4 @@ if __name__ == '__main__':
     sequences = [s for s in sequences if s not in already_done]
 
     # [train_and_test(net_provider, s, settings) for s in sequences]
-    train_and_test(net_provider, 'bear', settings, should_train=False)
+    train_and_test(net_provider, 'bear', settings, is_training=False)
