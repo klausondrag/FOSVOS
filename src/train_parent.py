@@ -63,9 +63,12 @@ n_epochs = 400
 def train_and_test(net_provider: NetworkProvider, is_training: bool = True, is_testing: bool = True) -> None:
     if is_training:
         _load_network_train(net_provider, start_epoch, is_loading_vgg_caffe)
-        data_loader = _get_data_loader_train()
+        data_loader_train = _get_data_loader_train()
+        data_loader_test = _get_data_loader_test()
         optimizer = _get_optimizer(net_provider.network)
         summary_writer = _get_summary_writer()
+
+        _train(net_provider, data_loader_train, data_loader_test, optimizer, summary_writer)
 
     if is_testing:
         _load_network_test(net_provider, n_epochs)
@@ -150,9 +153,14 @@ def _visualize_network(net):
     g.view()
 
 
-def _train():
-    num_img_tr = len(trainloader)
-    num_img_ts = len(testloader)
+def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_loader_test: DataLoader,
+           optimizer: Optimizer, summary_writer: SummaryWriter) -> None:
+    log.info('Start of Parent Training')
+
+    net = net_provider.network
+
+    num_img_tr = len(data_loader_train)
+    num_img_ts = len(data_loader_test)
     running_loss_tr = [0] * 5
     running_loss_ts = [0] * 5
     loss_tr = []
@@ -162,7 +170,7 @@ def _train():
     log.info("Training Network")
     for epoch in range(start_epoch, nEpochs):
         start_time = timeit.default_timer()
-        for ii, sample_batched in enumerate(trainloader):
+        for ii, sample_batched in enumerate(data_loader_train):
 
             inputs, gts = sample_batched['image'], sample_batched['gt']
 
@@ -203,7 +211,7 @@ def _train():
             net_provider.save(epoch)
 
         if useTest and epoch % nTestInterval == (nTestInterval - 1):
-            for ii, sample_batched in enumerate(testloader):
+            for ii, sample_batched in enumerate(data_loader_test):
                 inputs, gts = sample_batched['image'], sample_batched['gt']
 
                 inputs, gts = Variable(inputs, volatile=True), Variable(gts, volatile=True)
