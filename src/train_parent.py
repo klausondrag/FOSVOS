@@ -51,7 +51,7 @@ def train_and_test(net_provider: NetworkProvider, settings: Settings, is_trainin
         optimizer = _get_optimizer(net_provider.network)
         summary_writer = _get_summary_writer()
 
-        _write_settings(save_dir, net_provider.name, settings)
+        io_helper.write_settings(save_dir, net_provider.name, settings._asdict())
         _train(net_provider, data_loader_train, data_loader_test, optimizer, summary_writer, settings.start_epoch,
                settings.n_epochs, settings.avg_grad_every_n, settings.snapshot_every_n,
                settings.is_testing_while_training, settings.test_every_n)
@@ -239,16 +239,6 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path
 
             file_name = save_dir_seq / '{0}.png'.format(fname[index])
             sm.imsave(str(file_name), pred)
-
-
-def _write_settings(save_dir: Path, name: str, settings: Settings) -> None:
-    file_name = '{0}_{1}_settings.yml'.format(name, _get_timestamp())
-    with open(str(save_dir / file_name), 'w') as outfile:
-        yaml.dump(settings._asdict(), outfile, default_flow_style=False)
-
-
-def _get_timestamp() -> str:
-    return datetime.now().replace(microsecond=0).isoformat()
 
 
 if __name__ == '__main__':

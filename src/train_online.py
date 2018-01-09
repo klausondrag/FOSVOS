@@ -52,7 +52,7 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
         optimizer = _get_optimizer(net_provider.network)
         summary_writer = _get_summary_writer(seq_name)
 
-        _write_settings(save_dir, net_provider.name, settings)
+        io_helper.write_settings(save_dir, net_provider.name, settings._asdict())
         _train(net_provider, data_loader, optimizer, summary_writer, seq_name, settings.start_epoch, settings.n_epochs,
                settings.avg_grad_every_n, settings.snapshot_every_n)
 
@@ -240,16 +240,6 @@ def _visualize_results(ax_arr, gt, img, jj, pred):
     ax_arr[1].imshow(gt_)
     ax_arr[2].imshow(im_normalize(pred))
     plt.pause(0.001)
-
-
-def _write_settings(save_dir: Path, name: str, settings: Settings) -> None:
-    file_name = '{0}_{1}_settings.yml'.format(name, _get_timestamp())
-    with open(str(save_dir / file_name), 'w') as outfile:
-        yaml.dump(settings._asdict(), outfile, default_flow_style=False)
-
-
-def _get_timestamp() -> str:
-    return datetime.now().replace(microsecond=0).isoformat()
 
 
 if __name__ == '__main__':

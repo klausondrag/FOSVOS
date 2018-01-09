@@ -1,9 +1,10 @@
 import datetime
 import socket
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 
 import torch
+import yaml
 from tensorboardX import SummaryWriter
 from torch.autograd import Variable
 
@@ -28,3 +29,10 @@ def get_summary_writer(save_dir: Path, postfix: Optional[str] = None, comment: s
 
 def _get_timestamp() -> str:
     return datetime.datetime.now().replace(microsecond=0).isoformat()
+
+
+def write_settings(save_dir: Path, name: str, settings: Dict) -> None:
+    file_name = '{0}_{1}_settings.yml'.format(name, _get_timestamp())
+    file_path = save_dir / file_name
+    with open(str(file_path), 'w') as f:
+        yaml.dump(settings, f, default_flow_style=False)
