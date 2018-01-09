@@ -2,6 +2,8 @@ import socket
 from typing import Optional, Union, List
 
 import torch
+from torch.nn import Module
+from torch.autograd import Variable
 
 from util.logger import get_logger
 
@@ -27,8 +29,8 @@ def select_gpu_by_hostname(hostname: Optional[str] = None) -> None:
     select_gpu_by_id(gpu_id)
 
 
-def cast_cuda_if_possible(net: Union[List[torch.nn.Module], torch.nn.Module],
-                          verbose: bool = False) -> Union[List[torch.nn.Module], torch.nn.Module]:
+def cast_cuda_if_possible(net: Union[Module, List[Module], Variable, List[Variable]],
+                          verbose: bool = False) -> Union[Module, List[Module], Variable, List[Variable]]:
     if torch.cuda.is_available():
         if verbose:
             log.info('Using cuda')
