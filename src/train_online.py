@@ -7,6 +7,7 @@ from collections import namedtuple
 
 from tensorboardX import SummaryWriter
 import yaml
+import scipy.misc as sm
 
 import torch
 from torch.autograd import Variable
@@ -18,11 +19,10 @@ from torch.utils.data import DataLoader
 from dataloaders.davis_2016 import DAVIS2016
 from dataloaders import custom_transforms
 import visualize as viz
-import scipy.misc as sm
 import networks.osvos_vgg as vo
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 from dataloaders.helpers import *
-from util import gpu_handler
+from util import gpu_handler, io_helper
 from util.logger import get_logger
 from config.mypath import Path as P
 from util.network_provider import NetworkProvider
@@ -65,7 +65,7 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
         _test(net_provider, data_loader, seq_name, save_dir_images, settings.is_visualizing_results)
 
     if settings.is_visualizing_network:
-        _visualize_network(net_provider.network)
+        io_helper.visualize_network(net_provider.network)
 
 
 def _set_network_name(net_provider: NetworkProvider, parent_name: str, seq_name: str) -> None:
@@ -218,15 +218,6 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str,
     log.info(
         'Test {0}: time per sample {1} sec'.format(seq_name,
                                                    str((test_stop_time - test_start_time) / len(data_loader))))
-
-
-def _visualize_network(net):
-    x = torch.randn(1, 3, 480, 854)
-    x = Variable(x)
-    x = gpu_handler.cast_cuda_if_possible(x)
-    y = net.forward(x)
-    g = viz.make_dot(y, net.state_dict())
-    g.view()
 
 
 def _init_plot():

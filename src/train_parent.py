@@ -23,7 +23,7 @@ from dataloaders import custom_transforms as tr
 import networks.osvos_vgg as vo
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 
-from util import gpu_handler
+from util import gpu_handler, io_helper
 from util.logger import get_logger
 from config.mypath import Path as P
 from util.network_provider import NetworkProvider
@@ -65,7 +65,7 @@ def train_and_test(net_provider: NetworkProvider, settings: Settings, is_trainin
         _test(net_provider, data_loader, save_dir_images)
 
     if settings.is_visualizing_network:
-        _visualize_network(net_provider.network)
+        io_helper.visualize_network(net_provider.network)
 
 
 def _load_network_train(net_provider: NetworkProvider, start_epoch: int, is_loading_vgg_caffe: bool) -> None:
@@ -129,14 +129,6 @@ def _get_summary_writer() -> SummaryWriter:
     log_dir = save_dir / 'runs' / (_get_timestamp() + '_' + socket.gethostname())
     summary_writer = SummaryWriter(log_dir=str(log_dir), comment='-parent')
     return summary_writer
-
-
-def _visualize_network(net):
-    x = torch.randn(1, 3, 480, 854)
-    x = Variable(x)
-    y = net.forward(x)
-    g = viz.make_dot(y, net.state_dict())
-    g.view()
 
 
 def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_loader_test: DataLoader,
