@@ -32,7 +32,7 @@ if P.is_custom_pytorch():
 gpu_handler.select_gpu_by_hostname()
 log = get_logger(__file__)
 
-Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'n_avg_grad', 'snapshot_every_n',
+Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'avg_grad_every_n', 'snapshot_every_n',
                                    'train_batch_size', 'parent_name', 'parent_epoch',
                                    'is_visualizing_network', 'is_visualizing_results'])
 
@@ -127,7 +127,7 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Op
     net = net_provider.network
 
     speeds_training = []
-    num_img_tr = len(data_loader)
+    n_samples = len(data_loader)
     loss_tr = []
     counter_gradient = 0
 
@@ -137,9 +137,7 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Op
 
         running_loss_tr = 0
         for minibatch_index, minibatch in enumerate(data_loader):
-
             inputs, gts = minibatch['image'], minibatch['gt']
-
             inputs, gts = Variable(inputs), Variable(gts)
             inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
@@ -149,19 +147,19 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Op
             running_loss_tr += loss.data[0]
 
             if epoch % (n_epochs // 20) == (n_epochs // 20 - 1):
-                running_loss_tr /= num_img_tr
+                running_loss_tr /= n_samples
                 loss_tr.append(running_loss_tr)
 
                 log.info('[Epoch {0}: {1}, numImages: {2}]'.format(seq_name, epoch + 1, minibatch_index + 1))
                 log.info('Loss {0}: {1}'.format(seq_name, running_loss_tr))
                 summary_writer.add_scalar('data/total_loss_epoch', running_loss_tr, epoch)
 
-            loss /= n_avg_grad
+            loss /= avg_grad_every_n
             loss.backward()
             counter_gradient += 1
 
-            if counter_gradient % n_avg_grad == 0:
-                summary_writer.add_scalar('data/total_loss_iter', loss.data[0], minibatch_index + num_img_tr * epoch)
+            if counter_gradient % avg_grad_every_n == 0:
+                summary_writer.add_scalar('data/total_loss_iter', loss.data[0], minibatch_index + n_samples * epoch)
                 optimizer.step()
                 optimizer.zero_grad()
                 counter_gradient = 0
@@ -254,13 +252,13 @@ if __name__ == '__main__':
     db_root_dir = P.db_root_dir()
     exp_dir = P.exp_dir()
 
-    # Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'n_avg_grad', 'snapshot_every_n',
+    # Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'avg_grad_every_n', 'snapshot_every_n',
     #                                    'train_batch_size', 'parent_name', 'parent_epoch',
     #                                    'is_visualizing_network', 'is_visualizing_results'])
 
-    n_avg_grad = 1
-    n_epochs = 400 * n_avg_grad
-    settings = Settings(start_epoch=0, n_epochs=n_epochs, n_avg_grad=n_avg_grad, snapshot_every_n=n_epochs,
+    avg_grad_every_n = 1
+    n_epochs = 400 * avg_grad_every_n
+    settings = Settings(start_epoch=0, n_epochs=n_epochs, avg_grad_every_n=avg_grad_every_n, snapshot_every_n=n_epochs,
                         train_batch_size=1, parent_name='src', parent_epoch=240,
                         is_visualizing_network=False, is_visualizing_results=False)
 

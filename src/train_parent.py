@@ -35,19 +35,19 @@ gpu_handler.select_gpu_by_hostname()
 log = get_logger(__file__)
 
 p = {
-    'trainBatch': 1,
+    'batch_size_train': 1,
 }
 
-nEpochs = 240
-useTest = 1
-testBatch = 1
-nTestInterval = 5
+n_epochs = 240
+is_testing_while_training = 1
+batch_size_test = 1
+test_every_n = 5
 db_root_dir = P.db_root_dir()
 save_dir_root = P.save_root_dir()
 
 is_visualizing_network = False
-snapshot = 40
-nAveGrad = 10
+snapshot_every_n = 40
+avg_grad_every_n = 10
 
 is_loading_vgg_caffe = False
 start_epoch = 0
@@ -56,8 +56,6 @@ save_dir = Path('models')
 save_dir.mkdir(parents=True, exist_ok=True)
 
 net_provider = NetworkProvider('vgg16', vo.OSVOS_VGG, save_dir)
-
-n_epochs = 400
 
 
 def train_and_test(net_provider: NetworkProvider, is_training: bool = True, is_testing: bool = True) -> None:
@@ -105,13 +103,13 @@ def _get_data_loader_train() -> DataLoader:
                                               # tr.ScaleNRotate(rots=(-30,30), scales=(.75, 1.25)),
                                               tr.ToTensor()])
     db_train = db.DAVIS2016(mode='train', inputRes=None, db_root_dir=db_root_dir, transform=composed_transforms)
-    data_loader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=2)
+    data_loader = DataLoader(db_train, batch_size=p['batch_size_train'], shuffle=True, num_workers=2)
     return data_loader
 
 
 def _get_data_loader_test() -> DataLoader:
     db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor())
-    data_loader = DataLoader(db_test, batch_size=testBatch, shuffle=False, num_workers=2)
+    data_loader = DataLoader(db_test, batch_size=batch_size_test, shuffle=False, num_workers=2)
     return data_loader
 
 
@@ -159,21 +157,19 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
 
     net = net_provider.network
 
-    num_img_tr = len(data_loader_train)
-    num_img_ts = len(data_loader_test)
-    running_loss_tr = [0] * 5
-    running_loss_ts = [0] * 5
-    loss_tr = []
-    loss_ts = []
-    aveGrad = 0
+    n_samples_train = len(data_loader_train)
+    n_samples_test = len(data_loader_test)
+    running_loss_train = [0] * 5
+    running_loss_test = [0] * 5
+    loss_train = []
+    loss_test = []
+    counter_gradient = 0
 
     log.info("Training Network")
-    for epoch in range(start_epoch, nEpochs):
+    for epoch in range(start_epoch, n_epochs):
         start_time = timeit.default_timer()
         for index, minibatch in enumerate(data_loader_train):
-
             inputs, gts = minibatch['image'], minibatch['gt']
-
             inputs, gts = Variable(inputs), Variable(gts)
             inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
@@ -182,35 +178,35 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
             losses = [0] * len(outputs)
             for i in range(0, len(outputs)):
                 losses[i] = class_balanced_cross_entropy_loss(outputs[i], gts, size_average=False)
-                running_loss_tr[i] += losses[i].data[0]
-            loss = (1 - epoch / nEpochs) * sum(losses[:-1]) + losses[-1]
+                running_loss_train[i] += losses[i].data[0]
+            loss = (1 - epoch / n_epochs) * sum(losses[:-1]) + losses[-1]
 
-            if index % num_img_tr == num_img_tr - 1:
-                running_loss_tr = [x / num_img_tr for x in running_loss_tr]
-                loss_tr.append(running_loss_tr[-1])
-                summary_writer.add_scalar('data/total_loss_epoch', running_loss_tr[-1], epoch)
+            if index % n_samples_train == n_samples_train - 1:
+                running_loss_train = [x / n_samples_train for x in running_loss_train]
+                loss_train.append(running_loss_train[-1])
+                summary_writer.add_scalar('data/total_loss_epoch', running_loss_train[-1], epoch)
                 log.info('[Epoch: %d, numImages: %5d]' % (epoch, index + 1))
-                for l in range(0, len(running_loss_tr)):
-                    log.info('Loss %d: %f' % (l, running_loss_tr[l]))
-                    running_loss_tr[l] = 0
+                for l in range(0, len(running_loss_train)):
+                    log.info('Loss %d: %f' % (l, running_loss_train[l]))
+                    running_loss_train[l] = 0
 
                 stop_time = timeit.default_timer()
                 log.info("Execution time: " + str(stop_time - start_time))
 
-            loss /= nAveGrad
+            loss /= avg_grad_every_n
             loss.backward()
-            aveGrad += 1
+            counter_gradient += 1
 
-            if aveGrad % nAveGrad == 0:
-                summary_writer.add_scalar('data/total_loss_iter', loss.data[0], index + num_img_tr * epoch)
+            if counter_gradient % avg_grad_every_n == 0:
+                summary_writer.add_scalar('data/total_loss_iter', loss.data[0], index + n_samples_train * epoch)
                 optimizer.step()
                 optimizer.zero_grad()
-                aveGrad = 0
+                counter_gradient = 0
 
-        if (epoch % snapshot) == snapshot - 1 and epoch != 0:
+        if (epoch % snapshot_every_n) == snapshot_every_n - 1 and epoch != 0:
             net_provider.save(epoch)
 
-        if useTest and epoch % nTestInterval == (nTestInterval - 1):
+        if is_testing_while_training and epoch % test_every_n == (test_every_n - 1):
             for index, minibatch in enumerate(data_loader_test):
                 inputs, gts = minibatch['image'], minibatch['gt']
                 inputs, gts = Variable(inputs, volatile=True), Variable(gts, volatile=True)
@@ -221,17 +217,17 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
                 losses = [0] * len(outputs)
                 for i in range(0, len(outputs)):
                     losses[i] = class_balanced_cross_entropy_loss(outputs[i], gts, size_average=False)
-                    running_loss_ts[i] += losses[i].data[0]
+                    running_loss_test[i] += losses[i].data[0]
 
-                if index % num_img_ts == num_img_ts - 1:
-                    running_loss_ts = [x / num_img_ts for x in running_loss_ts]
-                    loss_ts.append(running_loss_ts[-1])
+                if index % n_samples_test == n_samples_test - 1:
+                    running_loss_test = [x / n_samples_test for x in running_loss_test]
+                    loss_test.append(running_loss_test[-1])
 
                     log.info('[Epoch: %d, numImages: %5d]' % (epoch, index + 1))
-                    summary_writer.add_scalar('data/test_loss_epoch', running_loss_ts[-1], epoch)
-                    for l in range(0, len(running_loss_ts)):
-                        log.info('***Testing *** Loss %d: %f' % (l, running_loss_ts[l]))
-                        running_loss_ts[l] = 0
+                    summary_writer.add_scalar('data/test_loss_epoch', running_loss_test[-1], epoch)
+                    for l in range(0, len(running_loss_test)):
+                        log.info('***Testing *** Loss %d: %f' % (l, running_loss_test[l]))
+                        running_loss_test[l] = 0
 
     summary_writer.close()
 
