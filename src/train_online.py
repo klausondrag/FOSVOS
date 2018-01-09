@@ -56,7 +56,8 @@ if is_visualizing_result:
 def train_and_test(net_provider: NetworkProvider, seq_name: str, n_epochs: int,
                    parent_name: str = 'vgg16', parent_epoch: int = 240, start_epoch: int = 0,
                    should_train: bool = True, should_test: bool = True) -> None:
-    net_provider.name = parent_name + '_' + seq_name
+    _set_network_name(net_provider, parent_name, seq_name)
+    
     if should_train:
         _load_network_train(net_provider, parent_epoch, parent_name)
         data_loader = _get_data_loader_train(seq_name)
@@ -72,6 +73,10 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, n_epochs: int,
         save_dir_images.mkdir(exist_ok=True)
 
         _test(net_provider, data_loader, seq_name, save_dir)
+
+
+def _set_network_name(net_provider, parent_name, seq_name):
+    net_provider.name = parent_name + '_' + seq_name
 
 
 def _load_network_train(net_provider: NetworkProvider, parent_epoch: int, parent_name: str) -> None:
