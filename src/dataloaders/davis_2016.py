@@ -104,7 +104,7 @@ class DAVIS2016(Dataset):
             sample['seq_name'] = self.seq_list[idx]
             sample['fname'] = self.fname_list[idx]
         else:
-            fname = os.path.join(self.seq_name, "%05d" % idx)
+            fname = "%05d" % idx
             sample['fname'] = fname
 
         if self.transform is not None:
