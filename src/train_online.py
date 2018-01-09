@@ -135,29 +135,26 @@ def _get_summary_writer(seq_name: str) -> SummaryWriter:
 
 def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Optimizer,
            seq_name: str, start_epoch: int, n_epochs: int, summary_writer: SummaryWriter) -> None:
-    speeds_training = []
-    net = net_provider.network
+    log.info("Start of Online Training, sequence: " + seq_name)
 
-    # Visualize the network
+    net = net_provider.network
     if is_visualizing_network:
         _visualize_network(net)
 
+    speeds_training = []
     num_img_tr = len(data_loader)
     loss_tr = []
     counter_gradient = 0
 
-    log.info("Start of Online Training, sequence: " + seq_name)
     start_time = timeit.default_timer()
-    # Main Training and Testing Loop
     for epoch in range(start_epoch, n_epochs):
         epoch_start_time = timeit.default_timer()
-        # One training epoch
+
         running_loss_tr = 0
         for ii, sample_batched in enumerate(data_loader):
 
             inputs, gts = sample_batched['image'], sample_batched['gt']
 
-            # Forward-Backward of the mini-batch
             inputs, gts = Variable(inputs), Variable(gts)
             inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
@@ -167,7 +164,6 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Op
             loss = class_balanced_cross_entropy_loss(outputs[-1], gts, size_average=False)
             running_loss_tr += loss.data[0]
 
-            # Print stuff
             if epoch % (n_epochs // 20) == (n_epochs // 20 - 1):
                 running_loss_tr /= num_img_tr
                 loss_tr.append(running_loss_tr)
@@ -176,19 +172,16 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Op
                 log.info('Loss {0}: {1}'.format(seq_name, running_loss_tr))
                 summary_writer.add_scalar('data/total_loss_epoch', running_loss_tr, epoch)
 
-            # Backward the averaged gradient
             loss /= n_avg_grad
             loss.backward()
             counter_gradient += 1
 
-            # Update the weights once in nAveGrad forward passes
             if counter_gradient % n_avg_grad == 0:
                 summary_writer.add_scalar('data/total_loss_iter', loss.data[0], ii + num_img_tr * epoch)
                 optimizer.step()
                 optimizer.zero_grad()
                 counter_gradient = 0
 
-        # Save the model
         if (epoch % snapshot_every) == snapshot_every - 1:  # and epoch != 0:
             net_provider.save(epoch)
 
@@ -201,15 +194,14 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Op
     log.info('Train {0}: total training time {1} sec'.format(seq_name, str(stop_time - start_time)))
     log.info('Train {0}: time per sample {1} sec'.format(seq_name, np.asarray(t).mean()))
 
-    # Testing Phase
-    if is_visualizing_result:
-        ax_arr = _init_plot()
-
 
 def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str, save_dir: Path) -> None:
     log.info('Testing Network')
 
     net = net_provider.network
+
+    if is_visualizing_result:
+        ax_arr = _init_plot()
 
     test_start_time = timeit.default_timer()
     for ii, sample_batched in enumerate(data_loader):
@@ -232,8 +224,7 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str,
             sm.imsave(file_name, pred)
 
             if is_visualizing_result:
-                pass
-                # visualize_results(ax_arr, gt, img, index, pred)
+                _visualize_results(ax_arr, gt, img, index, pred)
 
     test_stop_time = timeit.default_timer()
     log.info('Test {0}: total training time {1} sec'.format(seq_name, str(test_stop_time - test_start_time)))
