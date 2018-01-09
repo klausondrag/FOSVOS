@@ -62,7 +62,7 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
         _visualize_network(net_provider.network)
 
 
-def _set_network_name(net_provider, parent_name, seq_name):
+def _set_network_name(net_provider: NetworkProvider, parent_name: str, seq_name: str) -> None:
     net_provider.name = parent_name + '_' + seq_name
 
 
