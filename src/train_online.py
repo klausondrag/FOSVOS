@@ -70,13 +70,6 @@ def get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002
 def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_test: bool = True) -> None:
     speeds_training = []
     if train_and_test:
-        # db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
-        # testloaderx = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
-        # testitest = next(iter(testloaderx))
-        # testitest_i, testitest_g = testitest['image'], testitest['gt']
-        # testitest_i, testitest_g = Variable(testitest_i), Variable(testitest_g)
-        # testitest_i, testitest_g = gpu_handler.cast_cuda_if_possible([testitest_i, testitest_g])
-
         # Network definition
         net_provider.name = name_parent + '_' + seq_name
         net = net_provider.init_network(pretrained=0)
@@ -86,8 +79,6 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
         log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname()
                                        + '-' + seq_name)
         writer = SummaryWriter(log_dir=str(log_dir))
-        # y = net.forward(Variable(torch.randn(1, 3, 480, 854)))
-        # writer.add_graph(net, y[-1])
 
         # Visualize the network
         if is_visualizing_network:
@@ -170,10 +161,6 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
             log.info('epoch {0} {1}: {2} sec'.format(seq_name, str(epoch), str(t)))
             speeds_training.append(t)
 
-            # outputs = net.forward(testitest_i)
-            # loss = class_balanced_cross_entropy_loss(outputs[-1], testitest_g, size_average=False)
-            # log.info('Testitest: {}'.format(str(loss)))
-
         stop_time = timeit.default_timer()
         log.info('Train {0}: total training time {1} sec'.format(seq_name, str(stop_time - start_time)))
         log.info('Train {0}: time per sample {1} sec'.format(seq_name, np.asarray(t).mean()))
@@ -182,7 +169,6 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
         if is_visualizing_result:
             ax_arr = init_plot()
     else:
-        # nEpochs = 10000
         net_provider.name = name_parent + '_' + seq_name
         net = net_provider.init_network(pretrained=0)
         net_provider.load(parent_epoch)
