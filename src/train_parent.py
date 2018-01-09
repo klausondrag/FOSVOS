@@ -53,7 +53,7 @@ should_load_vgg_caffe = False
 start_epoch = 0
 
 save_dir = Path('models')
-save_dir.mkdir(exist_ok=True)
+save_dir.mkdir(parents=True, exist_ok=True)
 
 net_provider = NetworkProvider('vgg16', vo.OSVOS_VGG, save_dir)
 
@@ -231,7 +231,7 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path
             gt_ = np.squeeze(gt)
 
             save_dir_seq = save_dir / net_provider.name / seq_name[index]
-            save_dir_seq.mkdir(exist_ok=True)
+            save_dir_seq.mkdir(parents=True, exist_ok=True)
 
             file_name = save_dir_seq / '{0}.png'.format(fname[index])
             sm.imsave(str(file_name), pred)
