@@ -3,6 +3,7 @@ import sys
 import timeit
 from datetime import datetime
 from pathlib import Path
+from collections import namedtuple
 
 import scipy.misc as sm
 from tensorboardX import SummaryWriter
@@ -34,49 +35,32 @@ gpu_handler.select_gpu_by_hostname()
 
 log = get_logger(__file__)
 
-p = {
-    'batch_size_train': 1,
-}
-
-n_epochs = 240
-is_testing_while_training = 1
-batch_size_test = 1
-test_every_n = 5
-db_root_dir = P.db_root_dir()
-save_dir_root = P.save_root_dir()
-
-is_visualizing_network = False
-snapshot_every_n = 40
-avg_grad_every_n = 10
-
-is_loading_vgg_caffe = False
-start_epoch = 0
-
-save_dir = Path('models')
-save_dir.mkdir(parents=True, exist_ok=True)
-
-net_provider = NetworkProvider('vgg16', vo.OSVOS_VGG, save_dir)
+Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'avg_grad_every_n', 'snapshot_every_n',
+                                   'is_testing_while_training', 'test_every_n', 'batch_size_train', 'batch_size_test',
+                                   'is_loading_vgg_caffe', 'is_visualizing_network'])
+settings = Settings(0, 240, 10, 40, False, 5, 1, 1, False, False)
 
 
-def train_and_test(net_provider: NetworkProvider, is_training: bool = True, is_testing: bool = True) -> None:
+def train_and_test(net_provider: NetworkProvider, settings: Settings, is_training: bool = True,
+                   is_testing: bool = True) -> None:
     if is_training:
-        _load_network_train(net_provider, start_epoch, is_loading_vgg_caffe)
-        data_loader_train = _get_data_loader_train()
-        data_loader_test = _get_data_loader_test()
+        _load_network_train(net_provider, settings.start_epoch, settings.is_loading_vgg_caffe)
+        data_loader_train = _get_data_loader_train(settings.batch_size_train)
+        data_loader_test = _get_data_loader_test(settings.batch_size_train)
         optimizer = _get_optimizer(net_provider.network)
         summary_writer = _get_summary_writer()
 
         _train(net_provider, data_loader_train, data_loader_test, optimizer, summary_writer)
 
     if is_testing:
-        _load_network_test(net_provider, n_epochs)
-        data_loader = _get_data_loader_test()
+        _load_network_test(net_provider, settings.n_epochs)
+        data_loader = _get_data_loader_test(settings.batch_size_train)
         save_dir_images = Path('results') / net_provider.name
         save_dir_images.mkdir(parents=True, exist_ok=True)
 
         _test(net_provider, data_loader, save_dir_images)
 
-    if is_visualizing_network:
+    if settings.is_visualizing_network:
         _visualize_network(net_provider.network)
 
 
@@ -96,20 +80,20 @@ def _load_network_test(net_provider: NetworkProvider, n_epochs: int) -> None:
     net_provider.load(n_epochs)
 
 
-def _get_data_loader_train() -> DataLoader:
+def _get_data_loader_train(batch_size: int) -> DataLoader:
     # Define augmentation transformations as a composition
     composed_transforms = transforms.Compose([tr.RandomHorizontalFlip(),
                                               tr.Resize(),
                                               # tr.ScaleNRotate(rots=(-30,30), scales=(.75, 1.25)),
                                               tr.ToTensor()])
     db_train = db.DAVIS2016(mode='train', inputRes=None, db_root_dir=db_root_dir, transform=composed_transforms)
-    data_loader = DataLoader(db_train, batch_size=p['batch_size_train'], shuffle=True, num_workers=2)
+    data_loader = DataLoader(db_train, batch_size=batch_size, shuffle=True, num_workers=2)
     return data_loader
 
 
-def _get_data_loader_test() -> DataLoader:
+def _get_data_loader_test(batch_size: int) -> DataLoader:
     db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor())
-    data_loader = DataLoader(db_test, batch_size=batch_size_test, shuffle=False, num_workers=2)
+    data_loader = DataLoader(db_test, batch_size=batch_size, shuffle=False, num_workers=2)
     return data_loader
 
 
@@ -152,7 +136,8 @@ def _visualize_network(net):
 
 
 def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_loader_test: DataLoader,
-           optimizer: Optimizer, summary_writer: SummaryWriter) -> None:
+           optimizer: Optimizer, summary_writer: SummaryWriter, start_epoch: int, n_epochs: int, avg_grad_every_n: int,
+           snapshot_every_n: int, is_testing_while_training: bool, test_every_n: int) -> None:
     log.info('Start of Parent Training')
 
     net = net_provider.network
@@ -262,5 +247,11 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path
 
 
 if __name__ == '__main__':
-    settings = None
-    train_and_test(net_provider, 'bear', settings, is_training=True)
+    db_root_dir = P.db_root_dir()
+    save_dir_root = P.save_root_dir()
+
+    save_dir = Path('models')
+    save_dir.mkdir(parents=True, exist_ok=True)
+    net_provider = NetworkProvider('vgg16', vo.OSVOS_VGG, save_dir)
+
+    train_and_test(net_provider, settings, is_training=True)

@@ -33,8 +33,12 @@ gpu_handler.select_gpu_by_hostname()
 log = get_logger(__file__)
 
 Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'avg_grad_every_n', 'snapshot_every_n',
-                                   'train_batch_size', 'parent_name', 'parent_epoch',
+                                   'batch_size_train', 'parent_name', 'parent_epoch',
                                    'is_visualizing_network', 'is_visualizing_results'])
+
+settings = Settings(start_epoch=0, n_epochs=2000, avg_grad_every_n=5, snapshot_every_n=2000,
+                    batch_size_train=1, parent_name='src', parent_epoch=240,
+                    is_visualizing_network=False, is_visualizing_results=False)
 
 
 def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Settings,
@@ -43,7 +47,7 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
 
     if is_training:
         _load_network_train(net_provider, settings.parent_epoch, settings.parent_name)
-        data_loader = _get_data_loader_train(seq_name, settings.train_batch_size)
+        data_loader = _get_data_loader_train(seq_name, settings.batch_size_train)
         optimizer = _get_optimizer(net_provider.network)
         summary_writer = _get_summary_writer(seq_name)
 
@@ -121,7 +125,7 @@ def _get_summary_writer(seq_name: str) -> SummaryWriter:
 
 
 def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Optimizer, summary_writer: SummaryWriter,
-           seq_name: str, start_epoch: int, n_epochs: int, snapshot_every_n: int) -> None:
+           seq_name: str, start_epoch: int, n_epochs: int, avg_grad_every_n: int, snapshot_every_n: int) -> None:
     log.info("Start of Online Training, sequence: " + seq_name)
 
     net = net_provider.network
@@ -251,19 +255,9 @@ def _visualize_results(ax_arr, gt, img, jj, pred):
 if __name__ == '__main__':
     db_root_dir = P.db_root_dir()
     exp_dir = P.exp_dir()
-
-    # Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'avg_grad_every_n', 'snapshot_every_n',
-    #                                    'train_batch_size', 'parent_name', 'parent_epoch',
-    #                                    'is_visualizing_network', 'is_visualizing_results'])
-
-    avg_grad_every_n = 1
-    n_epochs = 400 * avg_grad_every_n
-    settings = Settings(start_epoch=0, n_epochs=n_epochs, avg_grad_every_n=avg_grad_every_n, snapshot_every_n=n_epochs,
-                        train_batch_size=1, parent_name='src', parent_epoch=240,
-                        is_visualizing_network=False, is_visualizing_results=False)
-
     save_dir = Path('models')
     save_dir.mkdir(parents=True, exist_ok=True)
+
     net_provider = NetworkProvider('', vo.OSVOS_VGG, save_dir)
 
     if settings.is_visualizing_results:
