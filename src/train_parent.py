@@ -31,7 +31,10 @@ log = get_logger(__file__)
 Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'avg_grad_every_n', 'snapshot_every_n',
                                    'is_testing_while_training', 'test_every_n', 'batch_size_train', 'batch_size_test',
                                    'is_loading_vgg_caffe', 'is_visualizing_network'])
-settings = Settings(0, 240, 10, 40, False, 5, 1, 1, False, False)
+
+settings = Settings(start_epoch=0, n_epochs=240, avg_grad_every_n=10, snapshot_every_n=40,
+                    is_testing_while_training=False, test_every_n=5, batch_size_train=1, batch_size_test=1,
+                    is_loading_vgg_caffe=False, is_visualizing_network=False)
 
 
 def train_and_test(net_provider: NetworkProvider, settings: Settings, is_training: bool = True,
