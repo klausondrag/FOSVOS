@@ -48,6 +48,9 @@ save_dir = Path('models')
 save_dir.mkdir(exist_ok=True)
 net_provider = NetworkProvider('vgg16_blackswan', vo.OSVOS_VGG, save_dir)
 
+if is_visualizing_result:
+    import matplotlib.pyplot as plt
+
 
 def get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002):
     optimizer = optim.SGD([
@@ -177,11 +180,7 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
 
         # Testing Phase
         if is_visualizing_result:
-            import matplotlib.pyplot as plt
-
-            plt.close("all")
-            plt.ion()
-            f, ax_arr = plt.subplots(1, 3)
+            ax_arr = init_plot()
     else:
         # nEpochs = 10000
         net_provider.name = name_parent + '_' + seq_name
@@ -219,26 +218,37 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
             sm.imsave(file_name, pred)
 
             if is_visualizing_result:
-                img_ = np.transpose(img.numpy()[jj, :, :, :], (1, 2, 0))
-                gt_ = np.transpose(gt.numpy()[jj, :, :, :], (1, 2, 0))
-                gt_ = np.squeeze(gt)
-                # Plot the particular example
-                ax_arr[0].cla()
-                ax_arr[1].cla()
-                ax_arr[2].cla()
-                ax_arr[0].set_title('Input Image')
-                ax_arr[1].set_title('Ground Truth')
-                ax_arr[2].set_title('Detection')
-                ax_arr[0].imshow(im_normalize(img_))
-                ax_arr[1].imshow(gt_)
-                ax_arr[2].imshow(im_normalize(pred))
-                plt.pause(0.001)
+                visualize_results(ax_arr, gt, img, jj, pred)
 
     test_stop_time = timeit.default_timer()
     log.info('Test {0}: total training time {1} sec'.format(seq_name, str(test_stop_time - test_start_time)))
     log.info('Test {0}: {1} images'.format(seq_name, str((len(testloader)))))
     log.info(
         'Test {0}: time per sample {1} sec'.format(seq_name, str((test_stop_time - test_start_time) / len(testloader))))
+
+
+def init_plot():
+    plt.close("all")
+    plt.ion()
+    f, ax_arr = plt.subplots(1, 3)
+    return ax_arr
+
+
+def visualize_results(ax_arr, gt, img, jj, pred):
+    img_ = np.transpose(img.numpy()[jj, :, :, :], (1, 2, 0))
+    gt_ = np.transpose(gt.numpy()[jj, :, :, :], (1, 2, 0))
+    gt_ = np.squeeze(gt)
+    # Plot the particular example
+    ax_arr[0].cla()
+    ax_arr[1].cla()
+    ax_arr[2].cla()
+    ax_arr[0].set_title('Input Image')
+    ax_arr[1].set_title('Ground Truth')
+    ax_arr[2].set_title('Detection')
+    ax_arr[0].imshow(im_normalize(img_))
+    ax_arr[1].imshow(gt_)
+    ax_arr[2].imshow(im_normalize(pred))
+    plt.pause(0.001)
 
 
 if __name__ == '__main__':
