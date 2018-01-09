@@ -126,9 +126,7 @@ def _get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.000
 
 
 def _get_summary_writer() -> SummaryWriter:
-    log_dir = save_dir / 'runs' / (_get_timestamp() + '_' + socket.gethostname())
-    summary_writer = SummaryWriter(log_dir=str(log_dir), comment='-parent')
-    return summary_writer
+    return io_helper.get_summary_writer(save_dir, comment='-parent')
 
 
 def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_loader_test: DataLoader,
