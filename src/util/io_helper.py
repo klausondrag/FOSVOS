@@ -20,8 +20,8 @@ def visualize_network(net):
 
 def get_summary_writer(save_dir: Path, postfix: Optional[str] = None, comment: str = '') -> SummaryWriter:
     name_parts = [_get_timestamp(), socket.gethostname(), postfix]
-    file_name = '_'.join(name_parts)  # if postfix is None it will be skipped
-    log_dir = save_dir / 'runs' / file_name
+    dir_name = '_'.join(name_parts)  # if postfix is None it will be skipped
+    log_dir = save_dir / 'runs' / dir_name
     summary_writer = SummaryWriter(log_dir=str(log_dir), comment=comment)
     return summary_writer
 
