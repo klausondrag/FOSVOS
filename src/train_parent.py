@@ -2,6 +2,7 @@ import socket
 import sys
 import timeit
 from datetime import datetime
+from pathlib import Path
 
 import scipy.misc as sm
 from tensorboardX import SummaryWriter
@@ -22,13 +23,13 @@ from layers.osvos_layers import class_balanced_cross_entropy_loss
 
 from util import gpu_handler
 from util.logger import get_logger
-from config.mypath import Path
+from config.mypath import Path as P
 from util.network_provider import NetworkProvider
 
-if Path.is_custom_pytorch():
-    sys.path.append(Path.custom_pytorch())
-if Path.is_custom_opencv():
-    sys.path.insert(0, Path.custom_opencv())
+if P.is_custom_pytorch():
+    sys.path.append(P.custom_pytorch())
+if P.is_custom_opencv():
+    sys.path.insert(0, P.custom_opencv())
 gpu_handler.select_gpu_by_hostname()
 
 log = get_logger(__file__)
@@ -44,8 +45,8 @@ nEpochs = 240  # 240  # Number of epochs for training (500.000/2079)
 useTest = 1  # See evolution of the test set when training?
 testBatch = 1  # Testing Batch
 nTestInterval = 5  # 5  # Run on test set every nTestInterval epochs
-db_root_dir = Path.db_root_dir()
-save_dir_root = Path.save_root_dir()
+db_root_dir = P.db_root_dir()
+save_dir_root = P.save_root_dir()
 
 vis_net = 0  # Visualize the network?
 snapshot = 40  # 40  # Store a model every snapshot epochs
