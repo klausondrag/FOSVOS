@@ -34,11 +34,11 @@ gpu_handler.select_gpu_by_hostname()
 log = get_logger(__file__)
 
 Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'avg_grad_every_n', 'snapshot_every_n',
-                                   'batch_size_train', 'parent_name', 'parent_epoch',
+                                   'batch_size_train', 'batch_size_test', 'parent_name', 'parent_epoch',
                                    'is_visualizing_network', 'is_visualizing_results'])
 
 settings = Settings(start_epoch=0, n_epochs=2000, avg_grad_every_n=5, snapshot_every_n=2000,
-                    batch_size_train=1, parent_name='vgg16', parent_epoch=240,
+                    batch_size_train=1, batch_size_test=1, parent_name='vgg16', parent_epoch=240,
                     is_visualizing_network=False, is_visualizing_results=False)
 
 
@@ -48,7 +48,7 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
 
     if is_training:
         _load_network_train(net_provider, settings.parent_epoch, settings.parent_name)
-        data_loader = _get_data_loader_train(seq_name, settings.batch_size_train)
+        data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_train, seq_name)
         optimizer = _get_optimizer(net_provider.network)
         summary_writer = _get_summary_writer(seq_name)
 
@@ -58,7 +58,7 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
 
     if is_testing:
         _load_network_test(net_provider, settings.n_epochs, settings.parent_epoch, settings.parent_name, is_training)
-        data_loader = _get_data_loader_test(seq_name)
+        data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_test, seq_name)
         save_dir_images = Path('results') / seq_name
         save_dir_images.mkdir(parents=True, exist_ok=True)
 
@@ -84,24 +84,6 @@ def _load_network_test(net_provider: NetworkProvider, n_epochs: int, parent_epoc
         net_provider.load(n_epochs)
     else:
         net_provider.load(parent_epoch, name=parent_name)
-
-
-def _get_data_loader_train(seq_name: str, batch_size: int) -> DataLoader:
-    # Define augmentation transformations as a composition
-    composed_transforms = transforms.Compose([custom_transforms.RandomHorizontalFlip(),
-                                              custom_transforms.Resize(),
-                                              # custom_transforms.ScaleNRotate(rots=(-30, 30), scales=(.75, 1.25)),
-                                              custom_transforms.ToTensor()])
-    db_train = DAVIS2016(mode='train', db_root_dir=db_root_dir, transform=composed_transforms, seq_name=seq_name)
-    data_loader = DataLoader(db_train, batch_size=batch_size, shuffle=True, num_workers=1)
-    return data_loader
-
-
-def _get_data_loader_test(seq_name: str) -> DataLoader:
-    db_test = DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=custom_transforms.ToTensor(),
-                        seq_name=seq_name)
-    data_loader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
-    return data_loader
 
 
 def _get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002) -> Optimizer:

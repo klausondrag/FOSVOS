@@ -46,8 +46,8 @@ def train_and_test(net_provider: NetworkProvider, settings: Settings, is_trainin
                    is_testing: bool = True) -> None:
     if is_training:
         _load_network_train(net_provider, settings.start_epoch, settings.is_loading_vgg_caffe)
-        data_loader_train = _get_data_loader_train(settings.batch_size_train)
-        data_loader_test = _get_data_loader_test(settings.batch_size_test)
+        data_loader_train = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_train)
+        data_loader_test = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_test)
         optimizer = _get_optimizer(net_provider.network)
         summary_writer = _get_summary_writer()
 
@@ -58,7 +58,7 @@ def train_and_test(net_provider: NetworkProvider, settings: Settings, is_trainin
 
     if is_testing:
         _load_network_test(net_provider, settings.n_epochs)
-        data_loader = _get_data_loader_test(settings.batch_size_test)
+        data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_test)
         save_dir_images = Path('results') / net_provider.name
         save_dir_images.mkdir(parents=True, exist_ok=True)
 
@@ -82,23 +82,6 @@ def _load_network_train(net_provider: NetworkProvider, start_epoch: int, is_load
 def _load_network_test(net_provider: NetworkProvider, n_epochs: int) -> None:
     net_provider.init_network(pretrained=0)
     net_provider.load(n_epochs)
-
-
-def _get_data_loader_train(batch_size: int) -> DataLoader:
-    # Define augmentation transformations as a composition
-    composed_transforms = transforms.Compose([custom_transforms.RandomHorizontalFlip(),
-                                              custom_transforms.Resize(),
-                                              # custom_transforms.ScaleNRotate(rots=(-30,30), scales=(.75, 1.25)),
-                                              custom_transforms.ToTensor()])
-    db_train = db.DAVIS2016(mode='train', inputRes=None, db_root_dir=db_root_dir, transform=composed_transforms)
-    data_loader = DataLoader(db_train, batch_size=batch_size, shuffle=True, num_workers=2)
-    return data_loader
-
-
-def _get_data_loader_test(batch_size: int) -> DataLoader:
-    db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=custom_transforms.ToTensor())
-    data_loader = DataLoader(db_test, batch_size=batch_size, shuffle=False, num_workers=2)
-    return data_loader
 
 
 def _get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002) -> Optimizer:

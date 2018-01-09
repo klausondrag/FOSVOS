@@ -7,8 +7,12 @@ import torch
 import yaml
 from tensorboardX import SummaryWriter
 from torch.autograd import Variable
+from torch.utils.data import DataLoader
+from torchvision import transforms
 
 import visualize as viz
+from dataloaders import custom_transforms
+from dataloaders.davis_2016 import DAVIS2016
 
 
 def visualize_network(net):
@@ -36,3 +40,21 @@ def write_settings(save_dir: Path, name: str, settings: Dict) -> None:
     file_path = save_dir / file_name
     with open(str(file_path), 'w') as f:
         yaml.dump(settings, f, default_flow_style=False)
+
+
+def get_data_loader_train(db_root_dir: Path, batch_size: int, seq_name: Optional[str] = None) -> DataLoader:
+    # Define augmentation transformations as a composition
+    composed_transforms = transforms.Compose([custom_transforms.RandomHorizontalFlip(),
+                                              custom_transforms.Resize(),
+                                              # custom_transforms.ScaleNRotate(rots=(-30, 30), scales=(.75, 1.25)),
+                                              custom_transforms.ToTensor()])
+    db_train = DAVIS2016(mode='train', db_root_dir=str(db_root_dir), transform=composed_transforms, seq_name=seq_name)
+    data_loader = DataLoader(db_train, batch_size=batch_size, shuffle=True, num_workers=1)
+    return data_loader
+
+
+def get_data_loader_test(db_root_dir: Path, batch_size: int, seq_name: Optional[str] = None) -> DataLoader:
+    db_test = DAVIS2016(mode='test', db_root_dir=str(db_root_dir), transform=custom_transforms.ToTensor(),
+                        seq_name=seq_name)
+    data_loader = DataLoader(db_test, batch_size=batch_size, shuffle=False, num_workers=2)
+    return data_loader
