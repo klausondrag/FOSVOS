@@ -102,7 +102,8 @@ def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_te
         trainloader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=1)
 
         # Testing dataset and its iterator
-        db_test = DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor(), seq_name=seq_name)
+        db_test = DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=custom_transforms.ToTensor(),
+                            seq_name=seq_name)
         testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
 
         num_img_tr = len(trainloader)
