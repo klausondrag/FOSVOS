@@ -48,7 +48,7 @@ def train_and_test(net_provider: NetworkProvider, settings: Settings, is_trainin
         optimizer = net_provider.get_optimizer()
         summary_writer = _get_summary_writer()
 
-        io_helper.write_settings(save_dir, net_provider.name, settings._asdict())
+        io_helper.write_settings(save_dir_models, net_provider.name, settings._asdict())
         _train(net_provider, data_loader_train, data_loader_test, optimizer, summary_writer, settings.start_epoch,
                settings.n_epochs, settings.avg_grad_every_n, settings.snapshot_every_n,
                settings.is_testing_while_training, settings.test_every_n)
@@ -56,17 +56,15 @@ def train_and_test(net_provider: NetworkProvider, settings: Settings, is_trainin
     if is_testing:
         net_provider.load_network_test()
         data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test)
-        save_dir_images = Path('results') / net_provider.name
-        save_dir_images.mkdir(parents=True, exist_ok=True)
 
-        _test(net_provider, data_loader, save_dir_images)
+        _test(net_provider, data_loader, save_dir_results)
 
     if settings.is_visualizing_network:
         io_helper.visualize_network(net_provider.network)
 
 
 def _get_summary_writer() -> SummaryWriter:
-    return io_helper.get_summary_writer(save_dir, comment='-parent')
+    return io_helper.get_summary_writer(save_dir_models, comment='-parent')
 
 
 def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_loader_test: DataLoader,
@@ -174,7 +172,7 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path
             gt_ = np.transpose(gt.numpy()[index, :, :, :], (1, 2, 0))
             gt_ = np.squeeze(gt)
 
-            save_dir_seq = save_dir / net_provider.name / seq_name[index]
+            save_dir_seq = save_dir / seq_name[index]
             save_dir_seq.mkdir(parents=True, exist_ok=True)
 
             file_name = save_dir_seq / '{0}.png'.format(fname[index])
@@ -245,17 +243,19 @@ if __name__ == '__main__':
     db_root_dir = P.db_root_dir()
     save_dir_root = P.save_root_dir()
 
-    save_dir = Path('models')
-    save_dir.mkdir(parents=True, exist_ok=True)
+    save_dir_models = Path('models')
+    save_dir_models.mkdir(parents=True, exist_ok=True)
+    save_dir_results = Path('results')
+    save_dir_results.mkdir(parents=True, exist_ok=True)
 
-    net_provider = NetworkProvider('vgg16', OSVOS_VGG, save_dir,
+    net_provider = NetworkProvider('vgg16', OSVOS_VGG, save_dir_models,
                                    load_network_train=_load_network_train_vgg,
                                    load_network_test=_load_network_test_vgg,
                                    get_optimizer=_get_optimizer_vgg)
 
-    net_provider = NetworkProvider('resnet18', OSVOS_RESNET, save_dir,
-                                   load_network_train=_load_network_train_resnet,
-                                   load_network_test=_load_network_test_resnet,
-                                   get_optimizer=_get_optimizer_resnet)
+    # net_provider = NetworkProvider('resnet18', OSVOS_RESNET, save_dir_models,
+    #                                load_network_train=_load_network_train_resnet,
+    #                                load_network_test=_load_network_test_resnet,
+    #                                get_optimizer=_get_optimizer_resnet)
 
-    train_and_test(net_provider, settings, is_training=True)
+    train_and_test(net_provider, settings, is_training=False)

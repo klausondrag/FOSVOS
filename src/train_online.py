@@ -50,17 +50,15 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
         optimizer = net_provider.get_optimizer()
         summary_writer = _get_summary_writer(seq_name)
 
-        io_helper.write_settings(save_dir, net_provider.name, settings._asdict())
+        io_helper.write_settings(save_dir_models, net_provider.name, settings._asdict())
         _train(net_provider, data_loader, optimizer, summary_writer, seq_name, settings.start_epoch, settings.n_epochs,
                settings.avg_grad_every_n, settings.snapshot_every_n)
 
     if is_testing:
         net_provider.load_network_test()
         data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test, seq_name)
-        save_dir_images = Path('results') / seq_name
-        save_dir_images.mkdir(parents=True, exist_ok=True)
 
-        _test(net_provider, data_loader, seq_name, save_dir_images, settings.is_visualizing_results)
+        _test(net_provider, data_loader, seq_name, save_dir_results, settings.is_visualizing_results)
 
     if settings.is_visualizing_network:
         io_helper.visualize_network(net_provider.network)
@@ -71,7 +69,7 @@ def _set_network_name(net_provider: NetworkProvider, parent_name: str, seq_name:
 
 
 def _get_summary_writer(seq_name: str) -> SummaryWriter:
-    return io_helper.get_summary_writer(save_dir, postfix=seq_name)
+    return io_helper.get_summary_writer(save_dir_models, postfix=seq_name)
 
 
 def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Optimizer, summary_writer: SummaryWriter,
@@ -155,8 +153,11 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str,
             pred = 1 / (1 + np.exp(-pred))
             pred = np.squeeze(pred)
 
-            file_name = save_dir / '{0}.png'.format(fname[index])
-            sm.imsave(file_name, pred)
+            save_dir_seq = save_dir / seq_name[index]
+            save_dir_seq.mkdir(parents=True, exist_ok=True)
+
+            file_name = save_dir_seq / '{0}.png'.format(fname[index])
+            sm.imsave(str(file_name), pred)
 
             if is_visualizing_results:
                 _visualize_results(ax_arr, gt, img, index, pred)
@@ -244,17 +245,20 @@ def _get_optimizer_resnet(net: Module, learning_rate: float = 1e-8, weight_decay
 if __name__ == '__main__':
     db_root_dir = P.db_root_dir()
     exp_dir = P.exp_dir()
-    save_dir = Path('models')
-    save_dir.mkdir(parents=True, exist_ok=True)
+
+    save_dir_models = Path('models')
+    save_dir_models.mkdir(parents=True, exist_ok=True)
+    save_dir_results = Path('results')
+    save_dir_results.mkdir(parents=True, exist_ok=True)
 
     is_training = True
 
-    net_provider = NetworkProvider('', OSVOS_VGG, save_dir,
+    net_provider = NetworkProvider('', OSVOS_VGG, save_dir_models,
                                    load_network_train=_load_network_train_vgg,
                                    load_network_test=_load_network_test_vgg,
                                    get_optimizer=_get_optimizer_vgg)
 
-    net_provider = NetworkProvider('', OSVOS_RESNET, save_dir,
+    net_provider = NetworkProvider('', OSVOS_RESNET, save_dir_models,
                                    load_network_train=_load_network_train_resnet,
                                    load_network_test=_load_network_test_resnet,
                                    get_optimizer=_get_optimizer_resnet)
