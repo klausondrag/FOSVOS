@@ -11,7 +11,8 @@ import torch.optim as optim
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
-import networks.osvos_vgg as vo
+from networks.osvos_vgg import OSVOS_VGG
+from networks.osvos_resnet import OSVOS_RESNET
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 from dataloaders.helpers import *
 from util import gpu_handler, io_helper
@@ -31,6 +32,10 @@ Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'avg_grad_every_n'
 
 settings = Settings(start_epoch=0, n_epochs=2000, avg_grad_every_n=5, snapshot_every_n=2000,
                     batch_size_train=1, batch_size_test=1, parent_name='vgg16', parent_epoch=240,
+                    is_visualizing_network=False, is_visualizing_results=False)
+
+settings = Settings(start_epoch=0, n_epochs=2000, avg_grad_every_n=5, snapshot_every_n=2000,
+                    batch_size_train=1, batch_size_test=1, parent_name='resnet18', parent_epoch=240,
                     is_visualizing_network=False, is_visualizing_results=False)
 
 
@@ -202,6 +207,32 @@ def _visualize_results(ax_arr, gt, img, jj, pred):
     plt.pause(0.001)
 
 
+def _load_network_train_vgg(net_provider: NetworkProvider) -> None:
+    net_provider.init_network(pretrained=0)
+    net_provider.load(settings.parent_epoch, name=settings.parent_name)
+
+
+def _load_network_test_vgg(net_provider: NetworkProvider) -> None:
+    net_provider.init_network(pretrained=0)
+    if is_training:
+        net_provider.load(settings.n_epochs)
+    else:
+        net_provider.load(settings.parent_epoch, name=settings.parent_name)
+
+
+def _load_network_train_resnet(net_provider: NetworkProvider) -> None:
+    net_provider.init_network(pretrained=False)
+    net_provider.load(settings.parent_epoch, name=settings.parent_name)
+
+
+def _load_network_test_resnet(net_provider: NetworkProvider) -> None:
+    net_provider.init_network(pretrained=False)
+    if is_training:
+        net_provider.load(settings.n_epochs)
+    else:
+        net_provider.load(settings.parent_epoch, name=settings.parent_name)
+
+
 if __name__ == '__main__':
     db_root_dir = P.db_root_dir()
     exp_dir = P.exp_dir()
@@ -210,23 +241,13 @@ if __name__ == '__main__':
 
     is_training = True
 
+    net_provider = NetworkProvider('', OSVOS_VGG, save_dir,
+                                   load_network_train=_load_network_train_vgg,
+                                   load_network_test=_load_network_test_vgg)
 
-    def _load_network_train(net_provider: NetworkProvider) -> None:
-        net_provider.init_network(pretrained=0)
-        net_provider.load(settings.parent_epoch, name=settings.parent_name)
-
-
-    def _load_network_test(net_provider: NetworkProvider) -> None:
-        net_provider.init_network(pretrained=0)
-        if is_training:
-            net_provider.load(settings.n_epochs)
-        else:
-            net_provider.load(settings.parent_epoch, name=settings.parent_name)
-
-
-    net_provider = NetworkProvider('', vo.OSVOS_VGG, save_dir,
-                                   load_network_train=_load_network_train,
-                                   load_network_test=_load_network_test)
+    net_provider = NetworkProvider('', OSVOS_RESNET, save_dir,
+                                   load_network_train=_load_network_train_resnet,
+                                   load_network_test=_load_network_test_resnet)
 
     if settings.is_visualizing_results:
         import matplotlib.pyplot as plt

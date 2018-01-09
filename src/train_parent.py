@@ -12,7 +12,8 @@ import torch.optim as optim
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
-import networks.osvos_vgg as vo
+from networks.osvos_vgg import OSVOS_VGG
+from networks.osvos_resnet import OSVOS_RESNET
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 
 from util import gpu_handler, io_helper
@@ -203,6 +204,35 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path
             sm.imsave(str(file_name), pred)
 
 
+def _load_network_train_vgg(net_provider: NetworkProvider) -> None:
+    if settings.start_epoch == 0:
+        if settings.is_loading_vgg_caffe:
+            net_provider.init_network(pretrained=2)
+        else:
+            net_provider.init_network(pretrained=1)
+    else:
+        net_provider.init_network(pretrained=0)
+        net_provider.load(settings.start_epoch)
+
+
+def _load_network_test_vgg(net_provider: NetworkProvider) -> None:
+    net_provider.init_network(pretrained=0)
+    net_provider.load(settings.n_epochs)
+
+
+def _load_network_train_resnet(net_provider: NetworkProvider) -> None:
+    if settings.start_epoch == 0:
+        net_provider.init_network(pretrained=True)
+    else:
+        net_provider.init_network(pretrained=False)
+        net_provider.load(settings.start_epoch)
+
+
+def _load_network_test_resnet(net_provider: NetworkProvider) -> None:
+    net_provider.init_network(pretrained=False)
+    net_provider.load(settings.n_epochs)
+
+
 if __name__ == '__main__':
     db_root_dir = P.db_root_dir()
     save_dir_root = P.save_root_dir()
@@ -210,25 +240,12 @@ if __name__ == '__main__':
     save_dir = Path('models')
     save_dir.mkdir(parents=True, exist_ok=True)
 
+    net_provider = NetworkProvider('vgg16', OSVOS_VGG, save_dir,
+                                   load_network_train=_load_network_train_vgg,
+                                   load_network_test=_load_network_test_vgg)
 
-    def _load_network_train(net_provider: NetworkProvider) -> None:
-        if settings.start_epoch == 0:
-            if settings.is_loading_vgg_caffe:
-                net_provider.init_network(pretrained=2)
-            else:
-                net_provider.init_network(pretrained=1)
-        else:
-            net_provider.init_network(pretrained=0)
-            net_provider.load(settings.start_epoch)
-
-
-    def _load_network_test(net_provider: NetworkProvider) -> None:
-        net_provider.init_network(pretrained=0)
-        net_provider.load(settings.n_epochs)
-
-
-    net_provider = NetworkProvider('vgg16', vo.OSVOS_VGG, save_dir,
-                                   load_network_train=_load_network_train,
-                                   load_network_test=_load_network_test)
+    net_provider = NetworkProvider('resnet18', OSVOS_RESNET, save_dir,
+                                   load_network_train=_load_network_train_resnet,
+                                   load_network_test=_load_network_test_resnet)
 
     train_and_test(net_provider, settings, is_training=True)
