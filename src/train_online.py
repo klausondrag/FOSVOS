@@ -1,24 +1,16 @@
-import socket
 import sys
 import timeit
-from datetime import datetime
 from pathlib import Path
 from collections import namedtuple
 
 from tensorboardX import SummaryWriter
-import yaml
 import scipy.misc as sm
 
-import torch
 from torch.autograd import Variable
 import torch.optim as optim
 from torch.optim import Optimizer
-from torchvision import transforms
 from torch.utils.data import DataLoader
 
-from dataloaders.davis_2016 import DAVIS2016
-from dataloaders import custom_transforms
-import visualize as viz
 import networks.osvos_vgg as vo
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 from dataloaders.helpers import *
