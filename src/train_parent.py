@@ -84,10 +84,6 @@ def visualize_network():
     g.view()
 
 
-if should_visualize_network:
-    visualize_network()
-
-
 def _get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002) -> Optimizer:
     optimizer = optim.SGD([
         {'params': [pr[1] for pr in net.stages.named_parameters() if 'weight' in pr[0]], 'weight_decay': weight_decay,
@@ -112,9 +108,6 @@ def _get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.000
     return optimizer
 
 
-optimizer = _get_optimizer(net)
-
-
 def _get_data_loader_train() -> DataLoader:
     # Define augmentation transformations as a composition
     composed_transforms = transforms.Compose([tr.RandomHorizontalFlip(),
@@ -126,83 +119,32 @@ def _get_data_loader_train() -> DataLoader:
     return data_loader
 
 
-trainloader = _get_data_loader_train()
-
-
 def _get_data_loader_test() -> DataLoader:
     db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor())
     data_loader = DataLoader(db_test, batch_size=testBatch, shuffle=False, num_workers=2)
     return data_loader
 
 
-testloader = _get_data_loader_test()
+def _train():
+    num_img_tr = len(trainloader)
+    num_img_ts = len(testloader)
+    running_loss_tr = [0] * 5
+    running_loss_ts = [0] * 5
+    loss_tr = []
+    loss_ts = []
+    aveGrad = 0
 
-num_img_tr = len(trainloader)
-num_img_ts = len(testloader)
-running_loss_tr = [0] * 5
-running_loss_ts = [0] * 5
-loss_tr = []
-loss_ts = []
-aveGrad = 0
+    log.info("Training Network")
+    # Main Training and Testing Loop
+    for epoch in range(start_epoch, nEpochs):
+        start_time = timeit.default_timer()
+        # One training epoch
+        for ii, sample_batched in enumerate(trainloader):
 
-log.info("Training Network")
-# Main Training and Testing Loop
-for epoch in range(start_epoch, nEpochs):
-    start_time = timeit.default_timer()
-    # One training epoch
-    for ii, sample_batched in enumerate(trainloader):
-
-        inputs, gts = sample_batched['image'], sample_batched['gt']
-
-        # Forward-Backward of the mini-batch
-        inputs, gts = Variable(inputs), Variable(gts)
-        inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
-
-        outputs = net.forward(inputs)
-
-        # Compute the losses, side outputs and fuse
-        losses = [0] * len(outputs)
-        for i in range(0, len(outputs)):
-            losses[i] = class_balanced_cross_entropy_loss(outputs[i], gts, size_average=False)
-            running_loss_tr[i] += losses[i].data[0]
-        loss = (1 - epoch / nEpochs) * sum(losses[:-1]) + losses[-1]
-
-        # Print stuff
-        if ii % num_img_tr == num_img_tr - 1:
-            running_loss_tr = [x / num_img_tr for x in running_loss_tr]
-            loss_tr.append(running_loss_tr[-1])
-            writer.add_scalar('data/total_loss_epoch', running_loss_tr[-1], epoch)
-            log.info('[Epoch: %d, numImages: %5d]' % (epoch, ii + 1))
-            for l in range(0, len(running_loss_tr)):
-                log.info('Loss %d: %f' % (l, running_loss_tr[l]))
-                running_loss_tr[l] = 0
-
-            stop_time = timeit.default_timer()
-            log.info("Execution time: " + str(stop_time - start_time))
-
-        # Backward the averaged gradient
-        loss /= nAveGrad
-        loss.backward()
-        aveGrad += 1
-
-        # Update the weights once in nAveGrad forward passes
-        if aveGrad % nAveGrad == 0:
-            writer.add_scalar('data/total_loss_iter', loss.data[0], ii + num_img_tr * epoch)
-            optimizer.step()
-            optimizer.zero_grad()
-            aveGrad = 0
-
-    # Save the model
-    if (epoch % snapshot) == snapshot - 1 and epoch != 0:
-        net_provider.save(epoch)
-
-    # One testing epoch
-    if useTest and epoch % nTestInterval == (nTestInterval - 1):
-        for ii, sample_batched in enumerate(testloader):
             inputs, gts = sample_batched['image'], sample_batched['gt']
 
-            # Forward pass of the mini-batch
-            inputs, gts = Variable(inputs, volatile=True), Variable(gts, volatile=True)
+            # Forward-Backward of the mini-batch
+            inputs, gts = Variable(inputs), Variable(gts)
             inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
             outputs = net.forward(inputs)
@@ -211,60 +153,112 @@ for epoch in range(start_epoch, nEpochs):
             losses = [0] * len(outputs)
             for i in range(0, len(outputs)):
                 losses[i] = class_balanced_cross_entropy_loss(outputs[i], gts, size_average=False)
-                running_loss_ts[i] += losses[i].data[0]
+                running_loss_tr[i] += losses[i].data[0]
             loss = (1 - epoch / nEpochs) * sum(losses[:-1]) + losses[-1]
 
             # Print stuff
-            if ii % num_img_ts == num_img_ts - 1:
-                running_loss_ts = [x / num_img_ts for x in running_loss_ts]
-                loss_ts.append(running_loss_ts[-1])
-
+            if ii % num_img_tr == num_img_tr - 1:
+                running_loss_tr = [x / num_img_tr for x in running_loss_tr]
+                loss_tr.append(running_loss_tr[-1])
+                writer.add_scalar('data/total_loss_epoch', running_loss_tr[-1], epoch)
                 log.info('[Epoch: %d, numImages: %5d]' % (epoch, ii + 1))
-                writer.add_scalar('data/test_loss_epoch', running_loss_ts[-1], epoch)
-                for l in range(0, len(running_loss_ts)):
-                    log.info('***Testing *** Loss %d: %f' % (l, running_loss_ts[l]))
-                    running_loss_ts[l] = 0
+                for l in range(0, len(running_loss_tr)):
+                    log.info('Loss %d: %f' % (l, running_loss_tr[l]))
+                    running_loss_tr[l] = 0
 
-writer.close()
+                stop_time = timeit.default_timer()
+                log.info("Execution time: " + str(stop_time - start_time))
 
-# Test parent network
-log.info('Testing Network')
-net = net_provider.init_network(pretrained=0)
-net_provider.load(nEpochs)
+            # Backward the averaged gradient
+            loss /= nAveGrad
+            loss.backward()
+            aveGrad += 1
 
-db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor())
-testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=2)
-for ii, sample_batched in enumerate(testloader):
+            # Update the weights once in nAveGrad forward passes
+            if aveGrad % nAveGrad == 0:
+                writer.add_scalar('data/total_loss_iter', loss.data[0], ii + num_img_tr * epoch)
+                optimizer.step()
+                optimizer.zero_grad()
+                aveGrad = 0
 
-    img, gt, seq_name, fname = sample_batched['image'], sample_batched['gt'], \
-                               sample_batched['seq_name'], sample_batched['fname']
+        # Save the model
+        if (epoch % snapshot) == snapshot - 1 and epoch != 0:
+            net_provider.save(epoch)
 
-    # Forward of the mini-batch
-    inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
-    inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
+        # One testing epoch
+        if useTest and epoch % nTestInterval == (nTestInterval - 1):
+            for ii, sample_batched in enumerate(testloader):
+                inputs, gts = sample_batched['image'], sample_batched['gt']
 
-    outputs = net.forward(inputs)
+                # Forward pass of the mini-batch
+                inputs, gts = Variable(inputs, volatile=True), Variable(gts, volatile=True)
+                inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
-    for jj in range(int(inputs.size()[0])):
-        pred = np.transpose(outputs[-1].cpu().data.numpy()[jj, :, :, :], (1, 2, 0))
-        pred = 1 / (1 + np.exp(-pred))
-        pred = np.squeeze(pred)
-        img_ = np.transpose(img.numpy()[jj, :, :, :], (1, 2, 0))
-        gt_ = np.transpose(gt.numpy()[jj, :, :, :], (1, 2, 0))
-        gt_ = np.squeeze(gt)
+                outputs = net.forward(inputs)
 
-        save_dir_seq = save_dir / net_provider.name / seq_name[jj]
-        save_dir_seq.mkdir(exist_ok=True)
+                # Compute the losses, side outputs and fuse
+                losses = [0] * len(outputs)
+                for i in range(0, len(outputs)):
+                    losses[i] = class_balanced_cross_entropy_loss(outputs[i], gts, size_average=False)
+                    running_loss_ts[i] += losses[i].data[0]
+                loss = (1 - epoch / nEpochs) * sum(losses[:-1]) + losses[-1]
 
-        # Save the result, attention to the index jj
-        file_name = save_dir_seq / '{0}.png'.format(fname[jj])
-        sm.imsave(str(file_name), pred)
+                # Print stuff
+                if ii % num_img_ts == num_img_ts - 1:
+                    running_loss_ts = [x / num_img_ts for x in running_loss_ts]
+                    loss_ts.append(running_loss_ts[-1])
+
+                    log.info('[Epoch: %d, numImages: %5d]' % (epoch, ii + 1))
+                    writer.add_scalar('data/test_loss_epoch', running_loss_ts[-1], epoch)
+                    for l in range(0, len(running_loss_ts)):
+                        log.info('***Testing *** Loss %d: %f' % (l, running_loss_ts[l]))
+                        running_loss_ts[l] = 0
+
+    writer.close()
+
+
+def _test(net_provider: NetworkProvider, data_loader: DataLoader) -> None:
+    log.info('Testing Network')
+
+    net = net_provider.network
+
+    for ii, sample_batched in enumerate(data_loader):
+        img, gt, seq_name, fname = sample_batched['image'], sample_batched['gt'], \
+                                   sample_batched['seq_name'], sample_batched['fname']
+
+        # Forward of the mini-batch
+        inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
+        inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
+
+        outputs = net.forward(inputs)
+
+        for jj in range(int(inputs.size()[0])):
+            pred = np.transpose(outputs[-1].cpu().data.numpy()[jj, :, :, :], (1, 2, 0))
+            pred = 1 / (1 + np.exp(-pred))
+            pred = np.squeeze(pred)
+            img_ = np.transpose(img.numpy()[jj, :, :, :], (1, 2, 0))
+            gt_ = np.transpose(gt.numpy()[jj, :, :, :], (1, 2, 0))
+            gt_ = np.squeeze(gt)
+
+            save_dir_seq = save_dir / net_provider.name / seq_name[jj]
+            save_dir_seq.mkdir(exist_ok=True)
+
+            # Save the result, attention to the index jj
+            file_name = save_dir_seq / '{0}.png'.format(fname[jj])
+            sm.imsave(str(file_name), pred)
 
 
 def train_and_test():
     pass
 
 
+optimizer = _get_optimizer(net)
+trainloader = _get_data_loader_train()
+
+testloader = _get_data_loader_test()
+
+if should_visualize_network:
+    visualize_network()
 if __name__ == '__main__':
     settings = None
     train_and_test(net_provider, 'bear', settings, should_train=True)
