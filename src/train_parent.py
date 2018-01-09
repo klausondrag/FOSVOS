@@ -11,6 +11,7 @@ import numpy as np
 import torch
 from torch.autograd import Variable
 import torch.optim as optim
+from torch.optim import Optimizer
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
@@ -82,40 +83,55 @@ if vis_net:
     g = viz.make_dot(y, net.state_dict())
     g.view()
 
-# Use the following optimizer
-lr = 1e-8
-wd = 0.0002
-optimizer = optim.SGD([
-    {'params': [pr[1] for pr in net.stages.named_parameters() if 'weight' in pr[0]], 'weight_decay': wd,
-     'initial_lr': lr},
-    {'params': [pr[1] for pr in net.stages.named_parameters() if 'bias' in pr[0]], 'lr': 2 * lr, 'initial_lr': 2 * lr},
-    {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'weight' in pr[0]], 'weight_decay': wd,
-     'initial_lr': lr},
-    {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'bias' in pr[0]], 'lr': 2 * lr,
-     'initial_lr': 2 * lr},
-    {'params': [pr[1] for pr in net.score_dsn.named_parameters() if 'weight' in pr[0]], 'lr': lr / 10,
-     'weight_decay': wd, 'initial_lr': lr / 10},
-    {'params': [pr[1] for pr in net.score_dsn.named_parameters() if 'bias' in pr[0]], 'lr': 2 * lr / 10,
-     'initial_lr': 2 * lr / 10},
-    {'params': [pr[1] for pr in net.upscale.named_parameters() if 'weight' in pr[0]], 'lr': 0, 'initial_lr': 0},
-    {'params': [pr[1] for pr in net.upscale_.named_parameters() if 'weight' in pr[0]], 'lr': 0, 'initial_lr': 0},
-    {'params': net.fuse.weight, 'lr': lr / 100, 'initial_lr': lr / 100, 'weight_decay': wd},
-    {'params': net.fuse.bias, 'lr': 2 * lr / 100, 'initial_lr': 2 * lr / 100},
-], lr=lr, momentum=0.9)
 
-# Preparation of the data loaders
-# Define augmentation transformations as a composition
-composed_transforms = transforms.Compose([tr.RandomHorizontalFlip(),
-                                          tr.Resize(),
-                                          # tr.ScaleNRotate(rots=(-30,30), scales=(.75, 1.25)),
-                                          tr.ToTensor()])
-# Training dataset and its iterator
-db_train = db.DAVIS2016(mode='train', inputRes=None, db_root_dir=db_root_dir, transform=composed_transforms)
-trainloader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=2)
+def _get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002) -> Optimizer:
+    optimizer = optim.SGD([
+        {'params': [pr[1] for pr in net.stages.named_parameters() if 'weight' in pr[0]], 'weight_decay': weight_decay,
+         'initial_lr': learning_rate},
+        {'params': [pr[1] for pr in net.stages.named_parameters() if 'bias' in pr[0]], 'lr': 2 * learning_rate,
+         'initial_lr': 2 * learning_rate},
+        {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'weight' in pr[0]],
+         'weight_decay': weight_decay,
+         'initial_lr': learning_rate},
+        {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'bias' in pr[0]], 'lr': 2 * learning_rate,
+         'initial_lr': 2 * learning_rate},
+        {'params': [pr[1] for pr in net.score_dsn.named_parameters() if 'weight' in pr[0]], 'lr': learning_rate / 10,
+         'weight_decay': weight_decay, 'initial_lr': learning_rate / 10},
+        {'params': [pr[1] for pr in net.score_dsn.named_parameters() if 'bias' in pr[0]], 'lr': 2 * learning_rate / 10,
+         'initial_lr': 2 * learning_rate / 10},
+        {'params': [pr[1] for pr in net.upscale.named_parameters() if 'weight' in pr[0]], 'lr': 0, 'initial_lr': 0},
+        {'params': [pr[1] for pr in net.upscale_.named_parameters() if 'weight' in pr[0]], 'lr': 0, 'initial_lr': 0},
+        {'params': net.fuse.weight, 'lr': learning_rate / 100, 'initial_lr': learning_rate / 100,
+         'weight_decay': weight_decay},
+        {'params': net.fuse.bias, 'lr': 2 * learning_rate / 100, 'initial_lr': 2 * learning_rate / 100},
+    ], lr=learning_rate, momentum=0.9)
+    return optimizer
 
-# Testing dataset and its iterator
-db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor())
-testloader = DataLoader(db_test, batch_size=testBatch, shuffle=False, num_workers=2)
+
+optimizer = _get_optimizer(net)
+
+
+def _get_data_loader_train() -> DataLoader:
+    # Define augmentation transformations as a composition
+    composed_transforms = transforms.Compose([tr.RandomHorizontalFlip(),
+                                              tr.Resize(),
+                                              # tr.ScaleNRotate(rots=(-30,30), scales=(.75, 1.25)),
+                                              tr.ToTensor()])
+    db_train = db.DAVIS2016(mode='train', inputRes=None, db_root_dir=db_root_dir, transform=composed_transforms)
+    data_loader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=2)
+    return data_loader
+
+
+trainloader = _get_data_loader_train()
+
+
+def _get_data_loader_test() -> DataLoader:
+    db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor())
+    data_loader = DataLoader(db_test, batch_size=testBatch, shuffle=False, num_workers=2)
+    return data_loader
+
+
+testloader = _get_data_loader_test()
 
 num_img_tr = len(trainloader)
 num_img_ts = len(testloader)
