@@ -8,6 +8,7 @@ import scipy.misc as sm
 
 from torch.autograd import Variable
 import torch.optim as optim
+from torch.nn import Module
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
@@ -46,7 +47,7 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
     if is_training:
         net_provider.load_network_train()
         data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_train, seq_name)
-        optimizer = _get_optimizer(net_provider.network)
+        optimizer = net_provider.get_optimizer()
         summary_writer = _get_summary_writer(seq_name)
 
         io_helper.write_settings(save_dir, net_provider.name, settings._asdict())
@@ -67,21 +68,6 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
 
 def _set_network_name(net_provider: NetworkProvider, parent_name: str, seq_name: str) -> None:
     net_provider.name = parent_name + '_' + seq_name
-
-
-def _get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002) -> Optimizer:
-    optimizer = optim.SGD([
-        {'params': [pr[1] for pr in net.stages.named_parameters() if 'weight' in pr[0]], 'weight_decay': weight_decay},
-        {'params': [pr[1] for pr in net.stages.named_parameters() if 'bias' in pr[0]], 'lr': learning_rate * 2},
-        {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'weight' in pr[0]],
-         'weight_decay': weight_decay},
-        {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'bias' in pr[0]], 'lr': learning_rate * 2},
-        {'params': [pr[1] for pr in net.upscale.named_parameters() if 'weight' in pr[0]], 'lr': 0},
-        {'params': [pr[1] for pr in net.upscale_.named_parameters() if 'weight' in pr[0]], 'lr': 0},
-        {'params': net.fuse.weight, 'lr': learning_rate / 100, 'weight_decay': weight_decay},
-        {'params': net.fuse.bias, 'lr': 2 * learning_rate / 100},
-    ], lr=learning_rate, momentum=0.9)
-    return optimizer
 
 
 def _get_summary_writer(seq_name: str) -> SummaryWriter:
@@ -220,6 +206,22 @@ def _load_network_test_vgg(net_provider: NetworkProvider) -> None:
         net_provider.load(settings.parent_epoch, name=settings.parent_name)
 
 
+def _get_optimizer_vgg(net: Module, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
+                       momentum: float = 0.9) -> Optimizer:
+    optimizer = optim.SGD([
+        {'params': [pr[1] for pr in net.stages.named_parameters() if 'weight' in pr[0]], 'weight_decay': weight_decay},
+        {'params': [pr[1] for pr in net.stages.named_parameters() if 'bias' in pr[0]], 'lr': learning_rate * 2},
+        {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'weight' in pr[0]],
+         'weight_decay': weight_decay},
+        {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'bias' in pr[0]], 'lr': learning_rate * 2},
+        {'params': [pr[1] for pr in net.upscale.named_parameters() if 'weight' in pr[0]], 'lr': 0},
+        {'params': [pr[1] for pr in net.upscale_.named_parameters() if 'weight' in pr[0]], 'lr': 0},
+        {'params': net.fuse.weight, 'lr': learning_rate / 100, 'weight_decay': weight_decay},
+        {'params': net.fuse.bias, 'lr': 2 * learning_rate / 100},
+    ], lr=learning_rate, momentum=momentum)
+    return optimizer
+
+
 def _load_network_train_resnet(net_provider: NetworkProvider) -> None:
     net_provider.init_network(pretrained=False)
     net_provider.load(settings.parent_epoch, name=settings.parent_name)
@@ -233,6 +235,12 @@ def _load_network_test_resnet(net_provider: NetworkProvider) -> None:
         net_provider.load(settings.parent_epoch, name=settings.parent_name)
 
 
+def _get_optimizer_resnet(net: Module, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
+                          momentum: float = 0.9) -> Optimizer:
+    optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
+    return optimizer
+
+
 if __name__ == '__main__':
     db_root_dir = P.db_root_dir()
     exp_dir = P.exp_dir()
@@ -243,11 +251,13 @@ if __name__ == '__main__':
 
     net_provider = NetworkProvider('', OSVOS_VGG, save_dir,
                                    load_network_train=_load_network_train_vgg,
-                                   load_network_test=_load_network_test_vgg)
+                                   load_network_test=_load_network_test_vgg,
+                                   get_optimizer=_get_optimizer_vgg)
 
     net_provider = NetworkProvider('', OSVOS_RESNET, save_dir,
                                    load_network_train=_load_network_train_resnet,
-                                   load_network_test=_load_network_test_resnet)
+                                   load_network_test=_load_network_test_resnet,
+                                   get_optimizer=_get_optimizer_resnet)
 
     if settings.is_visualizing_results:
         import matplotlib.pyplot as plt

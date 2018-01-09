@@ -2,6 +2,8 @@ from pathlib import Path
 from typing import Optional, Callable
 
 import torch
+from torch.nn import Module
+from torch.optim import Optimizer
 
 from networks.osvos_vgg import OSVOS_VGG
 from util import gpu_handler
@@ -13,7 +15,8 @@ log = get_logger(__file__)
 class NetworkProvider:
 
     def __init__(self, name: str, network_type: type, save_dir: Path,
-                 load_network_train: Callable[[object], None], load_network_test: Callable[[object], None]) -> None:
+                 load_network_train: Callable[[object], None], load_network_test: Callable[[object], None],
+                 get_optimizer: Callable[[Module], Optimizer]) -> None:
         # the functions receive NetworkProvider, but this is not allowed as a type hint
         self.name = name
         self.network_type = network_type
@@ -21,6 +24,7 @@ class NetworkProvider:
         self.network = None
         self._load_network_train = load_network_train
         self._load_network_test = load_network_test
+        self._get_optimizer = get_optimizer
 
     def init_network(self, **kwargs) -> object:
         net = self.network_type(**kwargs)
@@ -47,6 +51,9 @@ class NetworkProvider:
 
     def load_network_test(self) -> None:
         self._load_network_test(self)
+
+    def get_optimizer(self) -> Optimizer:
+        return self._get_optimizer(self.network)
 
 
 if __name__ == '__main__':
