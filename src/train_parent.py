@@ -154,7 +154,7 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
     loss_test = []
     counter_gradient = 0
 
-    log.info("Training Network")
+    log.info('Training Network')
     for epoch in range(start_epoch, n_epochs):
         log.info(str(epoch))
         start_time = timeit.default_timer()
@@ -181,7 +181,7 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
                     running_loss_train[l] = 0
 
                 stop_time = timeit.default_timer()
-                log.info("Execution time: " + str(stop_time - start_time))
+                log.info('Execution time: ' + str(stop_time - start_time))
 
             loss /= avg_grad_every_n
             loss.backward()
@@ -268,5 +268,5 @@ if __name__ == '__main__':
     save_dir = Path('models')
     save_dir.mkdir(parents=True, exist_ok=True)
     net_provider = NetworkProvider('vgg16', vo.OSVOS_VGG, save_dir)
-    
+
     train_and_test(net_provider, settings, is_training=True)

@@ -127,7 +127,7 @@ def _get_summary_writer(seq_name: str) -> SummaryWriter:
 
 def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Optimizer, summary_writer: SummaryWriter,
            seq_name: str, start_epoch: int, n_epochs: int, avg_grad_every_n: int, snapshot_every_n: int) -> None:
-    log.info("Start of Online Training, sequence: " + seq_name)
+    log.info('Start of Online Training, sequence: ' + seq_name)
 
     net = net_provider.network
 
@@ -230,7 +230,7 @@ def _visualize_network(net):
 
 
 def _init_plot():
-    plt.close("all")
+    plt.close('all')
     plt.ion()
     f, ax_arr = plt.subplots(1, 3)
     return ax_arr
