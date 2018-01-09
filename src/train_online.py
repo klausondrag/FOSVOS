@@ -53,6 +53,27 @@ if is_visualizing_result:
     import matplotlib.pyplot as plt
 
 
+def train_and_test(net_provider: NetworkProvider, seq_name: str, n_epochs: int,
+                   parent_name: str = 'vgg16', parent_epoch: int = 240, start_epoch: int = 0,
+                   should_train: bool = True, should_test: bool = True) -> None:
+    net_provider.name = parent_name + '_' + seq_name
+    if should_train:
+        load_network_train(net_provider, parent_epoch, parent_name)
+        data_loader = get_data_loader_train(seq_name)
+        optimizer = get_optimizer(net_provider.network)
+        summary_writer = get_summary_writer(seq_name)
+
+        _train(net_provider, data_loader, optimizer, seq_name, start_epoch, n_epochs, summary_writer)
+
+    if should_test:
+        load_network_test(net_provider, n_epochs, parent_epoch, parent_name, should_train)
+        data_loader = get_data_loader_test(seq_name)
+        save_dir_images = Path('results') / seq_name
+        save_dir_images.mkdir(exist_ok=True)
+
+        _test(net_provider, data_loader, seq_name, save_dir)
+
+
 def get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002) -> Optimizer:
     optimizer = optim.SGD([
         {'params': [pr[1] for pr in net.stages.named_parameters() if 'weight' in pr[0]], 'weight_decay': weight_decay},
@@ -68,47 +89,43 @@ def get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002
     return optimizer
 
 
-def train_and_test(net_provider: NetworkProvider, seq_name: str, n_epochs: int,
-                   parent_name: str = 'vgg16', parent_epoch: int = 240, start_epoch: int = 0,
-                   should_train: bool = True, should_test: bool = True) -> None:
-    net_provider.name = parent_name + '_' + seq_name
+def load_network_train(net_provider: NetworkProvider, parent_epoch: int, parent_name: str) -> None:
+    net_provider.init_network(pretrained=0)
+    net_provider.load(parent_epoch, name=parent_name)
+
+
+def load_network_test(net_provider: NetworkProvider, n_epochs: int, parent_epoch: int, parent_name: str,
+                      should_train: bool) -> None:
+    net_provider.init_network(pretrained=0)
     if should_train:
-        net_provider.init_network(pretrained=0)
+        net_provider.load(n_epochs)
+    else:
         net_provider.load(parent_epoch, name=parent_name)
 
-        # Define augmentation transformations as a composition
-        composed_transforms = transforms.Compose([custom_transforms.RandomHorizontalFlip(),
-                                                  custom_transforms.Resize(),
-                                                  # custom_transforms.ScaleNRotate(rots=(-30, 30), scales=(.75, 1.25)),
-                                                  custom_transforms.ToTensor()])
 
-        db_train = DAVIS2016(mode='train', db_root_dir=db_root_dir, transform=composed_transforms, seq_name=seq_name)
-        data_loader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=1)
+def get_summary_writer(seq_name: str) -> SummaryWriter:
+    log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname()
+                                   + '-' + seq_name)
+    summary_writer = SummaryWriter(log_dir=str(log_dir))
+    return summary_writer
 
-        optimizer = get_optimizer(net_provider.network)
 
-        # Logging into Tensorboard
-        log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname()
-                                       + '-' + seq_name)
-        summary_writer = SummaryWriter(log_dir=str(log_dir))
+def get_data_loader_train(seq_name: str) -> DataLoader:
+    # Define augmentation transformations as a composition
+    composed_transforms = transforms.Compose([custom_transforms.RandomHorizontalFlip(),
+                                              custom_transforms.Resize(),
+                                              # custom_transforms.ScaleNRotate(rots=(-30, 30), scales=(.75, 1.25)),
+                                              custom_transforms.ToTensor()])
+    db_train = DAVIS2016(mode='train', db_root_dir=db_root_dir, transform=composed_transforms, seq_name=seq_name)
+    data_loader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=1)
+    return data_loader
 
-        _train(net_provider, data_loader, optimizer, seq_name, start_epoch, n_epochs, summary_writer)
 
-    if should_test:
-        net_provider.init_network(pretrained=0)
-        if should_train:
-            net_provider.load(n_epochs)
-        else:
-            net_provider.load(parent_epoch, name=parent_name)
-
-        db_test = DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=custom_transforms.ToTensor(),
-                            seq_name=seq_name)
-        data_loader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
-
-        save_dir_images = Path('results') / seq_name
-        save_dir_images.mkdir(exist_ok=True)
-
-        _test(net_provider, data_loader, seq_name, save_dir)
+def get_data_loader_test(seq_name: str) -> DataLoader:
+    db_test = DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=custom_transforms.ToTensor(),
+                        seq_name=seq_name)
+    data_loader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
+    return data_loader
 
 
 def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Optimizer,
