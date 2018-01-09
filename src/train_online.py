@@ -9,6 +9,7 @@ from tensorboardX import SummaryWriter
 import torch
 from torch.autograd import Variable
 import torch.optim as optim
+from torch.optim import Optimizer
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
@@ -52,7 +53,7 @@ if is_visualizing_result:
     import matplotlib.pyplot as plt
 
 
-def get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002):
+def get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002) -> Optimizer:
     optimizer = optim.SGD([
         {'params': [pr[1] for pr in net.stages.named_parameters() if 'weight' in pr[0]], 'weight_decay': weight_decay},
         {'params': [pr[1] for pr in net.stages.named_parameters() if 'bias' in pr[0]], 'lr': learning_rate * 2},
@@ -67,161 +68,176 @@ def get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002
     return optimizer
 
 
-def train(seq_name: str, n_epochs: int, name_parent: str = 'vgg16', train_and_test: bool = True) -> None:
-    speeds_training = []
-    if train_and_test:
-        # Network definition
-        net_provider.name = name_parent + '_' + seq_name
-        net = net_provider.init_network(pretrained=0)
-        net_provider.load(parent_epoch, name=name_parent)
+def train_and_test(net_provider: NetworkProvider, seq_name: str, n_epochs: int,
+                   parent_name: str = 'vgg16', parent_epoch: int = 240, start_epoch: int = 0,
+                   should_train: bool = True, should_test: bool = True) -> None:
+    net_provider.name = parent_name + '_' + seq_name
+    if should_train:
+        net_provider.init_network(pretrained=0)
+        net_provider.load(parent_epoch, name=parent_name)
 
-        # Logging into Tensorboard
-        log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname()
-                                       + '-' + seq_name)
-        writer = SummaryWriter(log_dir=str(log_dir))
-
-        # Visualize the network
-        if is_visualizing_network:
-            x = torch.randn(1, 3, 480, 854)
-            x = Variable(x)
-            x = gpu_handler.cast_cuda_if_possible(x)
-            y = net.forward(x)
-            g = viz.make_dot(y, net.state_dict())
-            g.view()
-
-        optimizer = get_optimizer(net)
-
-        # Preparation of the data loaders
         # Define augmentation transformations as a composition
         composed_transforms = transforms.Compose([custom_transforms.RandomHorizontalFlip(),
                                                   custom_transforms.Resize(),
                                                   # custom_transforms.ScaleNRotate(rots=(-30, 30), scales=(.75, 1.25)),
                                                   custom_transforms.ToTensor()])
-        # Training dataset and its iterator
+
         db_train = DAVIS2016(mode='train', db_root_dir=db_root_dir, transform=composed_transforms, seq_name=seq_name)
-        trainloader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=1)
+        data_loader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=1)
 
-        # Testing dataset and its iterator
-        db_test = DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=custom_transforms.ToTensor(),
-                            seq_name=seq_name)
-        testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
+        optimizer = get_optimizer(net_provider.network)
 
-        num_img_tr = len(trainloader)
-        num_img_ts = len(testloader)
-        loss_tr = []
-        counter_gradient = 0
+        # Logging into Tensorboard
+        log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname()
+                                       + '-' + seq_name)
+        summary_writer = SummaryWriter(log_dir=str(log_dir))
 
-        log.info("Start of Online Training, sequence: " + seq_name)
-        start_time = timeit.default_timer()
-        # Main Training and Testing Loop
-        for epoch in range(start_epoch, n_epochs):
-            epoch_start_time = timeit.default_timer()
-            # One training epoch
-            running_loss_tr = 0
-            for ii, sample_batched in enumerate(trainloader):
+        _train(net_provider, data_loader, optimizer, seq_name, start_epoch, n_epochs, summary_writer)
 
-                inputs, gts = sample_batched['image'], sample_batched['gt']
-
-                # Forward-Backward of the mini-batch
-                inputs, gts = Variable(inputs), Variable(gts)
-                inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
-
-                outputs = net.forward(inputs)
-
-                # Compute the fuse loss
-                loss = class_balanced_cross_entropy_loss(outputs[-1], gts, size_average=False)
-                running_loss_tr += loss.data[0]
-
-                # Print stuff
-                if epoch % (n_epochs // 20) == (n_epochs // 20 - 1):
-                    running_loss_tr /= num_img_tr
-                    loss_tr.append(running_loss_tr)
-
-                    log.info('[Epoch {0}: {1}, numImages: {2}]'.format(seq_name, epoch + 1, ii + 1))
-                    log.info('Loss {0}: {1}'.format(seq_name, running_loss_tr))
-                    writer.add_scalar('data/total_loss_epoch', running_loss_tr, epoch)
-
-                # Backward the averaged gradient
-                loss /= n_avg_grad
-                loss.backward()
-                counter_gradient += 1
-
-                # Update the weights once in nAveGrad forward passes
-                if counter_gradient % n_avg_grad == 0:
-                    writer.add_scalar('data/total_loss_iter', loss.data[0], ii + num_img_tr * epoch)
-                    optimizer.step()
-                    optimizer.zero_grad()
-                    counter_gradient = 0
-
-            # Save the model
-            if (epoch % snapshot_every) == snapshot_every - 1:  # and epoch != 0:
-                net_provider.save(epoch)
-
-            epoch_stop_time = timeit.default_timer()
-            t = epoch_stop_time - epoch_start_time
-            log.info('epoch {0} {1}: {2} sec'.format(seq_name, str(epoch), str(t)))
-            speeds_training.append(t)
-
-        stop_time = timeit.default_timer()
-        log.info('Train {0}: total training time {1} sec'.format(seq_name, str(stop_time - start_time)))
-        log.info('Train {0}: time per sample {1} sec'.format(seq_name, np.asarray(t).mean()))
-
-        # Testing Phase
-        if is_visualizing_result:
-            ax_arr = init_plot()
-    else:
-        net_provider.name = name_parent + '_' + seq_name
-        net = net_provider.init_network(pretrained=0)
-        net_provider.load(parent_epoch)
+    if should_test:
+        net_provider.init_network(pretrained=0)
+        if should_train:
+            net_provider.load(n_epochs)
+        else:
+            net_provider.load(parent_epoch, name=parent_name)
 
         db_test = DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=custom_transforms.ToTensor(),
                             seq_name=seq_name)
-        testloader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
+        data_loader = DataLoader(db_test, batch_size=1, shuffle=False, num_workers=1)
 
-    save_dir_res = Path('results') / seq_name
-    save_dir_res.mkdir(exist_ok=True)
+        save_dir_images = Path('results') / seq_name
+        save_dir_images.mkdir(exist_ok=True)
 
+        _test(net_provider, data_loader, seq_name, save_dir)
+
+
+def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Optimizer,
+           seq_name: str, start_epoch: int, n_epochs: int, summary_writer: SummaryWriter) -> None:
+    speeds_training = []
+    net = net_provider.network
+
+    # Visualize the network
+    if is_visualizing_network:
+        _visualize_network(net)
+
+    num_img_tr = len(data_loader)
+    loss_tr = []
+    counter_gradient = 0
+
+    log.info("Start of Online Training, sequence: " + seq_name)
+    start_time = timeit.default_timer()
+    # Main Training and Testing Loop
+    for epoch in range(start_epoch, n_epochs):
+        epoch_start_time = timeit.default_timer()
+        # One training epoch
+        running_loss_tr = 0
+        for ii, sample_batched in enumerate(data_loader):
+
+            inputs, gts = sample_batched['image'], sample_batched['gt']
+
+            # Forward-Backward of the mini-batch
+            inputs, gts = Variable(inputs), Variable(gts)
+            inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
+
+            outputs = net.forward(inputs)
+
+            # Compute the fuse loss
+            loss = class_balanced_cross_entropy_loss(outputs[-1], gts, size_average=False)
+            running_loss_tr += loss.data[0]
+
+            # Print stuff
+            if epoch % (n_epochs // 20) == (n_epochs // 20 - 1):
+                running_loss_tr /= num_img_tr
+                loss_tr.append(running_loss_tr)
+
+                log.info('[Epoch {0}: {1}, numImages: {2}]'.format(seq_name, epoch + 1, ii + 1))
+                log.info('Loss {0}: {1}'.format(seq_name, running_loss_tr))
+                summary_writer.add_scalar('data/total_loss_epoch', running_loss_tr, epoch)
+
+            # Backward the averaged gradient
+            loss /= n_avg_grad
+            loss.backward()
+            counter_gradient += 1
+
+            # Update the weights once in nAveGrad forward passes
+            if counter_gradient % n_avg_grad == 0:
+                summary_writer.add_scalar('data/total_loss_iter', loss.data[0], ii + num_img_tr * epoch)
+                optimizer.step()
+                optimizer.zero_grad()
+                counter_gradient = 0
+
+        # Save the model
+        if (epoch % snapshot_every) == snapshot_every - 1:  # and epoch != 0:
+            net_provider.save(epoch)
+
+        epoch_stop_time = timeit.default_timer()
+        t = epoch_stop_time - epoch_start_time
+        log.info('epoch {0} {1}: {2} sec'.format(seq_name, str(epoch), str(t)))
+        speeds_training.append(t)
+
+    stop_time = timeit.default_timer()
+    log.info('Train {0}: total training time {1} sec'.format(seq_name, str(stop_time - start_time)))
+    log.info('Train {0}: time per sample {1} sec'.format(seq_name, np.asarray(t).mean()))
+
+    # Testing Phase
+    if is_visualizing_result:
+        ax_arr = _init_plot()
+
+
+def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str, save_dir: Path) -> None:
     log.info('Testing Network')
+
+    net = net_provider.network
+
     test_start_time = timeit.default_timer()
-    # Main Testing Loop
-    for ii, sample_batched in enumerate(testloader):
+    for ii, sample_batched in enumerate(data_loader):
 
         img, gt, fname = sample_batched['image'], sample_batched['gt'], sample_batched['fname']
 
-        # Forward of the mini-batch
         inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
         inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
         outputs = net.forward(inputs)
 
-        for jj in range(int(inputs.size()[0])):
-            pred = np.transpose(outputs[-1].cpu().data.numpy()[jj, :, :, :], (1, 2, 0))
+        for index in range(int(inputs.size()[0])):
+            pred = np.transpose(outputs[-1].cpu().data.numpy()[index, :, :, :], (1, 2, 0))
             pred = 1 / (1 + np.exp(-pred))
             pred = np.squeeze(pred)
 
-            # Save the result, attention to the index jj
+            # Save the result, attention to the index
             log.info(str(fname))
-            file_name = save_dir_res / '{0}.png'.format(fname[jj])
+            file_name = save_dir / '{0}.png'.format(fname[index])
             sm.imsave(file_name, pred)
 
             if is_visualizing_result:
-                visualize_results(ax_arr, gt, img, jj, pred)
+                pass
+                # visualize_results(ax_arr, gt, img, index, pred)
 
     test_stop_time = timeit.default_timer()
     log.info('Test {0}: total training time {1} sec'.format(seq_name, str(test_stop_time - test_start_time)))
-    log.info('Test {0}: {1} images'.format(seq_name, str((len(testloader)))))
+    log.info('Test {0}: {1} images'.format(seq_name, str((len(data_loader)))))
     log.info(
-        'Test {0}: time per sample {1} sec'.format(seq_name, str((test_stop_time - test_start_time) / len(testloader))))
+        'Test {0}: time per sample {1} sec'.format(seq_name,
+                                                   str((test_stop_time - test_start_time) / len(data_loader))))
 
 
-def init_plot():
+def _visualize_network(net):
+    x = torch.randn(1, 3, 480, 854)
+    x = Variable(x)
+    x = gpu_handler.cast_cuda_if_possible(x)
+    y = net.forward(x)
+    g = viz.make_dot(y, net.state_dict())
+    g.view()
+
+
+def _init_plot():
     plt.close("all")
     plt.ion()
     f, ax_arr = plt.subplots(1, 3)
     return ax_arr
 
 
-def visualize_results(ax_arr, gt, img, jj, pred):
+def _visualize_results(ax_arr, gt, img, jj, pred):
     img_ = np.transpose(img.numpy()[jj, :, :, :], (1, 2, 0))
     gt_ = np.transpose(gt.numpy()[jj, :, :, :], (1, 2, 0))
     gt_ = np.squeeze(gt)
