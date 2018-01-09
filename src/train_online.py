@@ -275,17 +275,16 @@ if __name__ == '__main__':
     if settings.is_visualizing_results:
         import matplotlib.pyplot as plt
 
-    sequences = ['bear', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey', 'kite-walk', 'mallard-water',
-                 'paragliding', 'rollerblade', 'soccerball', 'tennis', 'blackswan', 'breakdance', 'car-roundabout',
-                 'dance-jump', 'drift-chicane', 'flamingo', 'horsejump-high', 'libby', 'motocross-bumps',
-                 'paragliding-launch', 'scooter-black', 'stroller', 'train', 'bmx-bumps', 'breakdance-flare',
-                 'car-shadow', 'dance-twirl', 'drift-straight', 'goat', 'horsejump-low', 'lucia', 'motocross-jump',
-                 'parkour', 'scooter-gray', 'surf', 'bmx-trees', 'bus', 'car-turn', 'dog', 'drift-turn', 'hike',
-                 'kite-surf', 'mallard-fly', 'motorbike', 'rhino', 'soapbox', 'swing']
+    sequences = ['bear', 'blackswan', 'bmx-bumps', 'bmx-trees', 'boat', 'breakdance', 'breakdance-flare', 'bus',
+                 'camel', 'car-roundabout', 'car-shadow', 'car-turn', 'cows', 'dance-jump', 'dance-twirl', 'dog',
+                 'dog-agility', 'drift-chicane', 'drift-straight', 'drift-turn', 'elephant', 'flamingo', 'goat', 'hike',
+                 'hockey', 'horsejump-high', 'horsejump-low', 'kite-surf', 'kite-walk', 'libby', 'lucia', 'mallard-fly',
+                 'mallard-water', 'motocross-bumps', 'motocross-jump', 'motorbike', 'paragliding', 'paragliding-launch',
+                 'parkour', 'rhino', 'rollerblade', 'scooter-black', 'scooter-gray', 'soapbox', 'soccerball',
+                 'stroller', 'surf', 'swing', 'tennis', 'train']
+
     already_done = []
-    # already_done = ['bear', 'blackswan', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey']
     sequences = [s for s in sequences if s not in already_done]
 
-    [train_and_test(net_provider, s, settings)
-     for s in sequences]
+    [train_and_test(net_provider, s, settings) for s in sequences]
     # train_and_test(net_provider, 'boat', settings, should_train=False)
