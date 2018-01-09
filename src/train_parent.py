@@ -57,6 +57,27 @@ save_dir.mkdir(parents=True, exist_ok=True)
 
 net_provider = NetworkProvider('vgg16', vo.OSVOS_VGG, save_dir)
 
+n_epochs = 400
+
+
+def train_and_test(net_provider: NetworkProvider, is_training: bool = True, is_testing: bool = True) -> None:
+    if is_training:
+        _load_network_train(net_provider, start_epoch, is_loading_vgg_caffe)
+        data_loader = _get_data_loader_train()
+        optimizer = _get_optimizer(net_provider.network)
+        summary_writer = _get_summary_writer()
+
+    if is_testing:
+        _load_network_test(net_provider, n_epochs)
+        data_loader = _get_data_loader_test()
+        save_dir_images = Path('results') / net_provider.name
+        save_dir_images.mkdir(parents=True, exist_ok=True)
+
+        _test(net_provider, data_loader, save_dir_images)
+
+    if is_visualizing_network:
+        _visualize_network(net_provider.network)
+
 
 def _load_network_train(net_provider: NetworkProvider, start_epoch: int, is_loading_vgg_caffe: bool) -> None:
     if start_epoch == 0:
@@ -74,18 +95,21 @@ def _load_network_test(net_provider: NetworkProvider, n_epochs: int) -> None:
     net_provider.load(n_epochs)
 
 
-def _get_summary_writer() -> SummaryWriter:
-    log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname())
-    summary_writer = SummaryWriter(log_dir=str(log_dir), comment='-parent')
-    return summary_writer
+def _get_data_loader_train() -> DataLoader:
+    # Define augmentation transformations as a composition
+    composed_transforms = transforms.Compose([tr.RandomHorizontalFlip(),
+                                              tr.Resize(),
+                                              # tr.ScaleNRotate(rots=(-30,30), scales=(.75, 1.25)),
+                                              tr.ToTensor()])
+    db_train = db.DAVIS2016(mode='train', inputRes=None, db_root_dir=db_root_dir, transform=composed_transforms)
+    data_loader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=2)
+    return data_loader
 
 
-def _visualize_network(net):
-    x = torch.randn(1, 3, 480, 854)
-    x = Variable(x)
-    y = net.forward(x)
-    g = viz.make_dot(y, net.state_dict())
-    g.view()
+def _get_data_loader_test() -> DataLoader:
+    db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor())
+    data_loader = DataLoader(db_test, batch_size=testBatch, shuffle=False, num_workers=2)
+    return data_loader
 
 
 def _get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002) -> Optimizer:
@@ -112,21 +136,18 @@ def _get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.000
     return optimizer
 
 
-def _get_data_loader_train() -> DataLoader:
-    # Define augmentation transformations as a composition
-    composed_transforms = transforms.Compose([tr.RandomHorizontalFlip(),
-                                              tr.Resize(),
-                                              # tr.ScaleNRotate(rots=(-30,30), scales=(.75, 1.25)),
-                                              tr.ToTensor()])
-    db_train = db.DAVIS2016(mode='train', inputRes=None, db_root_dir=db_root_dir, transform=composed_transforms)
-    data_loader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=2)
-    return data_loader
+def _get_summary_writer() -> SummaryWriter:
+    log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname())
+    summary_writer = SummaryWriter(log_dir=str(log_dir), comment='-parent')
+    return summary_writer
 
 
-def _get_data_loader_test() -> DataLoader:
-    db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor())
-    data_loader = DataLoader(db_test, batch_size=testBatch, shuffle=False, num_workers=2)
-    return data_loader
+def _visualize_network(net):
+    x = torch.randn(1, 3, 480, 854)
+    x = Variable(x)
+    y = net.forward(x)
+    g = viz.make_dot(y, net.state_dict())
+    g.view()
 
 
 def _train():
@@ -235,28 +256,6 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path
 
             file_name = save_dir_seq / '{0}.png'.format(fname[index])
             sm.imsave(str(file_name), pred)
-
-
-n_epochs = 400
-
-
-def train_and_test(net_provider: NetworkProvider, is_training: bool = True, is_testing: bool = True) -> None:
-    if is_training:
-        _load_network_train(net_provider, start_epoch, is_loading_vgg_caffe)
-        data_loader = _get_data_loader_train()
-        optimizer = _get_optimizer(net_provider.network)
-        summary_writer = _get_summary_writer()
-
-    if is_testing:
-        _load_network_test(net_provider, n_epochs)
-        data_loader = _get_data_loader_test()
-        save_dir_images = Path('results') / net_provider.name
-        save_dir_images.mkdir(parents=True, exist_ok=True)
-
-        _test(net_provider, data_loader, save_dir_images)
-
-    if is_visualizing_network:
-        _visualize_network(net_provider.network)
 
 
 if __name__ == '__main__':
