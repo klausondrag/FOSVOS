@@ -42,7 +42,7 @@ def train_and_test(net_provider: NetworkProvider, settings: Settings, is_trainin
     if is_training:
         net_provider.load_network_train()
         data_loader_train = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_train)
-        data_loader_test = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_test)
+        data_loader_test = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test)
         optimizer = _get_optimizer(net_provider.network)
         summary_writer = _get_summary_writer()
 
@@ -53,7 +53,7 @@ def train_and_test(net_provider: NetworkProvider, settings: Settings, is_trainin
 
     if is_testing:
         net_provider.load_network_test()
-        data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_test)
+        data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test)
         save_dir_images = Path('results') / net_provider.name
         save_dir_images.mkdir(parents=True, exist_ok=True)
 

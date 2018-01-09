@@ -50,7 +50,7 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
 
     if is_testing:
         net_provider.load_network_test()
-        data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_test, seq_name)
+        data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test, seq_name)
         save_dir_images = Path('results') / seq_name
         save_dir_images.mkdir(parents=True, exist_ok=True)
 
