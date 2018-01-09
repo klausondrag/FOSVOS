@@ -40,7 +40,7 @@ settings = Settings(start_epoch=0, n_epochs=240, avg_grad_every_n=10, snapshot_e
 def train_and_test(net_provider: NetworkProvider, settings: Settings, is_training: bool = True,
                    is_testing: bool = True) -> None:
     if is_training:
-        _load_network_train(net_provider, settings.start_epoch, settings.is_loading_vgg_caffe)
+        net_provider.load_network_train()
         data_loader_train = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_train)
         data_loader_test = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_test)
         optimizer = _get_optimizer(net_provider.network)
@@ -52,7 +52,7 @@ def train_and_test(net_provider: NetworkProvider, settings: Settings, is_trainin
                settings.is_testing_while_training, settings.test_every_n)
 
     if is_testing:
-        _load_network_test(net_provider, settings.n_epochs)
+        net_provider.load_network_test()
         data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_test)
         save_dir_images = Path('results') / net_provider.name
         save_dir_images.mkdir(parents=True, exist_ok=True)
@@ -61,22 +61,6 @@ def train_and_test(net_provider: NetworkProvider, settings: Settings, is_trainin
 
     if settings.is_visualizing_network:
         io_helper.visualize_network(net_provider.network)
-
-
-def _load_network_train(net_provider: NetworkProvider, start_epoch: int, is_loading_vgg_caffe: bool) -> None:
-    if start_epoch == 0:
-        if is_loading_vgg_caffe:
-            net_provider.init_network(pretrained=2)
-        else:
-            net_provider.init_network(pretrained=1)
-    else:
-        net_provider.init_network(pretrained=0)
-        net_provider.load(start_epoch)
-
-
-def _load_network_test(net_provider: NetworkProvider, n_epochs: int) -> None:
-    net_provider.init_network(pretrained=0)
-    net_provider.load(n_epochs)
 
 
 def _get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002) -> Optimizer:
@@ -225,6 +209,26 @@ if __name__ == '__main__':
 
     save_dir = Path('models')
     save_dir.mkdir(parents=True, exist_ok=True)
-    net_provider = NetworkProvider('vgg16', vo.OSVOS_VGG, save_dir)
+
+
+    def _load_network_train(net_provider: NetworkProvider) -> None:
+        if settings.start_epoch == 0:
+            if settings.is_loading_vgg_caffe:
+                net_provider.init_network(pretrained=2)
+            else:
+                net_provider.init_network(pretrained=1)
+        else:
+            net_provider.init_network(pretrained=0)
+            net_provider.load(settings.start_epoch)
+
+
+    def _load_network_test(net_provider: NetworkProvider) -> None:
+        net_provider.init_network(pretrained=0)
+        net_provider.load(settings.n_epochs)
+
+
+    net_provider = NetworkProvider('vgg16', vo.OSVOS_VGG, save_dir,
+                                   load_network_train=_load_network_train,
+                                   load_network_test=_load_network_test)
 
     train_and_test(net_provider, settings, is_training=True)

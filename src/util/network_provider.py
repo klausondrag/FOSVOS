@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Callable
 
 import torch
 
@@ -12,11 +12,15 @@ log = get_logger(__file__)
 
 class NetworkProvider:
 
-    def __init__(self, name: str, network_type: type, save_dir: Path) -> None:
+    def __init__(self, name: str, network_type: type, save_dir: Path,
+                 load_network_train: Callable[[object], None], load_network_test: Callable[[object], None]) -> None:
+        # the functions receive NetworkProvider, but this is not allowed as a type hint
         self.name = name
         self.network_type = network_type
         self.save_dir = save_dir
         self.network = None
+        self._load_network_train = load_network_train
+        self._load_network_test = load_network_test
 
     def init_network(self, **kwargs) -> object:
         net = self.network_type(**kwargs)
@@ -37,6 +41,12 @@ class NetworkProvider:
         file_path = self._get_file_path(epoch, name)
         log.info("Saving weights to: {0}".format(file_path))
         torch.save(self.network.state_dict(), file_path)
+
+    def load_network_train(self) -> None:
+        self._load_network_train(self)
+
+    def load_network_test(self) -> None:
+        self._load_network_test(self)
 
 
 if __name__ == '__main__':

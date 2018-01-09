@@ -39,7 +39,7 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
     _set_network_name(net_provider, settings.parent_name, seq_name)
 
     if is_training:
-        _load_network_train(net_provider, settings.parent_epoch, settings.parent_name)
+        net_provider.load_network_train()
         data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_train, seq_name)
         optimizer = _get_optimizer(net_provider.network)
         summary_writer = _get_summary_writer(seq_name)
@@ -49,7 +49,7 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
                settings.avg_grad_every_n, settings.snapshot_every_n)
 
     if is_testing:
-        _load_network_test(net_provider, settings.n_epochs, settings.parent_epoch, settings.parent_name, is_training)
+        net_provider.load_network_test()
         data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_test, seq_name)
         save_dir_images = Path('results') / seq_name
         save_dir_images.mkdir(parents=True, exist_ok=True)
@@ -62,20 +62,6 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
 
 def _set_network_name(net_provider: NetworkProvider, parent_name: str, seq_name: str) -> None:
     net_provider.name = parent_name + '_' + seq_name
-
-
-def _load_network_train(net_provider: NetworkProvider, parent_epoch: int, parent_name: str) -> None:
-    net_provider.init_network(pretrained=0)
-    net_provider.load(parent_epoch, name=parent_name)
-
-
-def _load_network_test(net_provider: NetworkProvider, n_epochs: int, parent_epoch: int, parent_name: str,
-                       is_training: bool) -> None:
-    net_provider.init_network(pretrained=0)
-    if is_training:
-        net_provider.load(n_epochs)
-    else:
-        net_provider.load(parent_epoch, name=parent_name)
 
 
 def _get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002) -> Optimizer:
@@ -222,7 +208,25 @@ if __name__ == '__main__':
     save_dir = Path('models')
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    net_provider = NetworkProvider('', vo.OSVOS_VGG, save_dir)
+    is_training = True
+
+
+    def _load_network_train(net_provider: NetworkProvider) -> None:
+        net_provider.init_network(pretrained=0)
+        net_provider.load(settings.parent_epoch, name=settings.parent_name)
+
+
+    def _load_network_test(net_provider: NetworkProvider) -> None:
+        net_provider.init_network(pretrained=0)
+        if is_training:
+            net_provider.load(settings.n_epochs)
+        else:
+            net_provider.load(settings.parent_epoch, name=settings.parent_name)
+
+
+    net_provider = NetworkProvider('', vo.OSVOS_VGG, save_dir,
+                                   load_network_train=_load_network_train,
+                                   load_network_test=_load_network_test)
 
     if settings.is_visualizing_results:
         import matplotlib.pyplot as plt
@@ -238,5 +242,5 @@ if __name__ == '__main__':
     already_done = []
     sequences = [s for s in sequences if s not in already_done]
 
-    # [train_and_test(net_provider, s, settings) for s in sequences]
-    train_and_test(net_provider, 'bear', settings, is_training=False)
+    # [train_and_test(net_provider, s, settings, is_training=is_training) for s in sequences]
+    train_and_test(net_provider, 'bear', settings, is_training=is_training)
