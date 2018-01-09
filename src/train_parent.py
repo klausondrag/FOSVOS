@@ -170,9 +170,9 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
     log.info("Training Network")
     for epoch in range(start_epoch, nEpochs):
         start_time = timeit.default_timer()
-        for ii, sample_batched in enumerate(data_loader_train):
+        for index, minibatch in enumerate(data_loader_train):
 
-            inputs, gts = sample_batched['image'], sample_batched['gt']
+            inputs, gts = minibatch['image'], minibatch['gt']
 
             inputs, gts = Variable(inputs), Variable(gts)
             inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
@@ -185,11 +185,11 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
                 running_loss_tr[i] += losses[i].data[0]
             loss = (1 - epoch / nEpochs) * sum(losses[:-1]) + losses[-1]
 
-            if ii % num_img_tr == num_img_tr - 1:
+            if index % num_img_tr == num_img_tr - 1:
                 running_loss_tr = [x / num_img_tr for x in running_loss_tr]
                 loss_tr.append(running_loss_tr[-1])
                 summary_writer.add_scalar('data/total_loss_epoch', running_loss_tr[-1], epoch)
-                log.info('[Epoch: %d, numImages: %5d]' % (epoch, ii + 1))
+                log.info('[Epoch: %d, numImages: %5d]' % (epoch, index + 1))
                 for l in range(0, len(running_loss_tr)):
                     log.info('Loss %d: %f' % (l, running_loss_tr[l]))
                     running_loss_tr[l] = 0
@@ -202,7 +202,7 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
             aveGrad += 1
 
             if aveGrad % nAveGrad == 0:
-                summary_writer.add_scalar('data/total_loss_iter', loss.data[0], ii + num_img_tr * epoch)
+                summary_writer.add_scalar('data/total_loss_iter', loss.data[0], index + num_img_tr * epoch)
                 optimizer.step()
                 optimizer.zero_grad()
                 aveGrad = 0
@@ -211,9 +211,8 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
             net_provider.save(epoch)
 
         if useTest and epoch % nTestInterval == (nTestInterval - 1):
-            for ii, sample_batched in enumerate(data_loader_test):
-                inputs, gts = sample_batched['image'], sample_batched['gt']
-
+            for index, minibatch in enumerate(data_loader_test):
+                inputs, gts = minibatch['image'], minibatch['gt']
                 inputs, gts = Variable(inputs, volatile=True), Variable(gts, volatile=True)
                 inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
@@ -224,11 +223,11 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
                     losses[i] = class_balanced_cross_entropy_loss(outputs[i], gts, size_average=False)
                     running_loss_ts[i] += losses[i].data[0]
 
-                if ii % num_img_ts == num_img_ts - 1:
+                if index % num_img_ts == num_img_ts - 1:
                     running_loss_ts = [x / num_img_ts for x in running_loss_ts]
                     loss_ts.append(running_loss_ts[-1])
 
-                    log.info('[Epoch: %d, numImages: %5d]' % (epoch, ii + 1))
+                    log.info('[Epoch: %d, numImages: %5d]' % (epoch, index + 1))
                     summary_writer.add_scalar('data/test_loss_epoch', running_loss_ts[-1], epoch)
                     for l in range(0, len(running_loss_ts)):
                         log.info('***Testing *** Loss %d: %f' % (l, running_loss_ts[l]))
