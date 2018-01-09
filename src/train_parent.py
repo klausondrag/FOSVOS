@@ -1,13 +1,14 @@
 import socket
 import sys
 import timeit
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from collections import namedtuple
 
 import scipy.misc as sm
 from tensorboardX import SummaryWriter
 import numpy as np
+import yaml
 
 import torch
 from torch.autograd import Variable
@@ -50,6 +51,7 @@ def train_and_test(net_provider: NetworkProvider, settings: Settings, is_trainin
         optimizer = _get_optimizer(net_provider.network)
         summary_writer = _get_summary_writer()
 
+        _write_settings(save_dir, net_provider.name, settings)
         _train(net_provider, data_loader_train, data_loader_test, optimizer, summary_writer, settings.start_epoch,
                settings.n_epochs, settings.avg_grad_every_n, settings.snapshot_every_n,
                settings.is_testing_while_training, settings.test_every_n)
@@ -124,7 +126,7 @@ def _get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.000
 
 
 def _get_summary_writer() -> SummaryWriter:
-    log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname())
+    log_dir = save_dir / 'runs' / (_get_timestamp() + '_' + socket.gethostname())
     summary_writer = SummaryWriter(log_dir=str(log_dir), comment='-parent')
     return summary_writer
 
@@ -249,6 +251,16 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path
             sm.imsave(str(file_name), pred)
 
 
+def _write_settings(save_dir: Path, name: str, settings: Settings) -> None:
+    file_name = '{0}_{1}_settings.yml'.format(name, _get_timestamp())
+    with open(str(save_dir / file_name), 'w') as outfile:
+        yaml.dump(settings._asdict(), outfile, default_flow_style=False)
+
+
+def _get_timestamp() -> str:
+    return datetime.now().replace(microsecond=0).isoformat()
+
+
 if __name__ == '__main__':
     db_root_dir = P.db_root_dir()
     save_dir_root = P.save_root_dir()
@@ -256,5 +268,5 @@ if __name__ == '__main__':
     save_dir = Path('models')
     save_dir.mkdir(parents=True, exist_ok=True)
     net_provider = NetworkProvider('vgg16', vo.OSVOS_VGG, save_dir)
-
+    
     train_and_test(net_provider, settings, is_training=True)

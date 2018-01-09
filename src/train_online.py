@@ -6,6 +6,7 @@ from pathlib import Path
 from collections import namedtuple
 
 from tensorboardX import SummaryWriter
+import yaml
 
 import torch
 from torch.autograd import Variable
@@ -51,8 +52,9 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
         optimizer = _get_optimizer(net_provider.network)
         summary_writer = _get_summary_writer(seq_name)
 
+        _write_settings(save_dir, net_provider.name, settings)
         _train(net_provider, data_loader, optimizer, summary_writer, seq_name, settings.start_epoch, settings.n_epochs,
-               settings.snapshot_every_n)
+               settings.avg_grad_every_n, settings.snapshot_every_n)
 
     if is_testing:
         _load_network_test(net_provider, settings.n_epochs, settings.parent_epoch, settings.parent_name, is_training)
@@ -118,8 +120,7 @@ def _get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.000
 
 
 def _get_summary_writer(seq_name: str) -> SummaryWriter:
-    log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname()
-                                   + '-' + seq_name)
+    log_dir = save_dir / 'runs' / (_get_timestamp + '_' + socket.gethostname() + '-' + seq_name)
     summary_writer = SummaryWriter(log_dir=str(log_dir))
     return summary_writer
 
@@ -250,6 +251,16 @@ def _visualize_results(ax_arr, gt, img, jj, pred):
     ax_arr[1].imshow(gt_)
     ax_arr[2].imshow(im_normalize(pred))
     plt.pause(0.001)
+
+
+def _write_settings(save_dir: Path, name: str, settings: Settings) -> None:
+    file_name = '{0}_{1}_settings.yml'.format(name, _get_timestamp())
+    with open(str(save_dir / file_name), 'w') as outfile:
+        yaml.dump(settings._asdict(), outfile, default_flow_style=False)
+
+
+def _get_timestamp() -> str:
+    return datetime.now().replace(microsecond=0).isoformat()
 
 
 if __name__ == '__main__':
