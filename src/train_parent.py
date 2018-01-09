@@ -66,10 +66,14 @@ else:
     net = net_provider.init_network(pretrained=0)
     net_provider.load(start_epoch)
 
-log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname())
-writer = SummaryWriter(log_dir=str(log_dir), comment='-parent')
-y = net.forward(Variable(torch.randn(1, 3, 480, 854)))
-writer.add_graph(net, y[-1])
+
+def _get_summary_writer() -> SummaryWriter:
+    log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname())
+    summary_writer = SummaryWriter(log_dir=str(log_dir), comment='-parent')
+    return summary_writer
+
+
+summary_writer = _get_summary_writer()
 
 
 def visualize_network():
@@ -151,7 +155,7 @@ def _train():
             if ii % num_img_tr == num_img_tr - 1:
                 running_loss_tr = [x / num_img_tr for x in running_loss_tr]
                 loss_tr.append(running_loss_tr[-1])
-                writer.add_scalar('data/total_loss_epoch', running_loss_tr[-1], epoch)
+                summary_writer.add_scalar('data/total_loss_epoch', running_loss_tr[-1], epoch)
                 log.info('[Epoch: %d, numImages: %5d]' % (epoch, ii + 1))
                 for l in range(0, len(running_loss_tr)):
                     log.info('Loss %d: %f' % (l, running_loss_tr[l]))
@@ -165,7 +169,7 @@ def _train():
             aveGrad += 1
 
             if aveGrad % nAveGrad == 0:
-                writer.add_scalar('data/total_loss_iter', loss.data[0], ii + num_img_tr * epoch)
+                summary_writer.add_scalar('data/total_loss_iter', loss.data[0], ii + num_img_tr * epoch)
                 optimizer.step()
                 optimizer.zero_grad()
                 aveGrad = 0
@@ -192,12 +196,12 @@ def _train():
                     loss_ts.append(running_loss_ts[-1])
 
                     log.info('[Epoch: %d, numImages: %5d]' % (epoch, ii + 1))
-                    writer.add_scalar('data/test_loss_epoch', running_loss_ts[-1], epoch)
+                    summary_writer.add_scalar('data/test_loss_epoch', running_loss_ts[-1], epoch)
                     for l in range(0, len(running_loss_ts)):
                         log.info('***Testing *** Loss %d: %f' % (l, running_loss_ts[l]))
                         running_loss_ts[l] = 0
 
-    writer.close()
+    summary_writer.close()
 
 
 def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path) -> None:
