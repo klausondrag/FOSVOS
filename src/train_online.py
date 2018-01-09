@@ -37,7 +37,7 @@ Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'avg_grad_every_n'
                                    'is_visualizing_network', 'is_visualizing_results'])
 
 settings = Settings(start_epoch=0, n_epochs=2000, avg_grad_every_n=5, snapshot_every_n=2000,
-                    batch_size_train=1, parent_name='src', parent_epoch=240,
+                    batch_size_train=1, parent_name='vgg16', parent_epoch=240,
                     is_visualizing_network=False, is_visualizing_results=False)
 
 
