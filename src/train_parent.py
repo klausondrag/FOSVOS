@@ -46,15 +46,17 @@ def train_and_test(net_provider: NetworkProvider, settings: Settings, is_trainin
     if is_training:
         _load_network_train(net_provider, settings.start_epoch, settings.is_loading_vgg_caffe)
         data_loader_train = _get_data_loader_train(settings.batch_size_train)
-        data_loader_test = _get_data_loader_test(settings.batch_size_train)
+        data_loader_test = _get_data_loader_test(settings.batch_size_test)
         optimizer = _get_optimizer(net_provider.network)
         summary_writer = _get_summary_writer()
 
-        _train(net_provider, data_loader_train, data_loader_test, optimizer, summary_writer)
+        _train(net_provider, data_loader_train, data_loader_test, optimizer, summary_writer, settings.start_epoch,
+               settings.n_epochs, settings.avg_grad_every_n, settings.snapshot_every_n,
+               settings.is_testing_while_training, settings.test_every_n)
 
     if is_testing:
         _load_network_test(net_provider, settings.n_epochs)
-        data_loader = _get_data_loader_test(settings.batch_size_train)
+        data_loader = _get_data_loader_test(settings.batch_size_test)
         save_dir_images = Path('results') / net_provider.name
         save_dir_images.mkdir(parents=True, exist_ok=True)
 
