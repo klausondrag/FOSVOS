@@ -3,6 +3,7 @@ import sys
 import timeit
 from datetime import datetime
 from pathlib import Path
+from collections import namedtuple
 
 from tensorboardX import SummaryWriter
 
@@ -27,52 +28,38 @@ from util.network_provider import NetworkProvider
 
 if P.is_custom_pytorch():
     sys.path.append(P.custom_pytorch())  # Custom PyTorch
-gpu_handler.select_gpu_by_hostname()
 
+gpu_handler.select_gpu_by_hostname()
 log = get_logger(__file__)
 
-db_root_dir = P.db_root_dir()
-exp_dir = P.exp_dir()
-is_visualizing_network = False
-is_visualizing_result = False
-n_avg_grad = 5
-start_epoch = 0
-snapshot_every = 100  # Store a model every snapshot epochs
-parent_epoch = 240  # 240
-
-# Parameters in p are used for the name of the model
-p = {
-    'trainBatch': 1,  # Number of Images in each mini-batch
-}
-
-save_dir = Path('models')
-save_dir.mkdir(exist_ok=True)
-net_provider = NetworkProvider('vgg16_blackswan', vo.OSVOS_VGG, save_dir)
-
-if is_visualizing_result:
-    import matplotlib.pyplot as plt
+Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'n_avg_grad', 'snapshot_every_n',
+                                   'train_batch_size', 'parent_name', 'parent_epoch',
+                                   'is_visualizing_network', 'is_visualizing_results'])
 
 
-def train_and_test(net_provider: NetworkProvider, seq_name: str, n_epochs: int,
-                   parent_name: str = 'vgg16', parent_epoch: int = 240, start_epoch: int = 0,
+def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Settings,
                    should_train: bool = True, should_test: bool = True) -> None:
-    _set_network_name(net_provider, parent_name, seq_name)
+    _set_network_name(net_provider, settings.parent_name, seq_name)
 
     if should_train:
-        _load_network_train(net_provider, parent_epoch, parent_name)
-        data_loader = _get_data_loader_train(seq_name)
+        _load_network_train(net_provider, settings.parent_epoch, settings.parent_name)
+        data_loader = _get_data_loader_train(seq_name, settings.train_batch_size)
         optimizer = _get_optimizer(net_provider.network)
         summary_writer = _get_summary_writer(seq_name)
 
-        _train(net_provider, data_loader, optimizer, seq_name, start_epoch, n_epochs, summary_writer)
+        _train(net_provider, data_loader, optimizer, summary_writer, seq_name, settings.start_epoch, settings.n_epochs,
+               settings.snapshot_every_n)
 
     if should_test:
-        _load_network_test(net_provider, n_epochs, parent_epoch, parent_name, should_train)
+        _load_network_test(net_provider, settings.n_epochs, settings.parent_epoch, settings.parent_name, should_train)
         data_loader = _get_data_loader_test(seq_name)
         save_dir_images = Path('results') / seq_name
         save_dir_images.mkdir(exist_ok=True)
 
-        _test(net_provider, data_loader, seq_name, save_dir_images)
+        _test(net_provider, data_loader, seq_name, save_dir_images, settings.is_visualizing_results)
+
+    if settings.is_visualizing_network:
+        _visualize_network(net_provider.network)
 
 
 def _set_network_name(net_provider, parent_name, seq_name):
@@ -93,14 +80,14 @@ def _load_network_test(net_provider: NetworkProvider, n_epochs: int, parent_epoc
         net_provider.load(parent_epoch, name=parent_name)
 
 
-def _get_data_loader_train(seq_name: str) -> DataLoader:
+def _get_data_loader_train(seq_name: str, batch_size: int) -> DataLoader:
     # Define augmentation transformations as a composition
     composed_transforms = transforms.Compose([custom_transforms.RandomHorizontalFlip(),
                                               custom_transforms.Resize(),
                                               # custom_transforms.ScaleNRotate(rots=(-30, 30), scales=(.75, 1.25)),
                                               custom_transforms.ToTensor()])
     db_train = DAVIS2016(mode='train', db_root_dir=db_root_dir, transform=composed_transforms, seq_name=seq_name)
-    data_loader = DataLoader(db_train, batch_size=p['trainBatch'], shuffle=True, num_workers=1)
+    data_loader = DataLoader(db_train, batch_size=batch_size, shuffle=True, num_workers=1)
     return data_loader
 
 
@@ -133,13 +120,11 @@ def _get_summary_writer(seq_name: str) -> SummaryWriter:
     return summary_writer
 
 
-def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Optimizer,
-           seq_name: str, start_epoch: int, n_epochs: int, summary_writer: SummaryWriter) -> None:
+def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Optimizer, summary_writer: SummaryWriter,
+           seq_name: str, start_epoch: int, n_epochs: int, snapshot_every_n: int) -> None:
     log.info("Start of Online Training, sequence: " + seq_name)
 
     net = net_provider.network
-    if is_visualizing_network:
-        _visualize_network(net)
 
     speeds_training = []
     num_img_tr = len(data_loader)
@@ -182,7 +167,7 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Op
                 optimizer.zero_grad()
                 counter_gradient = 0
 
-        if (epoch % snapshot_every) == snapshot_every - 1:  # and epoch != 0:
+        if (epoch % snapshot_every_n) == snapshot_every_n - 1:  # and epoch != 0:
             net_provider.save(epoch)
 
         epoch_stop_time = timeit.default_timer()
@@ -195,12 +180,13 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Op
     log.info('Train {0}: time per sample {1} sec'.format(seq_name, np.asarray(t).mean()))
 
 
-def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str, save_dir: Path) -> None:
+def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str, save_dir: Path,
+          is_visualizing_results: bool) -> None:
     log.info('Testing Network')
 
     net = net_provider.network
 
-    if is_visualizing_result:
+    if is_visualizing_results:
         ax_arr = _init_plot()
 
     test_start_time = timeit.default_timer()
@@ -214,6 +200,7 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str,
         outputs = net.forward(inputs)
 
         # always int?
+        log.info(inputs.size, type(inputs.size), type(inputs.size[0]))
         for index in range(int(inputs.size()[0])):
             pred = np.transpose(outputs[-1].cpu().data.numpy()[index, :, :, :], (1, 2, 0))
             pred = 1 / (1 + np.exp(-pred))
@@ -224,7 +211,7 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str,
             file_name = save_dir / '{0}.png'.format(fname[index])
             sm.imsave(file_name, pred)
 
-            if is_visualizing_result:
+            if is_visualizing_results:
                 _visualize_results(ax_arr, gt, img, index, pred)
 
     test_stop_time = timeit.default_timer()
@@ -269,10 +256,24 @@ def _visualize_results(ax_arr, gt, img, jj, pred):
 
 
 if __name__ == '__main__':
-    start_epoch = 0
-    n_epochs = 400 * n_avg_grad
-    parent_name = 'vgg16'
-    parent_epoch = 240
+    db_root_dir = P.db_root_dir()
+    exp_dir = P.exp_dir()
+
+    # Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'n_avg_grad', 'snapshot_every_n',
+    #                                    'train_batch_size', 'parent_name', 'parent_epoch',
+    #                                    'is_visualizing_network', 'is_visualizing_results'])
+
+    n_avg_grad = 5
+    settings = Settings(start_epoch=0, n_epochs=400 * n_avg_grad, n_avg_grad=n_avg_grad, snapshot_every_n=100,
+                        train_batch_size=1, parent_name='vgg16', parent_epoch=240,
+                        is_visualizing_network=False, is_visualizing_results=False)
+
+    save_dir = Path('models')
+    save_dir.mkdir(exist_ok=True)
+    net_provider = NetworkProvider('', vo.OSVOS_VGG, save_dir)
+
+    if settings.is_visualizing_results:
+        import matplotlib.pyplot as plt
 
     sequences = ['bear', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey', 'kite-walk', 'mallard-water',
                  'paragliding', 'rollerblade', 'soccerball', 'tennis', 'blackswan', 'breakdance', 'car-roundabout',
@@ -285,7 +286,6 @@ if __name__ == '__main__':
     # already_done = ['bear', 'blackswan', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey']
     sequences = [s for s in sequences if s not in already_done]
 
-    [train_and_test(net_provider, s, n_epochs=n_epochs, parent_name=parent_name, parent_epoch=parent_epoch)
+    [train_and_test(net_provider, s, settings)
      for s in sequences]
-    # train_and_test(net_provider, 'boat', n_epochs=n_epochs, parent_name=parent_name, parent_epoch=parent_epoch,
-    #                should_train=False)
+    # train_and_test(net_provider, 'boat', settings, should_train=False)
