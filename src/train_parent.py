@@ -19,7 +19,7 @@ from torch.utils.data import DataLoader
 
 import visualize as viz
 from dataloaders import davis_2016 as db
-from dataloaders import custom_transforms as tr
+from dataloaders import custom_transforms
 import networks.osvos_vgg as vo
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 
@@ -86,17 +86,17 @@ def _load_network_test(net_provider: NetworkProvider, n_epochs: int) -> None:
 
 def _get_data_loader_train(batch_size: int) -> DataLoader:
     # Define augmentation transformations as a composition
-    composed_transforms = transforms.Compose([tr.RandomHorizontalFlip(),
-                                              tr.Resize(),
-                                              # tr.ScaleNRotate(rots=(-30,30), scales=(.75, 1.25)),
-                                              tr.ToTensor()])
+    composed_transforms = transforms.Compose([custom_transforms.RandomHorizontalFlip(),
+                                              custom_transforms.Resize(),
+                                              # custom_transforms.ScaleNRotate(rots=(-30,30), scales=(.75, 1.25)),
+                                              custom_transforms.ToTensor()])
     db_train = db.DAVIS2016(mode='train', inputRes=None, db_root_dir=db_root_dir, transform=composed_transforms)
     data_loader = DataLoader(db_train, batch_size=batch_size, shuffle=True, num_workers=2)
     return data_loader
 
 
 def _get_data_loader_test(batch_size: int) -> DataLoader:
-    db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=tr.ToTensor())
+    db_test = db.DAVIS2016(mode='test', db_root_dir=db_root_dir, transform=custom_transforms.ToTensor())
     data_loader = DataLoader(db_test, batch_size=batch_size, shuffle=False, num_workers=2)
     return data_loader
 
