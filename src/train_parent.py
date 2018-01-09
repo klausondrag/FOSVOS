@@ -80,7 +80,7 @@ def _get_summary_writer() -> SummaryWriter:
     return summary_writer
 
 
-def visualize_network():
+def _visualize_network(net):
     x = torch.randn(1, 3, 480, 854)
     x = Variable(x)
     y = net.forward(x)
@@ -255,9 +255,10 @@ def train_and_test(net_provider: NetworkProvider, is_training: bool = True, is_t
 
         _test(net_provider, data_loader, save_dir_images)
 
+    if is_visualizing_network:
+        _visualize_network(net_provider.network)
 
-if is_visualizing_network:
-    visualize_network()
+
 if __name__ == '__main__':
     settings = None
     train_and_test(net_provider, 'bear', settings, is_training=True)
