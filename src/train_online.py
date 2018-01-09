@@ -151,9 +151,9 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Op
         epoch_start_time = timeit.default_timer()
 
         running_loss_tr = 0
-        for ii, sample_batched in enumerate(data_loader):
+        for minibatch_index, minibatch in enumerate(data_loader):
 
-            inputs, gts = sample_batched['image'], sample_batched['gt']
+            inputs, gts = minibatch['image'], minibatch['gt']
 
             inputs, gts = Variable(inputs), Variable(gts)
             inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
@@ -168,7 +168,7 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Op
                 running_loss_tr /= num_img_tr
                 loss_tr.append(running_loss_tr)
 
-                log.info('[Epoch {0}: {1}, numImages: {2}]'.format(seq_name, epoch + 1, ii + 1))
+                log.info('[Epoch {0}: {1}, numImages: {2}]'.format(seq_name, epoch + 1, minibatch_index + 1))
                 log.info('Loss {0}: {1}'.format(seq_name, running_loss_tr))
                 summary_writer.add_scalar('data/total_loss_epoch', running_loss_tr, epoch)
 
@@ -177,7 +177,7 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Op
             counter_gradient += 1
 
             if counter_gradient % n_avg_grad == 0:
-                summary_writer.add_scalar('data/total_loss_iter', loss.data[0], ii + num_img_tr * epoch)
+                summary_writer.add_scalar('data/total_loss_iter', loss.data[0], minibatch_index + num_img_tr * epoch)
                 optimizer.step()
                 optimizer.zero_grad()
                 counter_gradient = 0
@@ -204,15 +204,16 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str,
         ax_arr = _init_plot()
 
     test_start_time = timeit.default_timer()
-    for ii, sample_batched in enumerate(data_loader):
+    for minibatch in data_loader:
 
-        img, gt, fname = sample_batched['image'], sample_batched['gt'], sample_batched['fname']
+        img, gt, fname = minibatch['image'], minibatch['gt'], minibatch['fname']
 
         inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
         inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
         outputs = net.forward(inputs)
 
+        # always int?
         for index in range(int(inputs.size()[0])):
             pred = np.transpose(outputs[-1].cpu().data.numpy()[index, :, :, :], (1, 2, 0))
             pred = 1 / (1 + np.exp(-pred))
@@ -268,7 +269,10 @@ def _visualize_results(ax_arr, gt, img, jj, pred):
 
 
 if __name__ == '__main__':
-    n_epochs = 400 * n_avg_grad  # Number of epochs for training
+    start_epoch = 0
+    n_epochs = 400 * n_avg_grad
+    parent_name = 'vgg16'
+    parent_epoch = 240
 
     sequences = ['bear', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey', 'kite-walk', 'mallard-water',
                  'paragliding', 'rollerblade', 'soccerball', 'tennis', 'blackswan', 'breakdance', 'car-roundabout',
@@ -281,5 +285,7 @@ if __name__ == '__main__':
     # already_done = ['bear', 'blackswan', 'boat', 'camel', 'cows', 'dog-agility', 'elephant', 'hockey']
     sequences = [s for s in sequences if s not in already_done]
 
-    [train(s, n_epochs) for s in sequences]
-    # train('boat', n_epochs, train_and_test=False)
+    [train_and_test(net_provider, s, n_epochs=n_epochs, parent_name=parent_name, parent_epoch=parent_epoch)
+     for s in sequences]
+    # train_and_test(net_provider, 'boat', n_epochs=n_epochs, parent_name=parent_name, parent_epoch=parent_epoch,
+    #                should_train=False)
