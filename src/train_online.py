@@ -145,7 +145,6 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Op
 
             outputs = net.forward(inputs)
 
-            # Compute the fuse loss
             loss = class_balanced_cross_entropy_loss(outputs[-1], gts, size_average=False)
             running_loss_tr += loss.data[0]
 
@@ -204,7 +203,6 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str,
             pred = 1 / (1 + np.exp(-pred))
             pred = np.squeeze(pred)
 
-            # Save the result, attention to the index
             file_name = save_dir / '{0}.png'.format(fname[index])
             sm.imsave(file_name, pred)
 

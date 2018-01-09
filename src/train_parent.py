@@ -34,26 +34,23 @@ gpu_handler.select_gpu_by_hostname()
 
 log = get_logger(__file__)
 
-# Setting of parameters
-# Parameters in p are used for the name of the model
 p = {
-    'trainBatch': 1,  # Number of Images in each mini-batch
+    'trainBatch': 1,
 }
 
-# # Setting other parameters
-nEpochs = 240  # 240  # Number of epochs for training (500.000/2079)
-useTest = 1  # See evolution of the test set when training?
-testBatch = 1  # Testing Batch
-nTestInterval = 5  # 5  # Run on test set every nTestInterval epochs
+nEpochs = 240
+useTest = 1
+testBatch = 1
+nTestInterval = 5
 db_root_dir = P.db_root_dir()
 save_dir_root = P.save_root_dir()
 
 should_visualize_network = False
-snapshot = 40  # 40  # Store a model every snapshot epochs
+snapshot = 40
 nAveGrad = 10
 
 should_load_vgg_caffe = False
-start_epoch = 0  # Default is 0, change if want to resume
+start_epoch = 0
 
 save_dir = Path('models')
 save_dir.mkdir(exist_ok=True)
@@ -69,7 +66,6 @@ else:
     net = net_provider.init_network(pretrained=0)
     net_provider.load(start_epoch)
 
-# Logging into Tensorboard
 log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname())
 writer = SummaryWriter(log_dir=str(log_dir), comment='-parent')
 y = net.forward(Variable(torch.randn(1, 3, 480, 854)))
@@ -135,28 +131,23 @@ def _train():
     aveGrad = 0
 
     log.info("Training Network")
-    # Main Training and Testing Loop
     for epoch in range(start_epoch, nEpochs):
         start_time = timeit.default_timer()
-        # One training epoch
         for ii, sample_batched in enumerate(trainloader):
 
             inputs, gts = sample_batched['image'], sample_batched['gt']
 
-            # Forward-Backward of the mini-batch
             inputs, gts = Variable(inputs), Variable(gts)
             inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
             outputs = net.forward(inputs)
 
-            # Compute the losses, side outputs and fuse
             losses = [0] * len(outputs)
             for i in range(0, len(outputs)):
                 losses[i] = class_balanced_cross_entropy_loss(outputs[i], gts, size_average=False)
                 running_loss_tr[i] += losses[i].data[0]
             loss = (1 - epoch / nEpochs) * sum(losses[:-1]) + losses[-1]
 
-            # Print stuff
             if ii % num_img_tr == num_img_tr - 1:
                 running_loss_tr = [x / num_img_tr for x in running_loss_tr]
                 loss_tr.append(running_loss_tr[-1])
@@ -169,41 +160,33 @@ def _train():
                 stop_time = timeit.default_timer()
                 log.info("Execution time: " + str(stop_time - start_time))
 
-            # Backward the averaged gradient
             loss /= nAveGrad
             loss.backward()
             aveGrad += 1
 
-            # Update the weights once in nAveGrad forward passes
             if aveGrad % nAveGrad == 0:
                 writer.add_scalar('data/total_loss_iter', loss.data[0], ii + num_img_tr * epoch)
                 optimizer.step()
                 optimizer.zero_grad()
                 aveGrad = 0
 
-        # Save the model
         if (epoch % snapshot) == snapshot - 1 and epoch != 0:
             net_provider.save(epoch)
 
-        # One testing epoch
         if useTest and epoch % nTestInterval == (nTestInterval - 1):
             for ii, sample_batched in enumerate(testloader):
                 inputs, gts = sample_batched['image'], sample_batched['gt']
 
-                # Forward pass of the mini-batch
                 inputs, gts = Variable(inputs, volatile=True), Variable(gts, volatile=True)
                 inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
                 outputs = net.forward(inputs)
 
-                # Compute the losses, side outputs and fuse
                 losses = [0] * len(outputs)
                 for i in range(0, len(outputs)):
                     losses[i] = class_balanced_cross_entropy_loss(outputs[i], gts, size_average=False)
                     running_loss_ts[i] += losses[i].data[0]
-                loss = (1 - epoch / nEpochs) * sum(losses[:-1]) + losses[-1]
 
-                # Print stuff
                 if ii % num_img_ts == num_img_ts - 1:
                     running_loss_ts = [x / num_img_ts for x in running_loss_ts]
                     loss_ts.append(running_loss_ts[-1])
@@ -226,7 +209,6 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path
         img, gt, seq_name, fname = minibatch['image'], minibatch['gt'], \
                                    minibatch['seq_name'], minibatch['fname']
 
-        # Forward of the mini-batch
         inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
         inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
@@ -243,7 +225,6 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path
             save_dir_seq = save_dir / net_provider.name / seq_name[index]
             save_dir_seq.mkdir(exist_ok=True)
 
-            # Save the result, attention to the index jj
             file_name = save_dir_seq / '{0}.png'.format(fname[index])
             sm.imsave(str(file_name), pred)
 
