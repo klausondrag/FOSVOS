@@ -48,26 +48,26 @@ nTestInterval = 5  # 5  # Run on test set every nTestInterval epochs
 db_root_dir = P.db_root_dir()
 save_dir_root = P.save_root_dir()
 
-vis_net = 0  # Visualize the network?
+should_visualize_network = False
 snapshot = 40  # 40  # Store a model every snapshot epochs
 nAveGrad = 10
 
-load_caffe_vgg = 0
-resume_epoch = 0  # Default is 0, change if want to resume
+should_load_vgg_caffe = False
+start_epoch = 0  # Default is 0, change if want to resume
 
 save_dir = Path('models')
 save_dir.mkdir(exist_ok=True)
 
 net_provider = NetworkProvider('vgg16', vo.OSVOS_VGG, save_dir)
 
-if resume_epoch == 0:
-    if load_caffe_vgg:
+if start_epoch == 0:
+    if should_load_vgg_caffe:
         net = net_provider.init_network(pretrained=2)
     else:
         net = net_provider.init_network(pretrained=1)
 else:
     net = net_provider.init_network(pretrained=0)
-    net_provider.load(resume_epoch)
+    net_provider.load(start_epoch)
 
 # Logging into Tensorboard
 log_dir = save_dir / 'runs' / (datetime.now().strftime('%b%d_%H-%M-%S') + '_' + socket.gethostname())
@@ -76,7 +76,7 @@ y = net.forward(Variable(torch.randn(1, 3, 480, 854)))
 writer.add_graph(net, y[-1])
 
 # Visualize the network
-if vis_net:
+if should_visualize_network:
     x = torch.randn(1, 3, 480, 854)
     x = Variable(x)
     y = net.forward(x)
@@ -143,7 +143,7 @@ aveGrad = 0
 
 log.info("Training Network")
 # Main Training and Testing Loop
-for epoch in range(resume_epoch, nEpochs):
+for epoch in range(start_epoch, nEpochs):
     start_time = timeit.default_timer()
     # One training epoch
     for ii, sample_batched in enumerate(trainloader):
@@ -255,3 +255,12 @@ for ii, sample_batched in enumerate(testloader):
         # Save the result, attention to the index jj
         file_name = save_dir_seq / '{0}.png'.format(fname[jj])
         sm.imsave(str(file_name), pred)
+
+
+def train_and_test():
+    pass
+
+
+if __name__ == '__main__':
+    settings = None
+    train_and_test(net_provider, 'bear', settings, should_train=True)
