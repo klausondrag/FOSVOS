@@ -75,13 +75,17 @@ writer = SummaryWriter(log_dir=str(log_dir), comment='-parent')
 y = net.forward(Variable(torch.randn(1, 3, 480, 854)))
 writer.add_graph(net, y[-1])
 
-# Visualize the network
-if should_visualize_network:
+
+def visualize_network():
     x = torch.randn(1, 3, 480, 854)
     x = Variable(x)
     y = net.forward(x)
     g = viz.make_dot(y, net.state_dict())
     g.view()
+
+
+if should_visualize_network:
+    visualize_network()
 
 
 def _get_optimizer(net, learning_rate: float = 1e-8, weight_decay: float = 0.0002) -> Optimizer:
