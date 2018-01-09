@@ -54,7 +54,7 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
         _load_network_test(net_provider, settings.n_epochs, settings.parent_epoch, settings.parent_name, should_train)
         data_loader = _get_data_loader_test(seq_name)
         save_dir_images = Path('results') / seq_name
-        save_dir_images.mkdir(exist_ok=True)
+        save_dir_images.mkdir(parents=True, exist_ok=True)
 
         _test(net_provider, data_loader, seq_name, save_dir_images, settings.is_visualizing_results)
 
@@ -199,15 +199,12 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str,
 
         outputs = net.forward(inputs)
 
-        # always int?
-        log.info(inputs.size, type(inputs.size), type(inputs.size[0]))
-        for index in range(int(inputs.size()[0])):
+        for index in range(inputs.size()[0]):
             pred = np.transpose(outputs[-1].cpu().data.numpy()[index, :, :, :], (1, 2, 0))
             pred = 1 / (1 + np.exp(-pred))
             pred = np.squeeze(pred)
 
             # Save the result, attention to the index
-            log.info(str(fname))
             file_name = save_dir / '{0}.png'.format(fname[index])
             sm.imsave(file_name, pred)
 
@@ -263,13 +260,14 @@ if __name__ == '__main__':
     #                                    'train_batch_size', 'parent_name', 'parent_epoch',
     #                                    'is_visualizing_network', 'is_visualizing_results'])
 
-    n_avg_grad = 5
-    settings = Settings(start_epoch=0, n_epochs=400 * n_avg_grad, n_avg_grad=n_avg_grad, snapshot_every_n=100,
-                        train_batch_size=1, parent_name='vgg16', parent_epoch=240,
+    n_avg_grad = 1
+    n_epochs = 400 * n_avg_grad
+    settings = Settings(start_epoch=0, n_epochs=n_epochs, n_avg_grad=n_avg_grad, snapshot_every_n=n_epochs,
+                        train_batch_size=1, parent_name='src', parent_epoch=240,
                         is_visualizing_network=False, is_visualizing_results=False)
 
     save_dir = Path('models')
-    save_dir.mkdir(exist_ok=True)
+    save_dir.mkdir(parents=True, exist_ok=True)
     net_provider = NetworkProvider('', vo.OSVOS_VGG, save_dir)
 
     if settings.is_visualizing_results:
@@ -286,5 +284,5 @@ if __name__ == '__main__':
     already_done = []
     sequences = [s for s in sequences if s not in already_done]
 
-    [train_and_test(net_provider, s, settings) for s in sequences]
-    # train_and_test(net_provider, 'boat', settings, should_train=False)
+    # [train_and_test(net_provider, s, settings) for s in sequences]
+    train_and_test(net_provider, 'bear', settings, should_train=False)
