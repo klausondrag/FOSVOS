@@ -154,6 +154,7 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
 
     log.info("Training Network")
     for epoch in range(start_epoch, n_epochs):
+        log.info(str(epoch))
         start_time = timeit.default_timer()
         for index, minibatch in enumerate(data_loader_train):
             inputs, gts = minibatch['image'], minibatch['gt']
