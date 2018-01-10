@@ -38,7 +38,7 @@ def _get_timestamp() -> str:
 
 
 def write_settings(save_dir: Path, name: str, settings: Dict) -> None:
-    file_name = '{0}_{1}_settings.yml'.format(name, _get_timestamp())
+    file_name = '{0}_settings_{1}.yml'.format(name, _get_timestamp())
     file_path = save_dir / file_name
     with open(str(file_path), 'w') as f:
         yaml.dump(settings, f, default_flow_style=False)

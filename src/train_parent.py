@@ -56,8 +56,9 @@ def train_and_test(net_provider: NetworkProvider, settings: Settings, is_trainin
     if is_testing:
         net_provider.load_network_test()
         data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test)
+        save_dir = save_dir_results / net_provider.name / 'parent'
 
-        _test(net_provider, data_loader, save_dir_results)
+        _test(net_provider, data_loader, save_dir)
 
     if settings.is_visualizing_network:
         io_helper.visualize_network(net_provider.network)

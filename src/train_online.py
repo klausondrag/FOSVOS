@@ -35,9 +35,10 @@ settings = Settings(start_epoch=0, n_epochs=2000, avg_grad_every_n=5, snapshot_e
                     batch_size_train=1, batch_size_test=1, parent_name='vgg16', parent_epoch=240,
                     is_visualizing_network=False, is_visualizing_results=False)
 
-settings = Settings(start_epoch=0, n_epochs=2000, avg_grad_every_n=5, snapshot_every_n=2000,
-                    batch_size_train=1, batch_size_test=1, parent_name='resnet18', parent_epoch=240,
-                    is_visualizing_network=False, is_visualizing_results=False)
+
+# settings = Settings(start_epoch=0, n_epochs=2000, avg_grad_every_n=5, snapshot_every_n=2000,
+#                     batch_size_train=1, batch_size_test=1, parent_name='resnet18', parent_epoch=240,
+#                     is_visualizing_network=False, is_visualizing_results=False)
 
 
 def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Settings,
@@ -57,8 +58,9 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Setti
     if is_testing:
         net_provider.load_network_test()
         data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test, seq_name)
+        save_dir = save_dir_results / settings.parent_name / 'online'
 
-        _test(net_provider, data_loader, seq_name, save_dir_results, settings.is_visualizing_results)
+        _test(net_provider, data_loader, seq_name, save_dir, settings.is_visualizing_results)
 
     if settings.is_visualizing_network:
         io_helper.visualize_network(net_provider.network)
@@ -153,7 +155,7 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str,
             pred = 1 / (1 + np.exp(-pred))
             pred = np.squeeze(pred)
 
-            save_dir_seq = save_dir / seq_name[index]
+            save_dir_seq = save_dir / seq_name  # don't using index!
             save_dir_seq.mkdir(parents=True, exist_ok=True)
 
             file_name = save_dir_seq / '{0}.png'.format(fname[index])
@@ -252,16 +254,17 @@ if __name__ == '__main__':
     save_dir_results.mkdir(parents=True, exist_ok=True)
 
     is_training = True
+    is_training = False
 
     net_provider = NetworkProvider('', OSVOS_VGG, save_dir_models,
                                    load_network_train=_load_network_train_vgg,
                                    load_network_test=_load_network_test_vgg,
                                    get_optimizer=_get_optimizer_vgg)
 
-    net_provider = NetworkProvider('', OSVOS_RESNET, save_dir_models,
-                                   load_network_train=_load_network_train_resnet,
-                                   load_network_test=_load_network_test_resnet,
-                                   get_optimizer=_get_optimizer_resnet)
+    # net_provider = NetworkProvider('', OSVOS_RESNET, save_dir_models,
+    #                                load_network_train=_load_network_train_resnet,
+    #                                load_network_test=_load_network_test_resnet,
+    #                                get_optimizer=_get_optimizer_resnet)
 
     if settings.is_visualizing_results:
         import matplotlib.pyplot as plt
