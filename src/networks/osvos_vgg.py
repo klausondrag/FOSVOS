@@ -60,18 +60,6 @@ class OSVOS_VGG(nn.Module):
         log.info("Initializing weights")
         self._initialize_weights(pretrained)
 
-    @staticmethod
-    def _make_layers_osvos(cfg, in_channels):
-        layers = []
-        for v in cfg:
-            if v == 'M':
-                layers.append(nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True))
-            else:
-                conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
-                layers.extend([conv2d, nn.ReLU(inplace=True)])
-                in_channels = v
-        return nn.Sequential(*layers)
-
     def forward(self, x):
         crop_h, crop_w = int(x.size()[-2]), int(x.size()[-1])
         x = self.stages[0](x)
@@ -88,6 +76,18 @@ class OSVOS_VGG(nn.Module):
         out = self.fuse(out)
         side_out.append(out)
         return side_out
+
+    @staticmethod
+    def _make_layers_osvos(cfg, in_channels):
+        layers = []
+        for v in cfg:
+            if v == 'M':
+                layers.append(nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True))
+            else:
+                conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
+                layers.extend([conv2d, nn.ReLU(inplace=True)])
+                in_channels = v
+        return nn.Sequential(*layers)
 
     def _initialize_weights(self, pretrained):
         for m in self.modules():
