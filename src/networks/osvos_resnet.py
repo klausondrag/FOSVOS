@@ -31,8 +31,8 @@ class OSVOS_RESNET(nn.Module):
         side_input_channels = [64, 128, 256, 512]
         side_prep = modules.ModuleList()
         score_dsn = modules.ModuleList()
-        upscale = modules.ModuleList()
-        upscale_ = modules.ModuleList()
+        upscale_side_prep = modules.ModuleList()
+        upscale_score_dsn = modules.ModuleList()
 
         # Construct the network
         for index, channels in enumerate(side_input_channels):
@@ -40,16 +40,16 @@ class OSVOS_RESNET(nn.Module):
             side_prep.append(nn.Conv2d(channels, 16, kernel_size=3, padding=1))
 
             # Make the layers of the score_dsn step
-            upscale.append(nn.ConvTranspose2d(16, 16, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
-                                              bias=False))
+            upscale_side_prep.append(nn.ConvTranspose2d(16, 16, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
+                                                        bias=False))
             score_dsn.append(nn.Conv2d(16, 1, kernel_size=1, padding=0))
-            upscale_.append(nn.ConvTranspose2d(1, 1, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
-                                               bias=False))
+            upscale_score_dsn.append(nn.ConvTranspose2d(1, 1, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
+                                                        bias=False))
 
         self.side_prep = side_prep
-        self.upscale = upscale
+        self.upscale_side_prep = upscale_side_prep
         self.score_dsn = score_dsn
-        self.upscale_ = upscale_
+        self.upscale_score_dsn = upscale_score_dsn
 
         self.fuse = nn.Conv2d(64, 1, kernel_size=1, padding=0)
 
@@ -102,18 +102,18 @@ class OSVOS_RESNET(nn.Module):
 
         side = []
         side_out = []
-        for (layer_stage, layer_side_prep, layer_score_dsn,
-             layer_upscale, layer_upscale_) in zip(self.stages[1:], self.side_prep, self.score_dsn,
-                                                   self.upscale, self.upscale_):
+        for (layer_stage, layer_side_prep, layer_upscale_side_prep,
+             layer_score_dsn, layer_upscale_score_dsn) in zip(self.stages[1:], self.side_prep, self.upscale_side_prep,
+                                                              self.score_dsn, self.upscale_score_dsn):
             x = layer_stage(x)
             temp_side_prep = layer_side_prep(x)
 
-            temp_upscale = layer_upscale(temp_side_prep)
+            temp_upscale = layer_upscale_side_prep(temp_side_prep)
             temp_cropped = center_crop(temp_upscale, crop_h, crop_w)
             side.append(temp_cropped)
 
             temp_score_dsn = layer_score_dsn(temp_side_prep)
-            temp_upscale_ = layer_upscale_(temp_score_dsn)
+            temp_upscale_ = layer_upscale_score_dsn(temp_score_dsn)
             temp_cropped_ = center_crop(temp_upscale_, crop_h, crop_w)
             side_out.append(temp_cropped_)
 
