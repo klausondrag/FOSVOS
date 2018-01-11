@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.modules as modules
 from torch.utils import model_zoo
 from torchvision.models import resnet18, ResNet
-from torchvision.models.resnet import BasicBlock, model_urls
+from torchvision.models.resnet import BasicBlock, model_urls, Bottleneck
 
 from layers.osvos_layers import interp_surgery, center_crop
 from util.logger import get_logger
@@ -14,54 +14,71 @@ log = get_logger(__file__)
 
 
 class OSVOS_RESNET(nn.Module):
-    def __init__(self, pretrained: bool):
+    def __init__(self, pretrained: bool, version=18):
         self.inplanes = 64
         super(OSVOS_RESNET, self).__init__()
         log.info("Constructing OSVOS resnet architecture...")
-        block = BasicBlock
-        layers = [2, 2, 2, 2]
 
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
-                               bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        block, layers = self._match_version(version)
 
-        self.layer1 = self._make_layer(block, 64, layers[0])
-        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-        self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+        layer0 = self._make_layer_base()
+        layer1 = self._make_layer(block, 64, layers[0])
+        layer2 = self._make_layer(block, 128, layers[1], stride=2)
+        layer3 = self._make_layer(block, 256, layers[2], stride=2)
+        layer4 = self._make_layer(block, 512, layers[3], stride=2)
+        self.stages = modules.ModuleList([layer0, layer1, layer2, layer3, layer4])
 
-        self.layer0 = modules.Sequential(self.conv1, self.bn1, self.relu, self.maxpool)
-
-        side_inputs = [64, 128, 256, 512]
-        stages = modules.ModuleList([self.layer0, self.layer1, self.layer2, self.layer3, self.layer4])
+        side_input_channels = [64, 128, 256, 512]
         side_prep = modules.ModuleList()
         score_dsn = modules.ModuleList()
         upscale = modules.ModuleList()
         upscale_ = modules.ModuleList()
 
         # Construct the network
-        for i in range(0, len(side_inputs)):
+        for index, channels in enumerate(side_input_channels):
             # Make the layers of the preparation step
-            side_prep.append(nn.Conv2d(side_inputs[i], 16, kernel_size=3, padding=1))
+            side_prep.append(nn.Conv2d(channels, 16, kernel_size=3, padding=1))
 
             # Make the layers of the score_dsn step
+            upscale.append(nn.ConvTranspose2d(16, 16, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
+                                              bias=False))
             score_dsn.append(nn.Conv2d(16, 1, kernel_size=1, padding=0))
-            upscale_.append(nn.ConvTranspose2d(1, 1, kernel_size=2 ** (3 + i), stride=2 ** (2 + i), bias=False))
-            upscale.append(nn.ConvTranspose2d(16, 16, kernel_size=2 ** (3 + i), stride=2 ** (2 + i), bias=False))
+            upscale_.append(nn.ConvTranspose2d(1, 1, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
+                                               bias=False))
 
-        self.upscale = upscale
-        self.upscale_ = upscale_
-        self.stages = stages
         self.side_prep = side_prep
+        self.upscale = upscale
         self.score_dsn = score_dsn
+        self.upscale_ = upscale_
 
         self.fuse = nn.Conv2d(64, 1, kernel_size=1, padding=0)
 
         # self._initialize_weights()
         # if pretrained:
         #     self._load_from_pytorch()
+
+    def _match_version(self, version):
+        if version == 18:
+            block, layers = BasicBlock, [2, 2, 2, 2]
+        elif version == 34:
+            block, layers = BasicBlock, [3, 4, 6, 3]
+        elif version == 50:
+            block, layers = Bottleneck, [3, 4, 6, 3]
+        elif version == 101:
+            block, layers = Bottleneck, [3, 4, 23, 3]
+        elif version == 152:
+            block, layers = Bottleneck, [3, 8, 36, 3]
+        else:
+            raise Exception('Invalid version for resnet. Must be one of [18, 34, 50, 101, 152].')
+        return block, layers
+
+    def _make_layer_base(self) -> modules.Sequential:
+        conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        bn1 = nn.BatchNorm2d(64)
+        relu = nn.ReLU(inplace=True)
+        maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+
+        return modules.Sequential(conv1, bn1, relu, maxpool)
 
     def forward(self, x):
         # x = self.conv1(x)
