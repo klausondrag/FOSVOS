@@ -69,8 +69,15 @@ class OSVOS_VGG(nn.Module):
         for i in range(1, len(self.stages)):
             x = self.stages[i](x)
             side_temp = self.side_prep[i - 1](x)
-            side.append(center_crop(self.upscale[i - 1](side_temp), crop_h, crop_w))
-            side_out.append(center_crop(self.upscale_[i - 1](self.score_dsn[i - 1](side_temp)), crop_h, crop_w))
+
+            upscale_temp = self.upscale[i - 1](side_temp)
+            cropped_temp = center_crop(upscale_temp, crop_h, crop_w)
+            side.append(cropped_temp)
+
+            score_dsn_temp = self.score_dsn[i - 1](side_temp)
+            upscale__temp = self.upscale_[i - 1](score_dsn_temp)
+            cropped__temp = center_crop(upscale__temp, crop_h, crop_w)
+            side_out.append(cropped__temp)
 
         out = torch.cat(side[:], dim=1)
         out = self.fuse(out)
