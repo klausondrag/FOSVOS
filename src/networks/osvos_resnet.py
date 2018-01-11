@@ -85,18 +85,20 @@ class OSVOS_RESNET(nn.Module):
 
         side = []
         side_out = []
-        for i in range(1, len(self.stages)):
-            x = self.stages[i](x)
-            side_temp = self.side_prep[i - 1](x)
+        for (layer_stage, layer_side_prep, layer_score_dsn,
+             layer_upscale, layer_upscale_) in zip(self.stages[1:], self.side_prep, self.score_dsn,
+                                                   self.upscale, self.upscale_):
+            x = layer_stage(x)
+            temp_side_prep = layer_side_prep(x)
 
-            upscale_temp = self.upscale[i - 1](side_temp)
-            cropped_temp = center_crop(upscale_temp, crop_h, crop_w)
-            side.append(cropped_temp)
+            temp_upscale = layer_upscale(temp_side_prep)
+            temp_cropped = center_crop(temp_upscale, crop_h, crop_w)
+            side.append(temp_cropped)
 
-            score_dsn_temp = self.score_dsn[i - 1](side_temp)
-            upscale__temp = self.upscale_[i - 1](score_dsn_temp)
-            cropped__temp = center_crop(upscale__temp, crop_h, crop_w)
-            side_out.append(cropped__temp)
+            temp_score_dsn = layer_score_dsn(temp_side_prep)
+            temp_upscale_ = layer_upscale_(temp_score_dsn)
+            temp_cropped_ = center_crop(temp_upscale_, crop_h, crop_w)
+            side_out.append(temp_cropped_)
 
         out = torch.cat(side[:], dim=1)
         out = self.fuse(out)
