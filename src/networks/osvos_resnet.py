@@ -1,11 +1,10 @@
 from copy import deepcopy
-from typing import List, Tuple
+from typing import List, Tuple, Union, Callable
 
 import torch
 import torch.nn as nn
-import torch.nn.modules as modules
 from torch.utils import model_zoo
-from torchvision.models import resnet18, ResNet
+from torchvision.models import ResNet, resnet18, resnet34, resnet50, resnet101, resnet152
 from torchvision.models.resnet import BasicBlock, model_urls, Bottleneck
 
 from layers.osvos_layers import interp_surgery, center_crop
@@ -20,14 +19,14 @@ class OSVOS_RESNET(nn.Module):
         super(OSVOS_RESNET, self).__init__()
         log.info("Constructing OSVOS resnet architecture...")
 
-        block, layers = self._match_version(version)
+        block, layers, model_creation = self._match_version(version)
 
         self.layer_base = self._make_layer_base()
         layer0 = self._make_layer(block, 64, layers[0])
         layer1 = self._make_layer(block, 128, layers[1], stride=2)
         layer2 = self._make_layer(block, 256, layers[2], stride=2)
         layer3 = self._make_layer(block, 512, layers[3], stride=2)
-        self.layer_stages = modules.ModuleList([layer0, layer1, layer2, layer3])
+        self.layer_stages = nn.ModuleList([layer0, layer1, layer2, layer3])
 
         side_input_channels = [64, 128, 256, 512]
         (self.side_prep, self.upscale_side_prep, self.score_dsn,
@@ -35,28 +34,28 @@ class OSVOS_RESNET(nn.Module):
 
         self.layer_fuse = nn.Conv2d(64, 1, kernel_size=1, padding=0)
 
-        # self._initialize_weights()
-        # if pretrained:
-        #     self._load_from_pytorch()
+        self._initialize_weights()
+        if pretrained:
+            self._load_from_pytorch(model_creation)
 
     @staticmethod
-    def _match_version(version):
+    def _match_version(version: int) -> Tuple[Union[BasicBlock, Bottleneck], List[int], Callable[[bool], nn.Module]]:
         if version == 18:
-            block, layers = BasicBlock, [2, 2, 2, 2]
+            block, layers, model_creation = BasicBlock, [2, 2, 2, 2], resnet18
         elif version == 34:
-            block, layers = BasicBlock, [3, 4, 6, 3]
+            block, layers, model_creation = BasicBlock, [3, 4, 6, 3], resnet34
         elif version == 50:
-            block, layers = Bottleneck, [3, 4, 6, 3]
+            block, layers, model_creation = Bottleneck, [3, 4, 6, 3], resnet50
         elif version == 101:
-            block, layers = Bottleneck, [3, 4, 23, 3]
+            block, layers, model_creation = Bottleneck, [3, 4, 23, 3], resnet101
         elif version == 152:
-            block, layers = Bottleneck, [3, 8, 36, 3]
+            block, layers, model_creation = Bottleneck, [3, 8, 36, 3], resnet152
         else:
             raise Exception('Invalid version for resnet. Must be one of [18, 34, 50, 101, 152].')
-        return block, layers
+        return block, layers, model_creation
 
     @staticmethod
-    def _make_layer_base() -> modules.Sequential:
+    def _make_layer_base() -> nn.Sequential:
         conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         bn1 = nn.BatchNorm2d(64)
         relu = nn.ReLU(inplace=True)
@@ -64,12 +63,12 @@ class OSVOS_RESNET(nn.Module):
         return modules.Sequential(conv1, bn1, relu, maxpool)
 
     @staticmethod
-    def _make_layers_osvos(side_input_channels: List[int]) -> Tuple[modules.ModuleList, modules.ModuleList,
-                                                                    modules.ModuleList, modules.ModuleList]:
-        side_prep = modules.ModuleList()
-        upscale_side_prep = modules.ModuleList()
-        score_dsn = modules.ModuleList()
-        upscale_score_dsn = modules.ModuleList()
+    def _make_layers_osvos(side_input_channels: List[int]) -> Tuple[nn.ModuleList, nn.ModuleList,
+                                                                    nn.ModuleList, nn.ModuleList]:
+        side_prep = nn.ModuleList()
+        upscale_side_prep = nn.ModuleList()
+        score_dsn = nn.ModuleList()
+        upscale_score_dsn = nn.ModuleList()
 
         for index, channels in enumerate(side_input_channels):
             side_prep.append(nn.Conv2d(channels, 16, kernel_size=3, padding=1))
@@ -142,6 +141,7 @@ class OSVOS_RESNET(nn.Module):
 
         return nn.Sequential(*layers)
 
+    # compare osvos_vgg with vgg
     def _initialize_weights(self) -> None:
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -158,29 +158,30 @@ class OSVOS_RESNET(nn.Module):
                 m.weight.data.zero_()
                 m.weight.data = interp_surgery(m)
 
-    def _load_from_pytorch(self) -> None:
+    def _load_from_pytorch(self, model_creation: Callable[[bool], nn.Module]) -> None:
         log.info('Loading weights from PyTorch Resnet')
-        _resnet = resnet18(pretrained=True)
+        basic_resnet = model_creation(True)
 
-        inds = self._find_conv_layers(_resnet)
+        inds = self._find_conv_layers(basic_resnet)
         k = 0
+        # do for layer_base
         for i in range(len(self.layer_stages)):
             for j in range(len(self.layer_stages[i])):
                 if isinstance(self.layer_stages[i][j], nn.Conv2d):
-                    self.layer_stages[i][j].weight = deepcopy(_resnet.features[inds[k]].weight)
-                    self.layer_stages[i][j].bias = deepcopy(_resnet.features[inds[k]].bias)
+                    self.layer_stages[i][j].weight = deepcopy(basic_resnet.features[inds[k]].weight)
+                    self.layer_stages[i][j].bias = deepcopy(basic_resnet.features[inds[k]].bias)
                     k += 1
                 elif isinstance(self.layer_stages[i][j], nn.BatchNorm2d):
-                    self.layer_stages[i][j].weight = deepcopy(_resnet.features[inds[k]].weight)
-                    self.layer_stages[i][j].bias = deepcopy(_resnet.features[inds[k]].bias)
+                    self.layer_stages[i][j].weight = deepcopy(basic_resnet.features[inds[k]].weight)
+                    self.layer_stages[i][j].bias = deepcopy(basic_resnet.features[inds[k]].bias)
                     k += 1
 
     @staticmethod
-    def _find_conv_layers(_resnet):
+    def _find_conv_layers(basic_resnet: nn.Module) -> List[int]:
         inds = []
-        for i in range(len(_resnet.features)):
-            if isinstance(_resnet.features[i], nn.Conv2d):
+        for i in range(len(basic_resnet.features)):
+            if isinstance(basic_resnet.features[i], nn.Conv2d):
                 inds.append(i)
-            elif isinstance(_resnet.features[i], nn.BatchNorm2d):
+            elif isinstance(basic_resnet.features[i], nn.BatchNorm2d):
                 inds.append(i)
         return inds
