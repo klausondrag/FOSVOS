@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import List, Tuple
 
 import torch
 import torch.nn as nn
@@ -21,43 +22,25 @@ class OSVOS_RESNET(nn.Module):
 
         block, layers = self._match_version(version)
 
-        layer0 = self._make_layer_base()
-        layer1 = self._make_layer(block, 64, layers[0])
-        layer2 = self._make_layer(block, 128, layers[1], stride=2)
-        layer3 = self._make_layer(block, 256, layers[2], stride=2)
-        layer4 = self._make_layer(block, 512, layers[3], stride=2)
-        self.stages = modules.ModuleList([layer0, layer1, layer2, layer3, layer4])
+        self.layer_base = self._make_layer_base()
+        layer0 = self._make_layer(block, 64, layers[0])
+        layer1 = self._make_layer(block, 128, layers[1], stride=2)
+        layer2 = self._make_layer(block, 256, layers[2], stride=2)
+        layer3 = self._make_layer(block, 512, layers[3], stride=2)
+        self.layer_stages = modules.ModuleList([layer0, layer1, layer2, layer3])
 
         side_input_channels = [64, 128, 256, 512]
-        side_prep = modules.ModuleList()
-        score_dsn = modules.ModuleList()
-        upscale_side_prep = modules.ModuleList()
-        upscale_score_dsn = modules.ModuleList()
+        (self.side_prep, self.upscale_side_prep, self.score_dsn,
+         self.upscale_score_dsn) = self._make_layers_osvos(side_input_channels)
 
-        # Construct the network
-        for index, channels in enumerate(side_input_channels):
-            # Make the layers of the preparation step
-            side_prep.append(nn.Conv2d(channels, 16, kernel_size=3, padding=1))
-
-            # Make the layers of the score_dsn step
-            upscale_side_prep.append(nn.ConvTranspose2d(16, 16, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
-                                                        bias=False))
-            score_dsn.append(nn.Conv2d(16, 1, kernel_size=1, padding=0))
-            upscale_score_dsn.append(nn.ConvTranspose2d(1, 1, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
-                                                        bias=False))
-
-        self.side_prep = side_prep
-        self.upscale_side_prep = upscale_side_prep
-        self.score_dsn = score_dsn
-        self.upscale_score_dsn = upscale_score_dsn
-
-        self.fuse = nn.Conv2d(64, 1, kernel_size=1, padding=0)
+        self.layer_fuse = nn.Conv2d(64, 1, kernel_size=1, padding=0)
 
         # self._initialize_weights()
         # if pretrained:
         #     self._load_from_pytorch()
 
-    def _match_version(self, version):
+    @staticmethod
+    def _match_version(version):
         if version == 18:
             block, layers = BasicBlock, [2, 2, 2, 2]
         elif version == 34:
@@ -72,13 +55,32 @@ class OSVOS_RESNET(nn.Module):
             raise Exception('Invalid version for resnet. Must be one of [18, 34, 50, 101, 152].')
         return block, layers
 
-    def _make_layer_base(self) -> modules.Sequential:
+    @staticmethod
+    def _make_layer_base() -> modules.Sequential:
         conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         bn1 = nn.BatchNorm2d(64)
         relu = nn.ReLU(inplace=True)
         maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-
         return modules.Sequential(conv1, bn1, relu, maxpool)
+
+    @staticmethod
+    def _make_layers_osvos(side_input_channels: List[int]) -> Tuple[modules.ModuleList, modules.ModuleList,
+                                                                    modules.ModuleList, modules.ModuleList]:
+        side_prep = modules.ModuleList()
+        upscale_side_prep = modules.ModuleList()
+        score_dsn = modules.ModuleList()
+        upscale_score_dsn = modules.ModuleList()
+
+        for index, channels in enumerate(side_input_channels):
+            side_prep.append(nn.Conv2d(channels, 16, kernel_size=3, padding=1))
+
+            upscale_side_prep.append(nn.ConvTranspose2d(16, 16, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
+                                                        bias=False))
+
+            score_dsn.append(nn.Conv2d(16, 1, kernel_size=1, padding=0))
+            upscale_score_dsn.append(nn.ConvTranspose2d(1, 1, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
+                                                        bias=False))
+        return side_prep, upscale_side_prep, score_dsn, upscale_score_dsn
 
     def forward(self, x):
         # x = self.conv1(x)
@@ -98,12 +100,13 @@ class OSVOS_RESNET(nn.Module):
         # return x
 
         crop_h, crop_w = int(x.size()[-2]), int(x.size()[-1])
-        x = self.stages[0](x)
+        x = self.layer_base(x)
 
         side = []
         side_out = []
         for (layer_stage, layer_side_prep, layer_upscale_side_prep,
-             layer_score_dsn, layer_upscale_score_dsn) in zip(self.stages[1:], self.side_prep, self.upscale_side_prep,
+             layer_score_dsn, layer_upscale_score_dsn) in zip(self.layer_stages, self.side_prep,
+                                                              self.upscale_side_prep,
                                                               self.score_dsn, self.upscale_score_dsn):
             x = layer_stage(x)
             temp_side_prep = layer_side_prep(x)
@@ -118,7 +121,7 @@ class OSVOS_RESNET(nn.Module):
             side_out.append(temp_cropped_)
 
         out = torch.cat(side[:], dim=1)
-        out = self.fuse(out)
+        out = self.layer_fuse(out)
         side_out.append(out)
         return side_out
 
@@ -137,18 +140,6 @@ class OSVOS_RESNET(nn.Module):
         for i in range(1, blocks):
             layers.append(block(self.inplanes, planes))
 
-        return nn.Sequential(*layers)
-
-    @staticmethod
-    def _make_layers_osvos(cfg, in_channels):
-        layers = []
-        for v in cfg:
-            if v == 'M':
-                layers.append(nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True))
-            else:
-                conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=1)
-                layers.extend([conv2d, nn.ReLU(inplace=True)])
-                in_channels = v
         return nn.Sequential(*layers)
 
     def _initialize_weights(self) -> None:
@@ -173,15 +164,15 @@ class OSVOS_RESNET(nn.Module):
 
         inds = self._find_conv_layers(_resnet)
         k = 0
-        for i in range(len(self.stages)):
-            for j in range(len(self.stages[i])):
-                if isinstance(self.stages[i][j], nn.Conv2d):
-                    self.stages[i][j].weight = deepcopy(_resnet.features[inds[k]].weight)
-                    self.stages[i][j].bias = deepcopy(_resnet.features[inds[k]].bias)
+        for i in range(len(self.layer_stages)):
+            for j in range(len(self.layer_stages[i])):
+                if isinstance(self.layer_stages[i][j], nn.Conv2d):
+                    self.layer_stages[i][j].weight = deepcopy(_resnet.features[inds[k]].weight)
+                    self.layer_stages[i][j].bias = deepcopy(_resnet.features[inds[k]].bias)
                     k += 1
-                elif isinstance(self.stages[i][j], nn.BatchNorm2d):
-                    self.stages[i][j].weight = deepcopy(_resnet.features[inds[k]].weight)
-                    self.stages[i][j].bias = deepcopy(_resnet.features[inds[k]].bias)
+                elif isinstance(self.layer_stages[i][j], nn.BatchNorm2d):
+                    self.layer_stages[i][j].weight = deepcopy(_resnet.features[inds[k]].weight)
+                    self.layer_stages[i][j].bias = deepcopy(_resnet.features[inds[k]].bias)
                     k += 1
 
     @staticmethod
