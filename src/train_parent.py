@@ -98,7 +98,7 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
             for i in range(0, len(outputs)):
                 losses[i] = class_balanced_cross_entropy_loss(outputs[i], gts, size_average=False)
                 running_loss_train[i] += losses[i].data[0]
-            loss = (1 - epoch / n_epochs) * sum(losses[:-1]) + losses[-1]
+            loss = (1 - epoch / n_epochs) * sum(losses[:-1]) + losses[-1]  # type: Variable
 
             if index % n_samples_train == n_samples_train - 1:
                 running_loss_train = [x / n_samples_train for x in running_loss_train]
@@ -254,9 +254,9 @@ if __name__ == '__main__':
                                    load_network_test=_load_network_test_vgg,
                                    get_optimizer=_get_optimizer_vgg)
 
-    # net_provider = NetworkProvider('resnet18', OSVOS_RESNET, save_dir_models,
-    #                                load_network_train=_load_network_train_resnet,
-    #                                load_network_test=_load_network_test_resnet,
-    #                                get_optimizer=_get_optimizer_resnet)
+    net_provider = NetworkProvider('resnet18', OSVOS_RESNET, save_dir_models,
+                                   load_network_train=_load_network_train_resnet,
+                                   load_network_test=_load_network_test_resnet,
+                                   get_optimizer=_get_optimizer_resnet)
 
-    train_and_test(net_provider, settings, is_training=False)
+    train_and_test(net_provider, settings, is_training=True)
