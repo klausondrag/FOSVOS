@@ -3,9 +3,8 @@ from typing import List, Tuple, Union, Callable
 
 import torch
 import torch.nn as nn
-from torch.utils import model_zoo
-from torchvision.models import ResNet, resnet18, resnet34, resnet50, resnet101, resnet152
-from torchvision.models.resnet import BasicBlock, model_urls, Bottleneck
+from torchvision.models import resnet18, resnet34, resnet50, resnet101, resnet152
+from torchvision.models.resnet import BasicBlock, Bottleneck
 
 from layers.osvos_layers import interp_surgery, center_crop
 from util.logger import get_logger
@@ -60,7 +59,7 @@ class OSVOS_RESNET(nn.Module):
         bn1 = nn.BatchNorm2d(64)
         relu = nn.ReLU(inplace=True)
         maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        return modules.Sequential(conv1, bn1, relu, maxpool)
+        return nn.Sequential(conv1, bn1, relu, maxpool)
 
     @staticmethod
     def _make_layers_osvos(side_input_channels: List[int]) -> Tuple[nn.ModuleList, nn.ModuleList,
@@ -82,22 +81,6 @@ class OSVOS_RESNET(nn.Module):
         return side_prep, upscale_side_prep, score_dsn, upscale_score_dsn
 
     def forward(self, x):
-        # x = self.conv1(x)
-        # x = self.bn1(x)
-        # x = self.relu(x)
-        # x = self.maxpool(x)
-
-        # x = self.layer1(x)
-        # x = self.layer2(x)
-        # x = self.layer3(x)
-        # x = self.layer4(x)
-
-        # x = self.avgpool(x)
-        # x = x.view(x.size(0), -1)
-        # x = self.fc(x)
-
-        # return x
-
         crop_h, crop_w = int(x.size()[-2]), int(x.size()[-1])
         x = self.layer_base(x)
 
@@ -133,8 +116,7 @@ class OSVOS_RESNET(nn.Module):
                 nn.BatchNorm2d(planes * block.expansion),
             )
 
-        layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample))
+        layers = [block(self.inplanes, planes, stride, downsample)]
         self.inplanes = planes * block.expansion
         for i in range(1, blocks):
             layers.append(block(self.inplanes, planes))
