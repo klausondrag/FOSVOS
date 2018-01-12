@@ -14,7 +14,7 @@ from dataloaders.helpers import *
 from util import gpu_handler, io_helper
 from util.logger import get_logger
 from config.mypath import Path as P
-from util.network_provider import NetworkProvider, OnlineSettings, VGG16OnlineProvider, ResNet18OnlineProvider
+from util.network_provider import NetworkProvider, OnlineSettings, VGGOnlineProvider, ResNetOnlineProvider
 
 if P.is_custom_pytorch():
     sys.path.append(P.custom_pytorch())  # Custom PyTorch
@@ -22,19 +22,10 @@ if P.is_custom_pytorch():
 gpu_handler.select_gpu_by_hostname()
 log = get_logger(__file__)
 
-settings = OnlineSettings(start_epoch=0, n_epochs=2000, avg_grad_every_n=5, snapshot_every_n=2000,
-                          batch_size_train=1, batch_size_test=1, parent_name='vgg16', parent_epoch=240,
-                          is_visualizing_network=False, is_visualizing_results=False)
-
-
-# settings = Settings(start_epoch=0, n_epochs=2000, avg_grad_every_n=5, snapshot_every_n=2000,
-#                     batch_size_train=1, batch_size_test=1, parent_name='resnet18', parent_epoch=240,
-#                     is_visualizing_network=False, is_visualizing_results=False)
-
 
 def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: OnlineSettings,
                    is_training: bool = True, is_testing: bool = True) -> None:
-    _set_network_name(net_provider, settings.parent_name, seq_name)
+    _set_network_name(net_provider, settings.offline_name, seq_name)
 
     if is_training:
         net_provider.load_network_train()
@@ -49,7 +40,7 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Onlin
     if is_testing:
         net_provider.load_network_test()
         data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test, seq_name)
-        save_dir = save_dir_results / settings.parent_name / 'online'
+        save_dir = save_dir_results / settings.offline_name / 'online'
 
         _test(net_provider, data_loader, seq_name, save_dir, settings.is_visualizing_results)
 
@@ -199,8 +190,23 @@ if __name__ == '__main__':
     is_training = True
     is_training = False
 
-    net_provider = VGG16OnlineProvider('vgg16', save_dir_models, settings)
-    net_provider = ResNet18OnlineProvider('resnet18', save_dir_models, settings)
+    use_vgg = True
+    use_vgg = False
+
+    if use_vgg:
+        offline_name = 'vgg16'
+        provider = VGGOnlineProvider
+    else:
+        offline_name = 'resnet18'
+        provider = ResNetOnlineProvider
+
+    settings = OnlineSettings(is_training=is_training, start_epoch=0, n_epochs=2000, avg_grad_every_n=5,
+                              snapshot_every_n=2000, is_testing_while_training=False, test_every_n=5,
+                              batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
+                              is_visualizing_results=False, offline_name=offline_name, offline_epoch=240)
+
+    net_provider = provider('', save_dir_models, settings)
+    net_provider = provider('', save_dir_models, settings)
 
     if settings.is_visualizing_results:
         import matplotlib.pyplot as plt

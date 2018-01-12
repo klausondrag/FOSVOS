@@ -10,7 +10,7 @@ from networks.osvos_resnet import OSVOS_RESNET
 from networks.osvos_vgg import OSVOS_VGG
 from util import gpu_handler
 from util.logger import get_logger
-from .settings import Settings, ParentSettings, OnlineSettings
+from .settings import Settings, OfflineSettings, OnlineSettings
 
 log = get_logger(__file__)
 
@@ -57,11 +57,11 @@ class NetworkProvider(ABC):
         pass
 
 
-class VGG16ParentProvider(NetworkProvider):
+class VGGOfflineProvider(NetworkProvider):
 
-    def __init__(self, name: str, save_dir: Path, settings: ParentSettings):
-        super(VGG16ParentProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
-                                                  network_type=OSVOS_VGG)
+    def __init__(self, name: str, save_dir: Path, settings: OfflineSettings):
+        super(VGGOfflineProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
+                                                 network_type=OSVOS_VGG)
 
     def load_network_train(self) -> None:
         if self._settings.start_epoch == 0:
@@ -107,22 +107,22 @@ class VGG16ParentProvider(NetworkProvider):
         return optimizer
 
 
-class VGG16OnlineProvider(NetworkProvider):
+class VGGOnlineProvider(NetworkProvider):
 
     def __init__(self, name: str, save_dir: Path, settings: OnlineSettings):
-        super(VGG16OnlineProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
-                                                  network_type=OSVOS_VGG)
+        super(VGGOnlineProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
+                                                network_type=OSVOS_VGG)
 
     def load_network_train(self) -> None:
         self.init_network(pretrained=0)
-        self.load(self._settings.parent_epoch, name=self._settings.parent_name)
+        self.load(self._settings.offline_epoch, name=self._settings.offline_name)
 
     def load_network_test(self) -> None:
         self.init_network(pretrained=0)
         if self._settings.is_training:
             self.load(self._settings.n_epochs)
         else:
-            self.load(self._settings.parent_epoch, name=self._settings.parent_name)
+            self.load(self._settings.offline_epoch, name=self._settings.offline_name)
 
     def get_optimizer(self, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
                       momentum: float = 0.9) -> Optimizer:
@@ -142,11 +142,11 @@ class VGG16OnlineProvider(NetworkProvider):
         return optimizer
 
 
-class ResNet18ParentProvider(NetworkProvider):
+class ResNetOfflineProvider(NetworkProvider):
 
-    def __init__(self, name: str, save_dir: Path, settings: ParentSettings):
-        super(ResNet18ParentProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
-                                                     network_type=OSVOS_RESNET)
+    def __init__(self, name: str, save_dir: Path, settings: OfflineSettings):
+        super(ResNetOfflineProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
+                                                    network_type=OSVOS_RESNET)
 
     def load_network_train(self) -> None:
         if self._settings.start_epoch == 0:
@@ -165,22 +165,22 @@ class ResNet18ParentProvider(NetworkProvider):
         return optimizer
 
 
-class ResNet18OnlineProvider(NetworkProvider):
+class ResNetOnlineProvider(NetworkProvider):
 
     def __init__(self, name: str, save_dir: Path, settings: OnlineSettings):
-        super(ResNet18OnlineProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
-                                                     network_type=OSVOS_RESNET)
+        super(ResNetOnlineProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
+                                                   network_type=OSVOS_RESNET)
 
     def load_network_train(self) -> None:
         self.init_network(pretrained=False)
-        self.load(self._settings.parent_epoch, name=self._settings.parent_name)
+        self.load(self._settings.offline_epoch, name=self._settings.offline_name)
 
     def load_network_test(self) -> None:
         self.init_network(pretrained=False)
         if self._settings.is_training:
             self.load(self._settings.n_epochs)
         else:
-            self.load(self._settings.parent_epoch, name=self._settings.parent_name)
+            self.load(self._settings.offline_epoch, name=self._settings.offline_name)
 
     def get_optimizer(self, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
                       momentum: float = 0.9) -> Optimizer:

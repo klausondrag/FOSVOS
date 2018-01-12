@@ -16,11 +16,11 @@ class Settings:
 
 
 @attr.s
-class ParentSettings(Settings):
+class OfflineSettings(Settings):
     is_loading_vgg_caffe = attr.ib()
 
 
 @attr.s
 class OnlineSettings(Settings):
-    parent_name = attr.ib()
-    parent_epoch = attr.ib()
+    offline_name = attr.ib()
+    offline_epoch = attr.ib()

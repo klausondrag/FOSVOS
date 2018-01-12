@@ -16,8 +16,8 @@ from layers.osvos_layers import class_balanced_cross_entropy_loss
 from util import gpu_handler, io_helper
 from util.logger import get_logger
 from config.mypath import Path as P
-from util.network_provider import NetworkProvider, VGG16ParentProvider, ResNet18ParentProvider
-from util.settings import ParentSettings
+from util.network_provider import NetworkProvider, VGGOfflineProvider, ResNetOfflineProvider
+from util.settings import OfflineSettings
 
 if P.is_custom_pytorch():
     sys.path.append(P.custom_pytorch())
@@ -27,12 +27,8 @@ gpu_handler.select_gpu_by_hostname()
 
 log = get_logger(__file__)
 
-settings = ParentSettings(start_epoch=0, n_epochs=240, avg_grad_every_n=10, snapshot_every_n=40,
-                           is_testing_while_training=False, test_every_n=5, batch_size_train=1, batch_size_test=1,
-                           is_loading_vgg_caffe=False, is_visualizing_network=False)
 
-
-def train_and_test(net_provider: NetworkProvider, settings: ParentSettings, is_training: bool = True,
+def train_and_test(net_provider: NetworkProvider, settings: OfflineSettings, is_training: bool = True,
                    is_testing: bool = True) -> None:
     if is_training:
         net_provider.load_network_train()
@@ -49,7 +45,7 @@ def train_and_test(net_provider: NetworkProvider, settings: ParentSettings, is_t
     if is_testing:
         net_provider.load_network_test()
         data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test)
-        save_dir = save_dir_results / net_provider.name / 'parent'
+        save_dir = save_dir_results / net_provider.name / 'offline'
 
         _test(net_provider, data_loader, save_dir)
 
@@ -58,13 +54,13 @@ def train_and_test(net_provider: NetworkProvider, settings: ParentSettings, is_t
 
 
 def _get_summary_writer() -> SummaryWriter:
-    return io_helper.get_summary_writer(save_dir_models, comment='-parent')
+    return io_helper.get_summary_writer(save_dir_models, comment='-offline')
 
 
 def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_loader_test: DataLoader,
            optimizer: Optimizer, summary_writer: SummaryWriter, start_epoch: int, n_epochs: int, avg_grad_every_n: int,
            snapshot_every_n: int, is_testing_while_training: bool, test_every_n: int) -> None:
-    log.info('Start of Parent Training')
+    log.info('Start of offline training')
 
     net = net_provider.network
 
@@ -182,7 +178,15 @@ if __name__ == '__main__':
     save_dir_results = Path('results')
     save_dir_results.mkdir(parents=True, exist_ok=True)
 
-    net_provider = VGG16ParentProvider('vgg16', save_dir_models, settings)
-    net_provider = ResNet18ParentProvider('resnet18', save_dir_models, settings)
+    is_training = True
+    is_training = False
+
+    settings = OfflineSettings(is_training=is_training, start_epoch=0, n_epochs=240, avg_grad_every_n=10,
+                               snapshot_every_n=40, is_testing_while_training=False, test_every_n=5,
+                               batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
+                               is_visualizing_results=False, is_loading_vgg_caffe=False)
+
+    net_provider = VGGOfflineProvider('vgg16', save_dir_models, settings)
+    net_provider = ResNetOfflineProvider('resnet18', save_dir_models, settings)
 
     train_and_test(net_provider, settings, is_training=True)
