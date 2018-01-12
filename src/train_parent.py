@@ -8,19 +8,16 @@ from tensorboardX import SummaryWriter
 import numpy as np
 
 from torch.autograd import Variable
-import torch.optim as optim
-from torch.nn import Module
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
-from networks.osvos_vgg import OSVOS_VGG
-from networks.osvos_resnet import OSVOS_RESNET
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 
 from util import gpu_handler, io_helper
 from util.logger import get_logger
 from config.mypath import Path as P
-from util.network_provider import NetworkProvider
+from util.network_provider import NetworkProvider, VGG16ParentProvider, ResNet18ParentProvider
+from util.settings import ParentSettings
 
 if P.is_custom_pytorch():
     sys.path.append(P.custom_pytorch())
@@ -30,16 +27,12 @@ gpu_handler.select_gpu_by_hostname()
 
 log = get_logger(__file__)
 
-Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'avg_grad_every_n', 'snapshot_every_n',
-                                   'is_testing_while_training', 'test_every_n', 'batch_size_train', 'batch_size_test',
-                                   'is_loading_vgg_caffe', 'is_visualizing_network'])
-
-settings = Settings(start_epoch=0, n_epochs=240, avg_grad_every_n=10, snapshot_every_n=40,
-                    is_testing_while_training=False, test_every_n=5, batch_size_train=1, batch_size_test=1,
-                    is_loading_vgg_caffe=False, is_visualizing_network=False)
+settings = ParentSettings(start_epoch=0, n_epochs=240, avg_grad_every_n=10, snapshot_every_n=40,
+                           is_testing_while_training=False, test_every_n=5, batch_size_train=1, batch_size_test=1,
+                           is_loading_vgg_caffe=False, is_visualizing_network=False)
 
 
-def train_and_test(net_provider: NetworkProvider, settings: Settings, is_training: bool = True,
+def train_and_test(net_provider: NetworkProvider, settings: ParentSettings, is_training: bool = True,
                    is_testing: bool = True) -> None:
     if is_training:
         net_provider.load_network_train()
@@ -180,66 +173,6 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path
             sm.imsave(str(file_name), pred)
 
 
-def _load_network_train_vgg(net_provider: NetworkProvider) -> None:
-    if settings.start_epoch == 0:
-        if settings.is_loading_vgg_caffe:
-            net_provider.init_network(pretrained=2)
-        else:
-            net_provider.init_network(pretrained=1)
-    else:
-        net_provider.init_network(pretrained=0)
-        net_provider.load(settings.start_epoch)
-
-
-def _load_network_test_vgg(net_provider: NetworkProvider) -> None:
-    net_provider.init_network(pretrained=0)
-    net_provider.load(settings.n_epochs)
-
-
-def _get_optimizer_vgg(net: Module, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
-                       momentum: float = 0.9) -> Optimizer:
-    optimizer = optim.SGD([
-        {'params': [pr[1] for pr in net.stages.named_parameters() if 'weight' in pr[0]], 'weight_decay': weight_decay,
-         'initial_lr': learning_rate},
-        {'params': [pr[1] for pr in net.stages.named_parameters() if 'bias' in pr[0]], 'lr': 2 * learning_rate,
-         'initial_lr': 2 * learning_rate},
-        {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'weight' in pr[0]],
-         'weight_decay': weight_decay,
-         'initial_lr': learning_rate},
-        {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'bias' in pr[0]], 'lr': 2 * learning_rate,
-         'initial_lr': 2 * learning_rate},
-        {'params': [pr[1] for pr in net.score_dsn.named_parameters() if 'weight' in pr[0]], 'lr': learning_rate / 10,
-         'weight_decay': weight_decay, 'initial_lr': learning_rate / 10},
-        {'params': [pr[1] for pr in net.score_dsn.named_parameters() if 'bias' in pr[0]], 'lr': 2 * learning_rate / 10,
-         'initial_lr': 2 * learning_rate / 10},
-        {'params': [pr[1] for pr in net.upscale.named_parameters() if 'weight' in pr[0]], 'lr': 0, 'initial_lr': 0},
-        {'params': [pr[1] for pr in net.upscale_.named_parameters() if 'weight' in pr[0]], 'lr': 0, 'initial_lr': 0},
-        {'params': net.fuse.weight, 'lr': learning_rate / 100, 'initial_lr': learning_rate / 100,
-         'weight_decay': weight_decay},
-        {'params': net.fuse.bias, 'lr': 2 * learning_rate / 100, 'initial_lr': 2 * learning_rate / 100},
-    ], lr=learning_rate, momentum=momentum)
-    return optimizer
-
-
-def _load_network_train_resnet(net_provider: NetworkProvider) -> None:
-    if settings.start_epoch == 0:
-        net_provider.init_network(pretrained=True)
-    else:
-        net_provider.init_network(pretrained=False)
-        net_provider.load(settings.start_epoch)
-
-
-def _load_network_test_resnet(net_provider: NetworkProvider) -> None:
-    net_provider.init_network(pretrained=False)
-    net_provider.load(settings.n_epochs)
-
-
-def _get_optimizer_resnet(net: Module, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
-                          momentum: float = 0.9) -> Optimizer:
-    optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
-    return optimizer
-
-
 if __name__ == '__main__':
     db_root_dir = P.db_root_dir()
     save_dir_root = P.save_root_dir()
@@ -249,14 +182,7 @@ if __name__ == '__main__':
     save_dir_results = Path('results')
     save_dir_results.mkdir(parents=True, exist_ok=True)
 
-    net_provider = NetworkProvider('vgg16', OSVOS_VGG, save_dir_models,
-                                   load_network_train=_load_network_train_vgg,
-                                   load_network_test=_load_network_test_vgg,
-                                   get_optimizer=_get_optimizer_vgg)
-
-    net_provider = NetworkProvider('resnet18', OSVOS_RESNET, save_dir_models,
-                                   load_network_train=_load_network_train_resnet,
-                                   load_network_test=_load_network_test_resnet,
-                                   get_optimizer=_get_optimizer_resnet)
+    net_provider = VGG16ParentProvider('vgg16', save_dir_models, settings)
+    net_provider = ResNet18ParentProvider('resnet18', save_dir_models, settings)
 
     train_and_test(net_provider, settings, is_training=True)

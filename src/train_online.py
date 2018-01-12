@@ -1,25 +1,20 @@
 import sys
 import timeit
 from pathlib import Path
-from collections import namedtuple
 
 from tensorboardX import SummaryWriter
 import scipy.misc as sm
 
 from torch.autograd import Variable
-import torch.optim as optim
-from torch.nn import Module
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
-from networks.osvos_vgg import OSVOS_VGG
-from networks.osvos_resnet import OSVOS_RESNET
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 from dataloaders.helpers import *
 from util import gpu_handler, io_helper
 from util.logger import get_logger
 from config.mypath import Path as P
-from util.network_provider import NetworkProvider
+from util.network_provider import NetworkProvider, OnlineSettings, VGG16OnlineProvider, ResNet18OnlineProvider
 
 if P.is_custom_pytorch():
     sys.path.append(P.custom_pytorch())  # Custom PyTorch
@@ -27,13 +22,9 @@ if P.is_custom_pytorch():
 gpu_handler.select_gpu_by_hostname()
 log = get_logger(__file__)
 
-Settings = namedtuple('Settings', ['start_epoch', 'n_epochs', 'avg_grad_every_n', 'snapshot_every_n',
-                                   'batch_size_train', 'batch_size_test', 'parent_name', 'parent_epoch',
-                                   'is_visualizing_network', 'is_visualizing_results'])
-
-settings = Settings(start_epoch=0, n_epochs=2000, avg_grad_every_n=5, snapshot_every_n=2000,
-                    batch_size_train=1, batch_size_test=1, parent_name='vgg16', parent_epoch=240,
-                    is_visualizing_network=False, is_visualizing_results=False)
+settings = OnlineSettings(start_epoch=0, n_epochs=2000, avg_grad_every_n=5, snapshot_every_n=2000,
+                          batch_size_train=1, batch_size_test=1, parent_name='vgg16', parent_epoch=240,
+                          is_visualizing_network=False, is_visualizing_results=False)
 
 
 # settings = Settings(start_epoch=0, n_epochs=2000, avg_grad_every_n=5, snapshot_every_n=2000,
@@ -41,7 +32,7 @@ settings = Settings(start_epoch=0, n_epochs=2000, avg_grad_every_n=5, snapshot_e
 #                     is_visualizing_network=False, is_visualizing_results=False)
 
 
-def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Settings,
+def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: OnlineSettings,
                    is_training: bool = True, is_testing: bool = True) -> None:
     _set_network_name(net_provider, settings.parent_name, seq_name)
 
@@ -196,54 +187,6 @@ def _visualize_results(ax_arr, gt, img, jj, pred):
     plt.pause(0.001)
 
 
-def _load_network_train_vgg(net_provider: NetworkProvider) -> None:
-    net_provider.init_network(pretrained=0)
-    net_provider.load(settings.parent_epoch, name=settings.parent_name)
-
-
-def _load_network_test_vgg(net_provider: NetworkProvider) -> None:
-    net_provider.init_network(pretrained=0)
-    if is_training:
-        net_provider.load(settings.n_epochs)
-    else:
-        net_provider.load(settings.parent_epoch, name=settings.parent_name)
-
-
-def _get_optimizer_vgg(net: Module, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
-                       momentum: float = 0.9) -> Optimizer:
-    optimizer = optim.SGD([
-        {'params': [pr[1] for pr in net.stages.named_parameters() if 'weight' in pr[0]], 'weight_decay': weight_decay},
-        {'params': [pr[1] for pr in net.stages.named_parameters() if 'bias' in pr[0]], 'lr': learning_rate * 2},
-        {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'weight' in pr[0]],
-         'weight_decay': weight_decay},
-        {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'bias' in pr[0]], 'lr': learning_rate * 2},
-        {'params': [pr[1] for pr in net.upscale.named_parameters() if 'weight' in pr[0]], 'lr': 0},
-        {'params': [pr[1] for pr in net.upscale_.named_parameters() if 'weight' in pr[0]], 'lr': 0},
-        {'params': net.fuse.weight, 'lr': learning_rate / 100, 'weight_decay': weight_decay},
-        {'params': net.fuse.bias, 'lr': 2 * learning_rate / 100},
-    ], lr=learning_rate, momentum=momentum)
-    return optimizer
-
-
-def _load_network_train_resnet(net_provider: NetworkProvider) -> None:
-    net_provider.init_network(pretrained=False)
-    net_provider.load(settings.parent_epoch, name=settings.parent_name)
-
-
-def _load_network_test_resnet(net_provider: NetworkProvider) -> None:
-    net_provider.init_network(pretrained=False)
-    if is_training:
-        net_provider.load(settings.n_epochs)
-    else:
-        net_provider.load(settings.parent_epoch, name=settings.parent_name)
-
-
-def _get_optimizer_resnet(net: Module, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
-                          momentum: float = 0.9) -> Optimizer:
-    optimizer = optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
-    return optimizer
-
-
 if __name__ == '__main__':
     db_root_dir = P.db_root_dir()
     exp_dir = P.exp_dir()
@@ -256,15 +199,8 @@ if __name__ == '__main__':
     is_training = True
     is_training = False
 
-    net_provider = NetworkProvider('', OSVOS_VGG, save_dir_models,
-                                   load_network_train=_load_network_train_vgg,
-                                   load_network_test=_load_network_test_vgg,
-                                   get_optimizer=_get_optimizer_vgg)
-
-    # net_provider = NetworkProvider('', OSVOS_RESNET, save_dir_models,
-    #                                load_network_train=_load_network_train_resnet,
-    #                                load_network_test=_load_network_test_resnet,
-    #                                get_optimizer=_get_optimizer_resnet)
+    net_provider = VGG16OnlineProvider('vgg16', save_dir_models, settings)
+    net_provider = ResNet18OnlineProvider('resnet18', save_dir_models, settings)
 
     if settings.is_visualizing_results:
         import matplotlib.pyplot as plt

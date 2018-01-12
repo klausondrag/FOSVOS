@@ -24,6 +24,8 @@ werkzeug = "==0.12.2"
 matplotlib = "*"
 pycocotools = {git = "https://github.com/pdollar/coco.git", subdirectory = "PythonAPI"}
 colorlog = "*"
+dataclasses = "*"
+attrs = "*"
 # torchvision = "==0.1.9"
 
 
