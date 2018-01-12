@@ -53,33 +53,6 @@ class OSVOS_RESNET(nn.Module):
             raise Exception('Invalid version for resnet. Must be one of [18, 34, 50, 101, 152].')
         return block, layers, model_creation
 
-    @staticmethod
-    def _make_layer_base() -> nn.Sequential:
-        conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        bn1 = nn.BatchNorm2d(64)
-        relu = nn.ReLU(inplace=True)
-        maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        return nn.Sequential(conv1, bn1, relu, maxpool)
-
-    @staticmethod
-    def _make_osvos_layers(side_input_channels: List[int]) -> Tuple[nn.ModuleList, nn.ModuleList,
-                                                                    nn.ModuleList, nn.ModuleList]:
-        side_prep = nn.ModuleList()
-        upscale_side_prep = nn.ModuleList()
-        score_dsn = nn.ModuleList()
-        upscale_score_dsn = nn.ModuleList()
-
-        for index, channels in enumerate(side_input_channels):
-            side_prep.append(nn.Conv2d(channels, 16, kernel_size=3, padding=1))
-
-            upscale_side_prep.append(nn.ConvTranspose2d(16, 16, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
-                                                        bias=False))
-
-            score_dsn.append(nn.Conv2d(16, 1, kernel_size=1, padding=0))
-            upscale_score_dsn.append(nn.ConvTranspose2d(1, 1, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
-                                                        bias=False))
-        return side_prep, upscale_side_prep, score_dsn, upscale_score_dsn
-
     def forward(self, x):
         crop_h, crop_w = int(x.size()[-2]), int(x.size()[-1])
         x = self.layer_base(x)
@@ -107,6 +80,14 @@ class OSVOS_RESNET(nn.Module):
         side_out.append(out)
         return side_out
 
+    @staticmethod
+    def _make_layer_base() -> nn.Sequential:
+        conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        bn1 = nn.BatchNorm2d(64)
+        relu = nn.ReLU(inplace=True)
+        maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        return nn.Sequential(conv1, bn1, relu, maxpool)
+
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
@@ -122,6 +103,25 @@ class OSVOS_RESNET(nn.Module):
             layers.append(block(self.inplanes, planes))
 
         return nn.Sequential(*layers)
+
+    @staticmethod
+    def _make_osvos_layers(side_input_channels: List[int]) -> Tuple[nn.ModuleList, nn.ModuleList,
+                                                                    nn.ModuleList, nn.ModuleList]:
+        side_prep = nn.ModuleList()
+        upscale_side_prep = nn.ModuleList()
+        score_dsn = nn.ModuleList()
+        upscale_score_dsn = nn.ModuleList()
+
+        for index, channels in enumerate(side_input_channels):
+            side_prep.append(nn.Conv2d(channels, 16, kernel_size=3, padding=1))
+
+            upscale_side_prep.append(nn.ConvTranspose2d(16, 16, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
+                                                        bias=False))
+
+            score_dsn.append(nn.Conv2d(16, 1, kernel_size=1, padding=0))
+            upscale_score_dsn.append(nn.ConvTranspose2d(1, 1, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
+                                                        bias=False))
+        return side_prep, upscale_side_prep, score_dsn, upscale_score_dsn
 
     # compare osvos_vgg with vgg
     def _initialize_weights(self) -> None:
