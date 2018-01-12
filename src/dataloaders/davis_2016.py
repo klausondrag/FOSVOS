@@ -1,5 +1,10 @@
+import os
 import sys
 from pathlib import Path as P
+
+import numpy as np
+from scipy.misc import imresize
+from torch.utils.data import Dataset
 
 from util.logger import get_logger
 from config.mypath import Path
@@ -8,14 +13,9 @@ if Path.is_custom_pytorch():
     sys.path.append(Path.custom_pytorch())  # Custom PyTorch
 if Path.is_custom_opencv():
     sys.path.insert(0, Path.custom_opencv())
+import cv2
 
 log = get_logger(__file__)
-
-import numpy as np
-import cv2
-from scipy.misc import imresize
-import os
-from torch.utils.data import Dataset
 
 
 class DAVIS2016(Dataset):
