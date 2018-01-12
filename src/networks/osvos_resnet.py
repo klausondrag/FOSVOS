@@ -29,7 +29,7 @@ class OSVOS_RESNET(nn.Module):
 
         side_input_channels = [64, 128, 256, 512]
         (self.side_prep, self.upscale_side_prep, self.score_dsn,
-         self.upscale_score_dsn) = self._make_layers_osvos(side_input_channels)
+         self.upscale_score_dsn) = self._make_osvos_layers(side_input_channels)
 
         self.layer_fuse = nn.Conv2d(64, 1, kernel_size=1, padding=0)
 
@@ -62,7 +62,7 @@ class OSVOS_RESNET(nn.Module):
         return nn.Sequential(conv1, bn1, relu, maxpool)
 
     @staticmethod
-    def _make_layers_osvos(side_input_channels: List[int]) -> Tuple[nn.ModuleList, nn.ModuleList,
+    def _make_osvos_layers(side_input_channels: List[int]) -> Tuple[nn.ModuleList, nn.ModuleList,
                                                                     nn.ModuleList, nn.ModuleList]:
         side_prep = nn.ModuleList()
         upscale_side_prep = nn.ModuleList()
