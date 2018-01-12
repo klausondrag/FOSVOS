@@ -30,17 +30,19 @@ class NetworkProvider(ABC):
         self.network = net
         return net
 
-    def _get_file_path(self, epoch: int, name: Optional[str] = None) -> str:
-        model_name = self.name if name is None else name
+    def _get_file_path(self, epoch: int, sequence: Optional[str] = None) -> str:
+        model_name = self.name
+        if sequence is not None:
+            model_name += '_' + sequence
         return str(self.save_dir / '{0}_epoch-{1}.pth'.format(model_name, str(epoch)))
 
-    def load(self, epoch: int, name: Optional[str] = None) -> None:
-        file_path = self._get_file_path(epoch - 1, name)
+    def load_model(self, epoch: int, sequence: Optional[str] = None) -> None:
+        file_path = self._get_file_path(epoch - 1, sequence)
         log.info("Loading weights from: {0}".format(file_path))
         self.network.load_state_dict(torch.load(file_path, map_location=lambda storage, loc: storage))
 
-    def save(self, epoch: int, name: Optional[str] = None) -> None:
-        file_path = self._get_file_path(epoch, name)
+    def save_model(self, epoch: int, sequence: Optional[str] = None) -> None:
+        file_path = self._get_file_path(epoch, sequence)
         log.info("Saving weights to: {0}".format(file_path))
         torch.save(self.network.state_dict(), file_path)
 
@@ -49,7 +51,7 @@ class NetworkProvider(ABC):
         pass
 
     @abstractmethod
-    def load_network_test(self) -> None:
+    def load_network_test(self, sequence: Optional[str] = None) -> None:
         pass
 
     @abstractmethod
@@ -71,11 +73,11 @@ class VGGOfflineProvider(NetworkProvider):
                 self.init_network(pretrained=1)
         else:
             self.init_network(pretrained=0)
-            self.load(self._settings.start_epoch)
+            self.load_model(self._settings.start_epoch)
 
-    def load_network_test(self) -> None:
+    def load_network_test(self, sequence: Optional[str] = None) -> None:
         self.init_network(pretrained=0)
-        self.load(self._settings.n_epochs)
+        self.load_model(self._settings.n_epochs, sequence=sequence)
 
     def get_optimizer(self, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
                       momentum: float = 0.9) -> Optimizer:
@@ -115,14 +117,11 @@ class VGGOnlineProvider(NetworkProvider):
 
     def load_network_train(self) -> None:
         self.init_network(pretrained=0)
-        self.load(self._settings.offline_epoch, name=self._settings.offline_name)
+        self.load_model(self._settings.offline_epoch)
 
-    def load_network_test(self) -> None:
+    def load_network_test(self, sequence: Optional[str] = None) -> None:
         self.init_network(pretrained=0)
-        if self._settings.is_training:
-            self.load(self._settings.n_epochs)
-        else:
-            self.load(self._settings.offline_epoch, name=self._settings.offline_name)
+        self.load_model(self._settings.offline_epoch, sequence=sequence)
 
     def get_optimizer(self, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
                       momentum: float = 0.9) -> Optimizer:
@@ -153,11 +152,11 @@ class ResNetOfflineProvider(NetworkProvider):
             self.init_network(pretrained=True)
         else:
             self.init_network(pretrained=False)
-            self.load(self._settings.start_epoch)
+            self.load_model(self._settings.start_epoch)
 
-    def load_network_test(self) -> None:
+    def load_network_test(self, sequence: Optional[str] = None) -> None:
         self.init_network(pretrained=False)
-        self.load(self._settings.n_epochs)
+        self.load_model(self._settings.n_epochs, sequence=sequence)
 
     def get_optimizer(self, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
                       momentum: float = 0.9) -> Optimizer:
@@ -173,14 +172,11 @@ class ResNetOnlineProvider(NetworkProvider):
 
     def load_network_train(self) -> None:
         self.init_network(pretrained=False)
-        self.load(self._settings.offline_epoch, name=self._settings.offline_name)
+        self.load_model(self._settings.offline_epoch, sequence=self._settings.offline_name)
 
-    def load_network_test(self) -> None:
+    def load_network_test(self, sequence: Optional[str] = None) -> None:
         self.init_network(pretrained=False)
-        if self._settings.is_training:
-            self.load(self._settings.n_epochs)
-        else:
-            self.load(self._settings.offline_epoch, name=self._settings.offline_name)
+        self.load_model(self._settings.offline_epoch, sequence=sequence)
 
     def get_optimizer(self, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
                       momentum: float = 0.9) -> Optimizer:

@@ -3,6 +3,7 @@ import attr
 
 @attr.s
 class Settings:
+    is_training = attr.ib()
     start_epoch = attr.ib()
     n_epochs = attr.ib()
     avg_grad_every_n = attr.ib()
@@ -22,5 +23,4 @@ class OfflineSettings(Settings):
 
 @attr.s
 class OnlineSettings(Settings):
-    offline_name = attr.ib()
     offline_epoch = attr.ib()

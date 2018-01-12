@@ -1,7 +1,6 @@
 import sys
 import timeit
 from pathlib import Path
-from collections import namedtuple
 
 import scipy.misc as sm
 from tensorboardX import SummaryWriter
@@ -37,7 +36,7 @@ def train_and_test(net_provider: NetworkProvider, settings: OfflineSettings, is_
         optimizer = net_provider.get_optimizer()
         summary_writer = _get_summary_writer()
 
-        io_helper.write_settings(save_dir_models, net_provider.name, settings._asdict())
+        io_helper.write_settings(save_dir_models, net_provider.name, settings)
         _train(net_provider, data_loader_train, data_loader_test, optimizer, summary_writer, settings.start_epoch,
                settings.n_epochs, settings.avg_grad_every_n, settings.snapshot_every_n,
                settings.is_testing_while_training, settings.test_every_n)
@@ -112,7 +111,7 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
                 counter_gradient = 0
 
         if (epoch % snapshot_every_n) == snapshot_every_n - 1 and epoch != 0:
-            net_provider.save(epoch)
+            net_provider.save_model(epoch)
 
         if is_testing_while_training and epoch % test_every_n == (test_every_n - 1):
             for index, minibatch in enumerate(data_loader_test):
@@ -189,4 +188,4 @@ if __name__ == '__main__':
     net_provider = VGGOfflineProvider('vgg16', save_dir_models, settings)
     net_provider = ResNetOfflineProvider('resnet18', save_dir_models, settings)
 
-    train_and_test(net_provider, settings, is_training=True)
+    train_and_test(net_provider, settings, is_training=is_training)

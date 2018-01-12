@@ -25,15 +25,13 @@ log = get_logger(__file__)
 
 def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: OnlineSettings,
                    is_training: bool = True, is_testing: bool = True) -> None:
-    _set_network_name(net_provider, settings.offline_name, seq_name)
-
     if is_training:
         net_provider.load_network_train()
         data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_train, seq_name)
         optimizer = net_provider.get_optimizer()
         summary_writer = _get_summary_writer(seq_name)
 
-        io_helper.write_settings(save_dir_models, net_provider.name, settings._asdict())
+        io_helper.write_settings(save_dir_models, net_provider.name, settings)
         _train(net_provider, data_loader, optimizer, summary_writer, seq_name, settings.start_epoch, settings.n_epochs,
                settings.avg_grad_every_n, settings.snapshot_every_n)
 
@@ -46,10 +44,6 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Onlin
 
     if settings.is_visualizing_network:
         io_helper.visualize_network(net_provider.network)
-
-
-def _set_network_name(net_provider: NetworkProvider, parent_name: str, seq_name: str) -> None:
-    net_provider.name = parent_name + '_' + seq_name
 
 
 def _get_summary_writer(seq_name: str) -> SummaryWriter:
@@ -101,7 +95,7 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Op
                 counter_gradient = 0
 
         if (epoch % snapshot_every_n) == snapshot_every_n - 1:  # and epoch != 0:
-            net_provider.save(epoch)
+            net_provider.save_model(epoch, sequence=seq_name)
 
         epoch_stop_time = timeit.default_timer()
         t = epoch_stop_time - epoch_start_time
@@ -193,20 +187,13 @@ if __name__ == '__main__':
     use_vgg = True
     use_vgg = False
 
-    if use_vgg:
-        offline_name = 'vgg16'
-        provider = VGGOnlineProvider
-    else:
-        offline_name = 'resnet18'
-        provider = ResNetOnlineProvider
-
     settings = OnlineSettings(is_training=is_training, start_epoch=0, n_epochs=2000, avg_grad_every_n=5,
                               snapshot_every_n=2000, is_testing_while_training=False, test_every_n=5,
                               batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
-                              is_visualizing_results=False, offline_name=offline_name, offline_epoch=240)
+                              is_visualizing_results=False, offline_epoch=240)
 
-    net_provider = provider('', save_dir_models, settings)
-    net_provider = provider('', save_dir_models, settings)
+    net_provider = VGGOnlineProvider('vgg16', save_dir_models, settings)
+    net_provider = ResNetOnlineProvider('resnet18', save_dir_models, settings)
 
     if settings.is_visualizing_results:
         import matplotlib.pyplot as plt
