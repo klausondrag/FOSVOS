@@ -153,33 +153,18 @@ class OSVOS_RESNET(nn.Module):
 
     def _load_from_pytorch(self, model_creation) -> None:  # model_creation: Callable[[bool], nn.Module]
         log.info('Loading weights from PyTorch Resnet')
-        basic_resnet = model_creation(pretrained=True)
-        indices_copy_from = self._find_conv_layers(basic_resnet)
-        counter = 0
-        counter = self._copy_layer(basic_resnet, indices_copy_from, counter, self.layer_base)
-        counter = self._copy_layer(basic_resnet, indices_copy_from, counter, self.layer_stages)
+        resnet = model_creation(pretrained=True)
+        resnet_base = [resnet.conv1, resnet.bn1]
+        resnet_stages = [resnet.layer1, resnet.layer2, resnet.layer3, resnet.layer4]
+
+        self._copy_weights(resnet_base, self.layer_base)
+        for block_src, block_dest in zip(resnet_stages, self.layer_stages):
+            self._copy_weights(block_src, block_dest)
 
     @staticmethod
-    def _copy_layer(basic_resnet: nn.Module, indices_copy_from: List[int], counter: int,
-                    block: Union[nn.ModuleList, nn.Sequential]):
-        for layer in block:
-            for module in layer:
-                if isinstance(module, nn.Conv2d):
-                    module.weight = deepcopy(basic_resnet.features[indices_copy_from[counter]].weight)
-                    module.bias = deepcopy(basic_resnet.features[indices_copy_from[counter]].bias)
-                    counter += 1
-                elif isinstance(module, nn.BatchNorm2d):
-                    module.weight = deepcopy(basic_resnet.features[indices_copy_from[counter]].weight)
-                    module.bias = deepcopy(basic_resnet.features[indices_copy_from[counter]].bias)
-                    counter += 1
-        return counter
-
-    @staticmethod
-    def _find_conv_layers(basic_resnet: nn.Module) -> List[int]:
-        indices = []
-        for index in range(len(basic_resnet.features)):
-            if isinstance(basic_resnet.features[index], nn.Conv2d):
-                indices.append(index)
-            elif isinstance(basic_resnet.features[index], nn.BatchNorm2d):
-                indices.append(index)
-        return indices
+    def _copy_weights(block_resnet: Union[List[nn.Module], nn.Sequential],
+                      block_osvos: Union[List[nn.Module], nn.Sequential]) -> None:
+        for module_src, module_dest in zip(block_resnet, block_osvos):
+            if isinstance(module_src, nn.Conv2d) or isinstance(module_src, nn.BatchNorm2d):
+                module_dest.weight = deepcopy(module_src.weight)
+                module_dest.bias = deepcopy(module_src.bias)
