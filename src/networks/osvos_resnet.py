@@ -24,11 +24,7 @@ class OSVOS_RESNET(nn.Module):
         self.layer_base = self._make_layer_base(n_channels_input=n_channels_input,
                                                 n_channels_output=n_channels_side_inputs[0])
 
-        layer0 = self._make_layer(block, n_channels_side_inputs[0], layers[0])
-        layer1 = self._make_layer(block, n_channels_side_inputs[1], layers[1], stride=2)
-        layer2 = self._make_layer(block, n_channels_side_inputs[2], layers[2], stride=2)
-        layer3 = self._make_layer(block, n_channels_side_inputs[3], layers[3], stride=2)
-        self.layer_stages = nn.ModuleList([layer0, layer1, layer2, layer3])
+        self.layer_stages = self._make_layer_stages(block, layers, n_channels_side_inputs)
 
         (self.side_prep, self.upscale_side_prep, self.score_dsn,
          self.upscale_score_dsn, self.layer_fuse) = self._make_osvos_layers(channels_side_input=n_channels_side_inputs,
@@ -37,22 +33,6 @@ class OSVOS_RESNET(nn.Module):
         self._initialize_weights()
         if pretrained:
             self._load_from_pytorch(model_creation)
-
-    @staticmethod
-    def _match_version(version: int) -> Tuple[Union[BasicBlock, Bottleneck], List[int], Callable]:
-        if version == 18:
-            block, layers, model_creation = BasicBlock, [2, 2, 2, 2], resnet18
-        elif version == 34:
-            block, layers, model_creation = BasicBlock, [3, 4, 6, 3], resnet34
-        elif version == 50:
-            block, layers, model_creation = Bottleneck, [3, 4, 6, 3], resnet50
-        elif version == 101:
-            block, layers, model_creation = Bottleneck, [3, 4, 23, 3], resnet101
-        elif version == 152:
-            block, layers, model_creation = Bottleneck, [3, 8, 36, 3], resnet152
-        else:
-            raise Exception('Invalid version for resnet. Must be one of [18, 34, 50, 101, 152].')
-        return block, layers, model_creation
 
     def forward(self, x):
         crop_h, crop_w = int(x.size()[-2]), int(x.size()[-1])
@@ -82,12 +62,37 @@ class OSVOS_RESNET(nn.Module):
         return side_out
 
     @staticmethod
+    def _match_version(version: int) -> Tuple[Union[BasicBlock, Bottleneck], List[int], Callable]:
+        if version == 18:
+            block, layers, model_creation = BasicBlock, [2, 2, 2, 2], resnet18
+        elif version == 34:
+            block, layers, model_creation = BasicBlock, [3, 4, 6, 3], resnet34
+        elif version == 50:
+            block, layers, model_creation = Bottleneck, [3, 4, 6, 3], resnet50
+        elif version == 101:
+            block, layers, model_creation = Bottleneck, [3, 4, 23, 3], resnet101
+        elif version == 152:
+            block, layers, model_creation = Bottleneck, [3, 8, 36, 3], resnet152
+        else:
+            raise Exception('Invalid version for resnet. Must be one of [18, 34, 50, 101, 152].')
+        return block, layers, model_creation
+
+    @staticmethod
     def _make_layer_base(n_channels_input: int, n_channels_output: int) -> nn.Sequential:
         conv1 = nn.Conv2d(n_channels_input, n_channels_output, kernel_size=7, stride=2, padding=3, bias=False)
         bn1 = nn.BatchNorm2d(n_channels_output)
         relu = nn.ReLU(inplace=True)
         maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         return nn.Sequential(conv1, bn1, relu, maxpool)
+
+    def _make_layer_stages(self, block: Union[BasicBlock, Bottleneck], layers: List[int],
+                           n_channels_side_inputs: List[int]) -> nn.ModuleList:
+        layer0 = self._make_layer(block, n_channels_side_inputs[0], layers[0])
+        layer1 = self._make_layer(block, n_channels_side_inputs[1], layers[1], stride=2)
+        layer2 = self._make_layer(block, n_channels_side_inputs[2], layers[2], stride=2)
+        layer3 = self._make_layer(block, n_channels_side_inputs[3], layers[3], stride=2)
+        layer_stages = nn.ModuleList([layer0, layer1, layer2, layer3])
+        return layer_stages
 
     def _make_layer(self, block, planes, blocks, stride=1):
         downsample = None
@@ -134,7 +139,6 @@ class OSVOS_RESNET(nn.Module):
 
         return side_prep, upscale_side_prep, score_dsn, upscale_score_dsn, layer_fuse
 
-    # compare osvos_vgg with vgg
     def _initialize_weights(self) -> None:
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
