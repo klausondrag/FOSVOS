@@ -38,7 +38,7 @@ class OSVOS_RESNET(nn.Module):
             self._load_from_pytorch(model_creation)
 
     @staticmethod
-    def _match_version(version: int) -> Tuple[Union[BasicBlock, Bottleneck], List[int], Callable[[bool], nn.Module]]:
+    def _match_version(version: int) -> Tuple[Union[BasicBlock, Bottleneck], List[int], Callable]:
         if version == 18:
             block, layers, model_creation = BasicBlock, [2, 2, 2, 2], resnet18
         elif version == 34:
@@ -140,30 +140,35 @@ class OSVOS_RESNET(nn.Module):
                 m.weight.data.zero_()
                 m.weight.data = interp_surgery(m)
 
-    def _load_from_pytorch(self, model_creation: Callable[[bool], nn.Module]) -> None:
+    def _load_from_pytorch(self, model_creation) -> None:  # model_creation: Callable[[bool], nn.Module]
         log.info('Loading weights from PyTorch Resnet')
-        basic_resnet = model_creation(True)
+        basic_resnet = model_creation(pretrained=True)
+        indices_copy_from = self._find_conv_layers(basic_resnet)
+        counter = 0
+        counter = self._copy_layer(basic_resnet, indices_copy_from, counter, self.layer_base)
+        counter = self._copy_layer(basic_resnet, indices_copy_from, counter, self.layer_stages)
 
-        inds = self._find_conv_layers(basic_resnet)
-        k = 0
-        # do for layer_base
-        for i in range(len(self.layer_stages)):
-            for j in range(len(self.layer_stages[i])):
-                if isinstance(self.layer_stages[i][j], nn.Conv2d):
-                    self.layer_stages[i][j].weight = deepcopy(basic_resnet.features[inds[k]].weight)
-                    self.layer_stages[i][j].bias = deepcopy(basic_resnet.features[inds[k]].bias)
-                    k += 1
-                elif isinstance(self.layer_stages[i][j], nn.BatchNorm2d):
-                    self.layer_stages[i][j].weight = deepcopy(basic_resnet.features[inds[k]].weight)
-                    self.layer_stages[i][j].bias = deepcopy(basic_resnet.features[inds[k]].bias)
-                    k += 1
+    @staticmethod
+    def _copy_layer(basic_resnet: nn.Module, indices_copy_from: List[int], counter: int,
+                    block: Union[nn.ModuleList, nn.Sequential]):
+        for layer in block:
+            for module in layer:
+                if isinstance(module, nn.Conv2d):
+                    module.weight = deepcopy(basic_resnet.features[indices_copy_from[counter]].weight)
+                    module.bias = deepcopy(basic_resnet.features[indices_copy_from[counter]].bias)
+                    counter += 1
+                elif isinstance(module, nn.BatchNorm2d):
+                    module.weight = deepcopy(basic_resnet.features[indices_copy_from[counter]].weight)
+                    module.bias = deepcopy(basic_resnet.features[indices_copy_from[counter]].bias)
+                    counter += 1
+        return counter
 
     @staticmethod
     def _find_conv_layers(basic_resnet: nn.Module) -> List[int]:
-        inds = []
-        for i in range(len(basic_resnet.features)):
-            if isinstance(basic_resnet.features[i], nn.Conv2d):
-                inds.append(i)
-            elif isinstance(basic_resnet.features[i], nn.BatchNorm2d):
-                inds.append(i)
-        return inds
+        indices = []
+        for index in range(len(basic_resnet.features)):
+            if isinstance(basic_resnet.features[index], nn.Conv2d):
+                indices.append(index)
+            elif isinstance(basic_resnet.features[index], nn.BatchNorm2d):
+                indices.append(index)
+        return indices
