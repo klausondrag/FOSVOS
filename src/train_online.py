@@ -40,7 +40,7 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Onlin
         data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test, seq_name)
         save_dir = save_dir_results / settings.offline_name / 'online'
 
-        _test(net_provider, data_loader, seq_name, save_dir, settings.is_visualizing_results)
+        _test(net_provider, data_loader, save_dir, settings.is_visualizing_results)
 
     if settings.is_visualizing_network:
         io_helper.visualize_network(net_provider.network)
@@ -107,7 +107,7 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Op
     log.info('Train {0}: time per sample {1} sec'.format(seq_name, np.asarray(t).mean()))
 
 
-def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str, save_dir: Path,
+def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path,
           is_visualizing_results: bool) -> None:
     log.info('Testing Network')
 
@@ -119,7 +119,8 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str,
     test_start_time = timeit.default_timer()
     for minibatch in data_loader:
 
-        img, gt, fname = minibatch['image'], minibatch['gt'], minibatch['fname']
+        img, gt, seq_name, fname = minibatch['image'], minibatch['gt'], \
+                                   minibatch['seq_name'], minibatch['fname']
 
         inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
         inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
@@ -131,7 +132,7 @@ def _test(net_provider: NetworkProvider, data_loader: DataLoader, seq_name: str,
             pred = 1 / (1 + np.exp(-pred))
             pred = np.squeeze(pred)
 
-            save_dir_seq = save_dir / seq_name  # don't using index!
+            save_dir_seq = save_dir / seq_name[index]
             save_dir_seq.mkdir(parents=True, exist_ok=True)
 
             file_name = save_dir_seq / '{0}.png'.format(fname[index])

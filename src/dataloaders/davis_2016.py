@@ -95,17 +95,13 @@ class DAVIS2016(Dataset):
         return len(self.img_list)
 
     def __getitem__(self, idx):
-        # print(idx)
         img, gt = self.make_img_gt_pair(idx)
-
-        sample = {'image': img, 'gt': gt}
-
-        if self.seq_name is None:
-            sample['seq_name'] = self.seq_list[idx]
-            sample['fname'] = self.fname_list[idx]
-        else:
-            fname = "%05d" % idx
-            sample['fname'] = fname
+        sample = {
+            'image': img,
+            'gt': gt,
+            'seq_name': self.seq_list[idx],
+            'fname': self.fname_list[idx]
+        }
 
         if self.transform is not None:
             sample = self.transform(sample)
