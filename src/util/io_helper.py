@@ -1,7 +1,7 @@
 import datetime
 import socket
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional
 
 import torch
 import yaml
@@ -14,6 +14,9 @@ import visualize as viz
 from dataloaders import custom_transforms
 from dataloaders.davis_2016 import DAVIS2016
 from util.settings import Settings
+from util.logger import get_logger
+
+log = get_logger(__file__)
 
 
 def visualize_network(net):

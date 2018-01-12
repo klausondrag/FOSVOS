@@ -2,21 +2,18 @@ import sys
 import timeit
 from pathlib import Path
 
-import scipy.misc as sm
 from tensorboardX import SummaryWriter
-import numpy as np
-
 from torch.autograd import Variable
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
 from layers.osvos_layers import class_balanced_cross_entropy_loss
-
-from util import gpu_handler, io_helper
-from util.logger import get_logger
 from config.mypath import Path as P
+from util import gpu_handler, io_helper, experiment_helper
+from util.logger import get_logger
 from util.network_provider import NetworkProvider, VGGOfflineProvider, ResNetOfflineProvider
 from util.settings import OfflineSettings
+
 
 if P.is_custom_pytorch():
     sys.path.append(P.custom_pytorch())
@@ -46,7 +43,7 @@ def train_and_test(net_provider: NetworkProvider, settings: OfflineSettings, is_
         data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test)
         save_dir = save_dir_results / net_provider.name / 'offline'
 
-        _test(net_provider, data_loader, save_dir)
+        experiment_helper.test(net_provider, data_loader, save_dir, settings.is_visualizing_results)
 
     if settings.is_visualizing_network:
         io_helper.visualize_network(net_provider.network)
@@ -137,35 +134,6 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
                         running_loss_test[l] = 0
 
     summary_writer.close()
-
-
-def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path) -> None:
-    log.info('Testing Network')
-
-    net = net_provider.network
-
-    for minibatch in data_loader:
-        img, gt, seq_name, fname = minibatch['image'], minibatch['gt'], \
-                                   minibatch['seq_name'], minibatch['fname']
-
-        inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
-        inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
-
-        outputs = net.forward(inputs)
-
-        for index in range(inputs.size()[0]):
-            pred = np.transpose(outputs[-1].cpu().data.numpy()[index, :, :, :], (1, 2, 0))
-            pred = 1 / (1 + np.exp(-pred))
-            pred = np.squeeze(pred)
-            img_ = np.transpose(img.numpy()[index, :, :, :], (1, 2, 0))
-            gt_ = np.transpose(gt.numpy()[index, :, :, :], (1, 2, 0))
-            gt_ = np.squeeze(gt)
-
-            save_dir_seq = save_dir / seq_name[index]
-            save_dir_seq.mkdir(parents=True, exist_ok=True)
-
-            file_name = save_dir_seq / '{0}.png'.format(fname[index])
-            sm.imsave(str(file_name), pred)
 
 
 if __name__ == '__main__':

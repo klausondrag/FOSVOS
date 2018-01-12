@@ -3,17 +3,15 @@ import timeit
 from pathlib import Path
 
 from tensorboardX import SummaryWriter
-import scipy.misc as sm
-
 from torch.autograd import Variable
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
 from layers.osvos_layers import class_balanced_cross_entropy_loss
-from dataloaders.helpers import *
-from util import gpu_handler, io_helper
-from util.logger import get_logger
 from config.mypath import Path as P
+from dataloaders.helpers import *
+from util import gpu_handler, io_helper, experiment_helper
+from util.logger import get_logger
 from util.network_provider import NetworkProvider, OnlineSettings, VGGOnlineProvider, ResNetOnlineProvider
 
 if P.is_custom_pytorch():
@@ -40,7 +38,7 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Onlin
         data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test, seq_name)
         save_dir = save_dir_results / settings.offline_name / 'online'
 
-        _test(net_provider, data_loader, save_dir, settings.is_visualizing_results)
+        experiment_helper.test(net_provider, data_loader, save_dir, settings.is_visualizing_results, seq_name)
 
     if settings.is_visualizing_network:
         io_helper.visualize_network(net_provider.network)
@@ -107,72 +105,6 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Op
     log.info('Train {0}: time per sample {1} sec'.format(seq_name, np.asarray(t).mean()))
 
 
-def _test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path,
-          is_visualizing_results: bool) -> None:
-    log.info('Testing Network')
-
-    net = net_provider.network
-
-    if is_visualizing_results:
-        ax_arr = _init_plot()
-
-    test_start_time = timeit.default_timer()
-    for minibatch in data_loader:
-
-        img, gt, seq_name, fname = minibatch['image'], minibatch['gt'], \
-                                   minibatch['seq_name'], minibatch['fname']
-
-        inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
-        inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
-
-        outputs = net.forward(inputs)
-
-        for index in range(inputs.size()[0]):
-            pred = np.transpose(outputs[-1].cpu().data.numpy()[index, :, :, :], (1, 2, 0))
-            pred = 1 / (1 + np.exp(-pred))
-            pred = np.squeeze(pred)
-
-            save_dir_seq = save_dir / seq_name[index]
-            save_dir_seq.mkdir(parents=True, exist_ok=True)
-
-            file_name = save_dir_seq / '{0}.png'.format(fname[index])
-            sm.imsave(str(file_name), pred)
-
-            if is_visualizing_results:
-                _visualize_results(ax_arr, gt, img, index, pred)
-
-    test_stop_time = timeit.default_timer()
-    log.info('Test {0}: total training time {1} sec'.format(seq_name, str(test_stop_time - test_start_time)))
-    log.info('Test {0}: {1} images'.format(seq_name, str((len(data_loader)))))
-    log.info(
-        'Test {0}: time per sample {1} sec'.format(seq_name,
-                                                   str((test_stop_time - test_start_time) / len(data_loader))))
-
-
-def _init_plot():
-    plt.close('all')
-    plt.ion()
-    f, ax_arr = plt.subplots(1, 3)
-    return ax_arr
-
-
-def _visualize_results(ax_arr, gt, img, jj, pred):
-    img_ = np.transpose(img.numpy()[jj, :, :, :], (1, 2, 0))
-    gt_ = np.transpose(gt.numpy()[jj, :, :, :], (1, 2, 0))
-    gt_ = np.squeeze(gt)
-    # Plot the particular example
-    ax_arr[0].cla()
-    ax_arr[1].cla()
-    ax_arr[2].cla()
-    ax_arr[0].set_title('Input Image')
-    ax_arr[1].set_title('Ground Truth')
-    ax_arr[2].set_title('Detection')
-    ax_arr[0].imshow(im_normalize(img_))
-    ax_arr[1].imshow(gt_)
-    ax_arr[2].imshow(im_normalize(pred))
-    plt.pause(0.001)
-
-
 if __name__ == '__main__':
     db_root_dir = P.db_root_dir()
     exp_dir = P.exp_dir()
@@ -195,9 +127,6 @@ if __name__ == '__main__':
 
     net_provider = VGGOnlineProvider('vgg16', save_dir_models, settings)
     net_provider = ResNetOnlineProvider('resnet18', save_dir_models, settings)
-
-    if settings.is_visualizing_results:
-        import matplotlib.pyplot as plt
 
     sequences = ['bear', 'blackswan', 'bmx-bumps', 'bmx-trees', 'boat', 'breakdance', 'breakdance-flare', 'bus',
                  'camel', 'car-roundabout', 'car-shadow', 'car-turn', 'cows', 'dance-jump', 'dance-twirl', 'dog',
