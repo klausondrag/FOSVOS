@@ -13,25 +13,26 @@ log = get_logger(__file__)
 
 
 class OSVOS_RESNET(nn.Module):
-    def __init__(self, pretrained: bool, version=18):
+    def __init__(self, pretrained: bool, version: int = 18, n_channels_input: int = 3, n_channels_output: int = 1):
         self.inplanes = 64
         super(OSVOS_RESNET, self).__init__()
         log.info("Constructing OSVOS resnet architecture...")
 
         block, layers, model_creation = self._match_version(version)
+        n_channels_side_inputs = [64, 128, 256, 512]
 
-        self.layer_base = self._make_layer_base()
-        layer0 = self._make_layer(block, 64, layers[0])
-        layer1 = self._make_layer(block, 128, layers[1], stride=2)
-        layer2 = self._make_layer(block, 256, layers[2], stride=2)
-        layer3 = self._make_layer(block, 512, layers[3], stride=2)
+        self.layer_base = self._make_layer_base(n_channels_input=n_channels_input,
+                                                n_channels_output=n_channels_side_inputs[0])
+
+        layer0 = self._make_layer(block, n_channels_side_inputs[0], layers[0])
+        layer1 = self._make_layer(block, n_channels_side_inputs[1], layers[1], stride=2)
+        layer2 = self._make_layer(block, n_channels_side_inputs[2], layers[2], stride=2)
+        layer3 = self._make_layer(block, n_channels_side_inputs[3], layers[3], stride=2)
         self.layer_stages = nn.ModuleList([layer0, layer1, layer2, layer3])
 
-        side_input_channels = [64, 128, 256, 512]
         (self.side_prep, self.upscale_side_prep, self.score_dsn,
-         self.upscale_score_dsn) = self._make_osvos_layers(side_input_channels)
-
-        self.layer_fuse = nn.Conv2d(64, 1, kernel_size=1, padding=0)
+         self.upscale_score_dsn, self.layer_fuse) = self._make_osvos_layers(channels_side_input=n_channels_side_inputs,
+                                                                            n_channels_output=n_channels_output)
 
         self._initialize_weights()
         if pretrained:
@@ -81,9 +82,9 @@ class OSVOS_RESNET(nn.Module):
         return side_out
 
     @staticmethod
-    def _make_layer_base() -> nn.Sequential:
-        conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        bn1 = nn.BatchNorm2d(64)
+    def _make_layer_base(n_channels_input: int, n_channels_output: int) -> nn.Sequential:
+        conv1 = nn.Conv2d(n_channels_input, n_channels_output, kernel_size=7, stride=2, padding=3, bias=False)
+        bn1 = nn.BatchNorm2d(n_channels_output)
         relu = nn.ReLU(inplace=True)
         maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         return nn.Sequential(conv1, bn1, relu, maxpool)
@@ -105,23 +106,33 @@ class OSVOS_RESNET(nn.Module):
         return nn.Sequential(*layers)
 
     @staticmethod
-    def _make_osvos_layers(side_input_channels: List[int]) -> Tuple[nn.ModuleList, nn.ModuleList,
-                                                                    nn.ModuleList, nn.ModuleList]:
+    def _make_osvos_layers(channels_side_input: List[int], n_channels_output: int,
+                           n_channels_output_side_prep: int = 16,
+                           n_channels_output_upscale_side_prep: int = 16) -> Tuple[nn.ModuleList, nn.ModuleList,
+                                                                                   nn.ModuleList, nn.ModuleList,
+                                                                                   nn.Module]:
         side_prep = nn.ModuleList()
         upscale_side_prep = nn.ModuleList()
         score_dsn = nn.ModuleList()
         upscale_score_dsn = nn.ModuleList()
 
-        for index, channels in enumerate(side_input_channels):
-            side_prep.append(nn.Conv2d(channels, 16, kernel_size=3, padding=1))
+        for index, n_channels in enumerate(channels_side_input):
+            side_prep.append(nn.Conv2d(n_channels, n_channels_output_side_prep, kernel_size=3, padding=1))
 
-            upscale_side_prep.append(nn.ConvTranspose2d(16, 16, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
+            upscale_side_prep.append(nn.ConvTranspose2d(n_channels_output_side_prep,
+                                                        n_channels_output_upscale_side_prep,
+                                                        kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
                                                         bias=False))
 
-            score_dsn.append(nn.Conv2d(16, 1, kernel_size=1, padding=0))
-            upscale_score_dsn.append(nn.ConvTranspose2d(1, 1, kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
+            score_dsn.append(nn.Conv2d(n_channels_output_side_prep, n_channels_output, kernel_size=1, padding=0))
+            upscale_score_dsn.append(nn.ConvTranspose2d(n_channels_output, n_channels_output,
+                                                        kernel_size=2 ** (3 + index), stride=2 ** (2 + index),
                                                         bias=False))
-        return side_prep, upscale_side_prep, score_dsn, upscale_score_dsn
+
+        n_channels_fuse_input = n_channels_output_upscale_side_prep * len(channels_side_input)
+        layer_fuse = nn.Conv2d(n_channels_fuse_input, n_channels_output, kernel_size=1, padding=0)
+
+        return side_prep, upscale_side_prep, score_dsn, upscale_score_dsn, layer_fuse
 
     # compare osvos_vgg with vgg
     def _initialize_weights(self) -> None:
