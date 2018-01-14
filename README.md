@@ -8,6 +8,7 @@ recommended Python packaging tool from Python.org
 pipenv --python 3.6
 pipenv shell
 pipenv install
+pipenv install --dev
 pipenv run pip install --no-deps torchvision==0.1.9
 ```
 
