@@ -5,33 +5,22 @@ verify_ssl = true
 name = "pypi"
 
 
-[packages]
-
-funcsigs = "==1.0.2"
-graphviz = "==0.8"
-mock = "==2.0.0"
-numpy = "==1.13.3"
-olefile = "==0.44"
-opencv-python = "==3.3.0.10"
-pbr = "==3.1.1"
-pillow = "==4.3.0"
-protobuf = "==3.4.0"
-pyyaml = "==3.12"
-scipy = "==0.19.1"
-tensorboardx = "==0.8"
-werkzeug = "==0.12.2"
-"bb297d5" = {file = "http://download.pytorch.org/whl/cu80/torch-0.2.0.post3-cp35-cp35m-manylinux1_x86_64.whl"}
-matplotlib = "*"
-pycocotools = {git = "https://github.com/pdollar/coco.git", subdirectory = "PythonAPI"}
-colorlog = "*"
-dataclasses = "*"
-attrs = "*"
-# torchvision = "==0.1.9"
-
-
 [dev-packages]
 
-cython = "*"
+
+
+[packages]
+
+"b6fe2cf" = {file = "http://download.pytorch.org/whl/cu90/torch-0.3.0.post4-cp35-cp35m-linux_x86_64.whl"}
+numpy = "*"
+scipy = "*"
+matplotlib = "*"
+opencv-python = "*"
+tensorboard = "*"
+tensorboardx = "*"
+graphviz = "*"
+attrs = "*"
+colorlog = "*"
 
 
 [requires]
