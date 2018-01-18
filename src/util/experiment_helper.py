@@ -53,7 +53,7 @@ def test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path,
     time_for_all = time_all_stop - time_all_start
     n_images = len(data_loader)
     time_per_sample = time_for_all / n_images
-    log.info('Test {0}: total training time {1} sec'.format(seq_name, str(time_for_all)))
+    log.info('Test {0}: total test time {1} sec'.format(seq_name, str(time_for_all)))
     log.info('Test {0}: {1} images'.format(seq_name, str(n_images)))
     log.info('Test {0}: time per sample {1} sec'.format(seq_name, str(time_per_sample)))
 
