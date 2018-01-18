@@ -25,10 +25,10 @@ def test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path,
     if is_visualizing_results:
         ax_arr = _init_plot()
 
-    test_start_time = timeit.default_timer()
+    time_all_start = timeit.default_timer()
     for minibatch in data_loader:
-        img, gt, seq_name, fname = minibatch['image'], minibatch['gt'], \
-                                   minibatch['seq_name'], minibatch['fname']
+        img, gt, minibatch_seq_name, fname = minibatch['image'], minibatch['gt'], \
+                                             minibatch['seq_name'], minibatch['fname']
 
         inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
         inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
@@ -40,7 +40,7 @@ def test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path,
             pred = 1 / (1 + np.exp(-pred))
             pred = np.squeeze(pred)
 
-            save_dir_seq = save_dir / seq_name[index]
+            save_dir_seq = save_dir / minibatch_seq_name[index]
             save_dir_seq.mkdir(parents=True, exist_ok=True)
 
             file_name = save_dir_seq / '{0}.png'.format(fname[index])
@@ -49,12 +49,13 @@ def test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path,
             if is_visualizing_results:
                 _visualize_results(ax_arr, gt, img, index, pred)
 
-    test_stop_time = timeit.default_timer()
-    log.info('Test {0}: total training time {1} sec'.format(seq_name, str(test_stop_time - test_start_time)))
-    log.info('Test {0}: {1} images'.format(seq_name, str((len(data_loader)))))
-    log.info(
-        'Test {0}: time per sample {1} sec'.format(seq_name,
-                                                   str((test_stop_time - test_start_time) / len(data_loader))))
+    time_all_stop = timeit.default_timer()
+    time_for_all = time_all_stop - time_all_start
+    n_images = len(data_loader)
+    time_per_sample = time_for_all / n_images
+    log.info('Test {0}: total training time {1} sec'.format(seq_name, str(time_for_all)))
+    log.info('Test {0}: {1} images'.format(seq_name, str(n_images)))
+    log.info('Test {0}: time per sample {1} sec'.format(seq_name, str(time_per_sample)))
 
 
 def _init_plot():
