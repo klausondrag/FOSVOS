@@ -55,7 +55,7 @@ class NetworkProvider(ABC):
         pass
 
     @abstractmethod
-    def get_optimizer(self) -> Optimizer:
+    def get_optimizer(self) -> optim.SGD:
         pass
 
 
@@ -80,7 +80,7 @@ class VGGOfflineProvider(NetworkProvider):
         self.load_model(self._settings.n_epochs, sequence=sequence)
 
     def get_optimizer(self, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
-                      momentum: float = 0.9) -> Optimizer:
+                      momentum: float = 0.9) -> optim.SGD:
         net = self.network
         optimizer = optim.SGD([
             {'params': [pr[1] for pr in net.stages.named_parameters() if 'weight' in pr[0]],
@@ -124,7 +124,7 @@ class VGGOnlineProvider(NetworkProvider):
         self.load_model(self._settings.offline_epoch, sequence=sequence)
 
     def get_optimizer(self, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
-                      momentum: float = 0.9) -> Optimizer:
+                      momentum: float = 0.9) -> optim.SGD:
         net = self.network
         optimizer = optim.SGD([
             {'params': [pr[1] for pr in net.stages.named_parameters() if 'weight' in pr[0]],

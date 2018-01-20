@@ -3,8 +3,8 @@ import timeit
 from pathlib import Path
 
 from tensorboardX import SummaryWriter
+from torch import optim
 from torch.autograd import Variable
-from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
 from layers.osvos_layers import class_balanced_cross_entropy_loss
@@ -48,7 +48,7 @@ def _get_summary_writer(seq_name: str) -> SummaryWriter:
     return io_helper.get_summary_writer(save_dir_models, postfix=seq_name)
 
 
-def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: Optimizer, summary_writer: SummaryWriter,
+def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: optim.SGD, summary_writer: SummaryWriter,
            seq_name: str, start_epoch: int, n_epochs: int, avg_grad_every_n: int, snapshot_every_n: int) -> None:
     log.info('Start of Online Training, sequence: ' + seq_name)
 
