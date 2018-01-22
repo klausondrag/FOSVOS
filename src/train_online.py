@@ -23,13 +23,13 @@ log = get_logger(__file__)
 
 def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: OnlineSettings,
                    is_training: bool = True, is_testing: bool = True) -> None:
+    io_helper.write_settings(save_dir_models, net_provider.name, settings)
     if is_training:
         net_provider.load_network_train()
         data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_train, seq_name)
         optimizer = net_provider.get_optimizer()
         summary_writer = _get_summary_writer(seq_name)
 
-        io_helper.write_settings(save_dir_models, net_provider.name, settings)
         _train(net_provider, data_loader, optimizer, summary_writer, seq_name, settings.start_epoch, settings.n_epochs,
                settings.avg_grad_every_n, settings.snapshot_every_n)
 
