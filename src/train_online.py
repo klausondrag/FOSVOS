@@ -59,9 +59,9 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: op
     loss_tr = []
     counter_gradient = 0
 
-    start_time = timeit.default_timer()
+    time_all_start = timeit.default_timer()
     for epoch in range(start_epoch, n_epochs):
-        epoch_start_time = timeit.default_timer()
+        time_epoch_start = timeit.default_timer()
 
         running_loss_tr = 0
         for minibatch_index, minibatch in enumerate(data_loader):
@@ -95,14 +95,17 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: op
         if (epoch % snapshot_every_n) == snapshot_every_n - 1:  # and epoch != 0:
             net_provider.save_model(epoch, sequence=seq_name)
 
-        epoch_stop_time = timeit.default_timer()
-        t = epoch_stop_time - epoch_start_time
-        log.info('epoch {0} {1}: {2} sec'.format(seq_name, str(epoch), str(t)))
-        speeds_training.append(t)
+        time_epoch_stop = timeit.default_timer()
+        time_for_epoch = time_epoch_stop - time_epoch_start
+        speeds_training.append(time_for_epoch)
 
-    stop_time = timeit.default_timer()
-    log.info('Train {0}: total training time {1} sec'.format(seq_name, str(stop_time - start_time)))
-    log.info('Train {0}: time per sample {1} sec'.format(seq_name, np.asarray(t).mean()))
+    time_all_stop = timeit.default_timer()
+    time_for_all = time_all_stop - time_all_start
+    n_images = len(data_loader)
+    time_per_sample = time_for_all / n_images
+    log.info('Train {0}: total time {1} sec'.format(seq_name, str(time_for_all)))
+    log.info('Train {0}: {1} images'.format(seq_name, str(n_images)))
+    log.info('Train {0}: time per sample {1} sec'.format(seq_name, str(time_per_sample)))
 
 
 if __name__ == '__main__':
