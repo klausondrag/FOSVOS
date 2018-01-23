@@ -30,19 +30,22 @@ class NetworkProvider(ABC):
         self.network = net
         return net
 
-    def _get_file_path(self, epoch: int, sequence: Optional[str] = None) -> str:
+    def _get_file_path(self, epoch: int, sequence: Optional[str] = None) -> Path:
         model_name = self.name
         if sequence is not None:
             model_name += '_' + sequence
-        return str(self.save_dir / '{0}_epoch-{1}.pth'.format(model_name, str(epoch)))
+        file_path = self.save_dir / '{0}_epoch-{1}.pth'.format(model_name, str(epoch))
+        return file_path
 
     def load_model(self, epoch: int, sequence: Optional[str] = None) -> None:
         file_path = self._get_file_path(epoch - 1, sequence)
-        log.info("Loading weights from: {0}".format(file_path))
-        self.network.load_state_dict(torch.load(file_path, map_location=lambda storage, loc: storage))
+        log.info("Loading weights from: {0}".format(str(file_path)))
+        if not file_path.exists():
+            log.error('Model {0} does not exist!'.format(str(file_path)))
+        self.network.load_state_dict(torch.load(str(file_path), map_location=lambda storage, loc: storage))
 
     def save_model(self, epoch: int, sequence: Optional[str] = None) -> None:
-        file_path = self._get_file_path(epoch, sequence)
+        file_path = str(self._get_file_path(epoch, sequence))
         log.info("Saving weights to: {0}".format(file_path))
         torch.save(self.network.state_dict(), file_path)
 
