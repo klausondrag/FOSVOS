@@ -118,29 +118,29 @@ if __name__ == '__main__':
     save_dir_results.mkdir(parents=True, exist_ok=True)
 
     is_training = True
-    is_training = False
+    # is_training = False
 
-    use_vgg = True
-    use_vgg = False
-
-    settings = OnlineSettings(is_training=is_training, start_epoch=0, n_epochs=2000, avg_grad_every_n=5,
-                              snapshot_every_n=2000, is_testing_while_training=False, test_every_n=5,
+    settings = OnlineSettings(is_training=is_training, start_epoch=0, n_epochs=10000, avg_grad_every_n=5,
+                              snapshot_every_n=10000, is_testing_while_training=False, test_every_n=5,
                               batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
                               is_visualizing_results=False, offline_epoch=240)
 
     net_provider = VGGOnlineProvider('vgg16', save_dir_models, settings)
-    net_provider = ResNetOnlineProvider('resnet18', save_dir_models, settings)
+    # net_provider = ResNetOnlineProvider('resnet18', save_dir_models, settings)
 
-    sequences = ['bear', 'blackswan', 'bmx-bumps', 'bmx-trees', 'boat', 'breakdance', 'breakdance-flare', 'bus',
-                 'camel', 'car-roundabout', 'car-shadow', 'car-turn', 'cows', 'dance-jump', 'dance-twirl', 'dog',
-                 'dog-agility', 'drift-chicane', 'drift-straight', 'drift-turn', 'elephant', 'flamingo', 'goat', 'hike',
-                 'hockey', 'horsejump-high', 'horsejump-low', 'kite-surf', 'kite-walk', 'libby', 'lucia', 'mallard-fly',
-                 'mallard-water', 'motocross-bumps', 'motocross-jump', 'motorbike', 'paragliding', 'paragliding-launch',
-                 'parkour', 'rhino', 'rollerblade', 'scooter-black', 'scooter-gray', 'soapbox', 'soccerball',
-                 'stroller', 'surf', 'swing', 'tennis', 'train']
+    sequences_val = ['blackswan', 'bmx-trees', 'breakdance', 'camel', 'car-roundabout', 'car-shadow', 'cows',
+                     'dance-twirl', 'dog', 'drift-chicane', 'drift-straight', 'goat', 'horsejump-high', 'kite-surf',
+                     'libby', 'motocross-jump', 'paragliding-launch', 'parkour', 'scooter-black', 'soapbox']
 
-    already_done = []
-    sequences = [s for s in sequences if s not in already_done]
+    sequences_train = ['bear', 'bmx-bumps', 'boat', 'breakdance-flare', 'bus', 'car-turn', 'dance-jump', 'dog-agility',
+                       'drift-turn', 'elephant', 'flamingo', 'hike', 'hockey', 'horsejump-low', 'kite-walk', 'lucia',
+                       'mallard-fly', 'mallard-water', 'motocross-bumps', 'motorbike', 'paragliding', 'rhino',
+                       'rollerblade', 'scooter-gray', 'soccerball', 'stroller', 'surf', 'swing', 'tennis', 'train']
 
-    # [train_and_test(net_provider, s, settings, is_training=is_training) for s in sequences]
-    train_and_test(net_provider, 'bear', settings, is_training=is_training)
+    sequences_all = list(set(sequences_train + sequences_val))
+
+    already_done = ['blackswan']
+    sequences = [s for s in sequences_val if s not in already_done]
+
+    [train_and_test(net_provider, s, settings, is_training=is_training) for s in sequences]
+    # train_and_test(net_provider, 'blackswan', settings, is_training=is_training)
