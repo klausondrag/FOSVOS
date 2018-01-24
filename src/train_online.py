@@ -34,9 +34,9 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Onlin
                settings.avg_grad_every_n, settings.snapshot_every_n)
 
     if is_testing:
-        net_provider.load_network_test()
+        net_provider.load_network_test(sequence=seq_name)
         data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test, seq_name)
-        save_dir = save_dir_results / settings.offline_name / 'online'
+        save_dir = save_dir_results / net_provider.name / 'online'
 
         experiment_helper.test(net_provider, data_loader, save_dir, settings.is_visualizing_results, seq_name)
 
