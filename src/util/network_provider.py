@@ -163,7 +163,28 @@ class ResNetOfflineProvider(NetworkProvider):
 
     def get_optimizer(self, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
                       momentum: float = 0.9) -> Optimizer:
-        optimizer = optim.SGD(self.network.parameters(), lr=learning_rate, momentum=momentum)
+        net = self.network
+        optimizer = optim.SGD([
+            {'params': [pr[1] for pr in net.layer_stages.named_parameters() if 'weight' in pr[0]],
+             'weight_decay': weight_decay, 'initial_lr': learning_rate},
+            {'params': [pr[1] for pr in net.layer_stages.named_parameters() if 'bias' in pr[0]],
+             'lr': 2 * learning_rate, 'initial_lr': 2 * learning_rate},
+            {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'weight' in pr[0]],
+             'weight_decay': weight_decay, 'initial_lr': learning_rate},
+            {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'bias' in pr[0]],
+             'lr': 2 * learning_rate, 'initial_lr': 2 * learning_rate},
+            {'params': [pr[1] for pr in net.score_dsn.named_parameters() if 'weight' in pr[0]],
+             'lr': learning_rate / 10, 'weight_decay': weight_decay, 'initial_lr': learning_rate / 10},
+            {'params': [pr[1] for pr in net.score_dsn.named_parameters() if 'bias' in pr[0]],
+             'lr': 2 * learning_rate / 10, 'initial_lr': 2 * learning_rate / 10},
+            {'params': [pr[1] for pr in net.upscale_side_prep.named_parameters() if 'weight' in pr[0]],
+             'lr': 0, 'initial_lr': 0},
+            {'params': [pr[1] for pr in net.upscale_score_dsn.named_parameters() if 'weight' in pr[0]],
+             'lr': 0, 'initial_lr': 0},
+            {'params': net.layer_fuse.weight, 'weight_decay': weight_decay,
+             'lr': learning_rate / 100, 'initial_lr': learning_rate / 100},
+            {'params': net.layer_fuse.bias, 'lr': 2 * learning_rate / 100, 'initial_lr': 2 * learning_rate / 100},
+        ], lr=learning_rate, momentum=momentum)
         return optimizer
 
 
@@ -183,5 +204,26 @@ class ResNetOnlineProvider(NetworkProvider):
 
     def get_optimizer(self, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
                       momentum: float = 0.9) -> Optimizer:
-        optimizer = optim.SGD(self.network.parameters(), lr=learning_rate, momentum=momentum)
+        net = self.network
+        optimizer = optim.SGD([
+            {'params': [pr[1] for pr in net.layer_stages.named_parameters() if 'weight' in pr[0]],
+             'weight_decay': weight_decay, 'initial_lr': learning_rate},
+            {'params': [pr[1] for pr in net.layer_stages.named_parameters() if 'bias' in pr[0]],
+             'lr': 2 * learning_rate, 'initial_lr': 2 * learning_rate},
+            {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'weight' in pr[0]],
+             'weight_decay': weight_decay, 'initial_lr': learning_rate},
+            {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'bias' in pr[0]],
+             'lr': 2 * learning_rate, 'initial_lr': 2 * learning_rate},
+            {'params': [pr[1] for pr in net.score_dsn.named_parameters() if 'weight' in pr[0]],
+             'lr': learning_rate / 10, 'weight_decay': weight_decay, 'initial_lr': learning_rate / 10},
+            {'params': [pr[1] for pr in net.score_dsn.named_parameters() if 'bias' in pr[0]],
+             'lr': 2 * learning_rate / 10, 'initial_lr': 2 * learning_rate / 10},
+            {'params': [pr[1] for pr in net.upscale_side_prep.named_parameters() if 'weight' in pr[0]],
+             'lr': 0, 'initial_lr': 0},
+            {'params': [pr[1] for pr in net.upscale_score_dsn.named_parameters() if 'weight' in pr[0]],
+             'lr': 0, 'initial_lr': 0},
+            {'params': net.layer_fuse.weight, 'weight_decay': weight_decay,
+             'lr': learning_rate / 100, 'initial_lr': learning_rate / 100},
+            {'params': net.layer_fuse.bias, 'lr': 2 * learning_rate / 100, 'initial_lr': 2 * learning_rate / 100},
+        ], lr=learning_rate, momentum=momentum)
         return optimizer
