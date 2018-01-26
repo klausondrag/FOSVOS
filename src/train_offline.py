@@ -15,12 +15,10 @@ from util.logger import get_logger
 from util.network_provider import NetworkProvider, VGGOfflineProvider, ResNetOfflineProvider
 from util.settings import OfflineSettings
 
-
 if P.is_custom_pytorch():
     sys.path.append(P.custom_pytorch())
 if P.is_custom_opencv():
     sys.path.insert(0, P.custom_opencv())
-gpu_handler.select_gpu_by_hostname()
 
 log = get_logger(__file__)
 
@@ -188,4 +186,3 @@ if __name__ == '__main__':
         net_provider = None
 
     train_and_test(net_provider, settings, is_training=args.is_training, is_testing=args.is_testing)
-
