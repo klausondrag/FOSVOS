@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 from abc import ABC, abstractmethod
 
 import torch
@@ -17,11 +17,13 @@ log = get_logger(__file__)
 
 class NetworkProvider(ABC):
 
-    def __init__(self, name: str, save_dir: Path, network_type: type, settings: Settings) -> None:
+    def __init__(self, name: str, save_dir: Path, network_type: type, settings: Settings,
+                 variant: Optional[int] = None) -> None:
         self.name = name
         self.save_dir = save_dir
         self.network_type = network_type
         self._settings = settings
+        self.variant = variant
         self.network = None
 
     def init_network(self, **kwargs) -> object:
@@ -32,8 +34,11 @@ class NetworkProvider(ABC):
 
     def _get_file_path(self, epoch: int, sequence: Optional[str] = None) -> Path:
         model_name = self.name
+        if self.variant is not None:
+            model_name += '_' + str(self.variant)
         if sequence is not None:
             model_name += '_' + sequence
+
         file_path = self.save_dir / '{0}_epoch-{1}.pth'.format(model_name, str(epoch))
         return file_path
 
@@ -64,9 +69,9 @@ class NetworkProvider(ABC):
 
 class VGGOfflineProvider(NetworkProvider):
 
-    def __init__(self, name: str, save_dir: Path, settings: OfflineSettings):
+    def __init__(self, name: str, save_dir: Path, settings: OfflineSettings, variant: Optional[int] = None):
         super(VGGOfflineProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
-                                                 network_type=OSVOS_VGG)
+                                                 network_type=OSVOS_VGG, variant=variant)
 
     def load_network_train(self) -> None:
         if self._settings.start_epoch == 0:
@@ -114,9 +119,9 @@ class VGGOfflineProvider(NetworkProvider):
 
 class VGGOnlineProvider(NetworkProvider):
 
-    def __init__(self, name: str, save_dir: Path, settings: OnlineSettings):
+    def __init__(self, name: str, save_dir: Path, settings: OnlineSettings, variant: Optional[int] = None):
         super(VGGOnlineProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
-                                                network_type=OSVOS_VGG)
+                                                network_type=OSVOS_VGG, variant=variant)
 
     def load_network_train(self) -> None:
         self.init_network(pretrained=0)
@@ -146,9 +151,9 @@ class VGGOnlineProvider(NetworkProvider):
 
 class ResNetOfflineProvider(NetworkProvider):
 
-    def __init__(self, name: str, save_dir: Path, settings: OfflineSettings):
+    def __init__(self, name: str, save_dir: Path, settings: OfflineSettings, variant: Optional[int] = None):
         super(ResNetOfflineProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
-                                                    network_type=OSVOS_RESNET)
+                                                    network_type=OSVOS_RESNET, variant=variant)
 
     def load_network_train(self) -> None:
         if self._settings.start_epoch == 0:
@@ -164,7 +169,7 @@ class ResNetOfflineProvider(NetworkProvider):
     def get_optimizer(self, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
                       momentum: float = 0.9) -> Optimizer:
         net = self.network
-        optimizer = optim.SGD([
+        default_var = optim.SGD([
             {'params': [pr[1] for pr in net.layer_stages.named_parameters() if 'weight' in pr[0]],
              'weight_decay': weight_decay, 'initial_lr': learning_rate},
             {'params': [pr[1] for pr in net.layer_stages.named_parameters() if 'bias' in pr[0]],
@@ -185,14 +190,28 @@ class ResNetOfflineProvider(NetworkProvider):
              'lr': learning_rate / 100, 'initial_lr': learning_rate / 100},
             {'params': net.layer_fuse.bias, 'lr': 2 * learning_rate / 100, 'initial_lr': 2 * learning_rate / 100},
         ], lr=learning_rate, momentum=momentum)
+
+        if self.variant is None:
+            optimizer = default_var
+        else:
+            from .variants import variants
+            v = variants[self.variant][1]
+            params = [net.layer_stages.parameters, net.side_prep.parameters, net.score_dsn.parameters,
+                      net.upscale_side_prep.parameters, net.upscale_score_dsn.parameters, net.layer_fuse.parameters]
+            if v == 0:
+                optimizer = default_var
+            elif v == 1:
+                optimizer = optim.SGD(params)
+            elif v == 2:
+                optimizer = optim.Adam(params)
         return optimizer
 
 
 class ResNetOnlineProvider(NetworkProvider):
 
-    def __init__(self, name: str, save_dir: Path, settings: OnlineSettings):
+    def __init__(self, name: str, save_dir: Path, settings: OnlineSettings, variant: Optional[int] = None):
         super(ResNetOnlineProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
-                                                   network_type=OSVOS_RESNET)
+                                                   network_type=OSVOS_RESNET, variant=variant)
 
     def load_network_train(self) -> None:
         self.init_network(pretrained=False)
@@ -205,7 +224,7 @@ class ResNetOnlineProvider(NetworkProvider):
     def get_optimizer(self, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
                       momentum: float = 0.9) -> Optimizer:
         net = self.network
-        optimizer = optim.SGD([
+        default_var = optim.SGD([
             {'params': [pr[1] for pr in net.layer_stages.named_parameters() if 'weight' in pr[0]],
              'weight_decay': weight_decay, 'initial_lr': learning_rate},
             {'params': [pr[1] for pr in net.layer_stages.named_parameters() if 'bias' in pr[0]],
@@ -226,6 +245,37 @@ class ResNetOnlineProvider(NetworkProvider):
              'lr': learning_rate / 100, 'initial_lr': learning_rate / 100},
             {'params': net.layer_fuse.bias, 'lr': 2 * learning_rate / 100, 'initial_lr': 2 * learning_rate / 100},
         ], lr=learning_rate, momentum=momentum)
+
+        if self.variant is None:
+            optimizer = default_var
+        else:
+            from .variants import variants
+            v = variants[self.variant][1]
+            params = [net.layer_stages.parameters, net.side_prep.parameters, net.score_dsn.parameters,
+                      net.upscale_side_prep.parameters, net.upscale_score_dsn.parameters, net.layer_fuse.parameters]
+            if v == 0:
+                optimizer = default_var
+            elif v == 1:
+                optimizer = optim.SGD([
+                    {'params': [pr[1] for pr in net.layer_stages.named_parameters() if 'weight' in pr[0]],
+                     'weight_decay': weight_decay},
+                    {'params': [pr[1] for pr in net.layer_stages.named_parameters() if 'bias' in pr[0]],
+                     'lr': learning_rate * 2},
+                    {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'weight' in pr[0]],
+                     'weight_decay': weight_decay},
+                    {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'bias' in pr[0]],
+                     'lr': learning_rate * 2},
+                    {'params': [pr[1] for pr in net.upscale_side_prep.named_parameters() if 'weight' in pr[0]],
+                     'lr': 0},
+                    {'params': [pr[1] for pr in net.upscale_score_dsn.named_parameters() if 'weight' in pr[0]],
+                     'lr': 0},
+                    {'params': net.layer_fuse.weight, 'lr': learning_rate / 100, 'weight_decay': weight_decay},
+                    {'params': net.layer_fuse.bias, 'lr': 2 * learning_rate / 100},
+                ], lr=learning_rate, momentum=momentum)
+            elif v == 2:
+                optimizer = optim.SGD(params)
+            elif v == 3:
+                optimizer = optim.Adam(params)
         return optimizer
 
 
@@ -234,4 +284,4 @@ provider_mapping = {
     ('online', 'vgg16'): VGGOnlineProvider,
     ('offline', 'resnet18'): ResNetOfflineProvider,
     ('online', 'resnet18'): ResNetOnlineProvider
-}
+}  # type: Dict[(str, str), NetworkProvider]

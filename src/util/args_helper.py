@@ -15,7 +15,7 @@ def _get_base_parser():
     parser.add_argument('--no-testing', action='store_true',
                         help='True if the program should test the model, else False')
 
-    parser.add_argument('---model-suffix', default=None, type=str, help='suffix to add to model name')
+    parser.add_argument('--variant', default=None, type=int, help='version to try')
 
     return parser
 

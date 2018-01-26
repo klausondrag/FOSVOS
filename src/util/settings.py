@@ -14,6 +14,7 @@ class Settings:
     batch_size_test = attr.ib()
     is_visualizing_network = attr.ib()
     is_visualizing_results = attr.ib()
+    variant = attr.ib()
 
 
 @attr.s
