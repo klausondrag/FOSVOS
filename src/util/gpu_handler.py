@@ -29,6 +29,13 @@ def select_gpu_by_hostname(hostname: Optional[str] = None) -> None:
     select_gpu_by_id(gpu_id)
 
 
+def select_gpu(gpu_id: Optional[int]) -> None:
+    if gpu_id is None:
+        select_gpu_by_hostname()
+    else:
+        select_gpu_by_id(gpu_id)
+
+
 def cast_cuda_if_possible(net: Union[Module, List[Module], Variable, List[Variable]],
                           verbose: bool = False) -> Union[Module, List[Module], Variable, List[Variable]]:
     if torch.cuda.is_available():

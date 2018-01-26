@@ -135,12 +135,8 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
 
 
 if __name__ == '__main__':
-    args = args_helper.parse_args(is_online=False)
-
-    if args.gpu_id is None:
-        gpu_handler.select_gpu_by_hostname()
-    else:
-        gpu_handler.select_gpu_by_id(args.gpu_id)
+    args = args_helper.parse_args(is_online=True)
+    gpu_handler.select_gpu(args.gpu_id)
 
     db_root_dir = P.db_root_dir()
     save_dir_root = P.save_root_dir()
