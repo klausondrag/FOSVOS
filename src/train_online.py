@@ -1,16 +1,14 @@
 import sys
 import timeit
 from pathlib import Path
-import argparse
 
 from tensorboardX import SummaryWriter
 from torch import optim
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
-from layers.osvos_layers import class_balanced_cross_entropy_loss
 from config.mypath import Path as P
-from dataloaders.helpers import *
+from layers.osvos_layers import class_balanced_cross_entropy_loss
 from util import gpu_handler, io_helper, experiment_helper, args_helper
 from util.logger import get_logger
 from util.network_provider import NetworkProvider, provider_mapping
