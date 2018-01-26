@@ -13,7 +13,8 @@ from config.mypath import Path as P
 from dataloaders.helpers import *
 from util import gpu_handler, io_helper, experiment_helper, args_helper
 from util.logger import get_logger
-from util.network_provider import NetworkProvider, OnlineSettings, provider_mapping
+from util.network_provider import NetworkProvider, provider_mapping
+from util.settings import OnlineSettings
 
 if P.is_custom_pytorch():
     sys.path.append(P.custom_pytorch())  # Custom PyTorch
