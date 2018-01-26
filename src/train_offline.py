@@ -1,6 +1,7 @@
 import sys
 import timeit
 from pathlib import Path
+import argparse
 
 from tensorboardX import SummaryWriter
 from torch import optim
@@ -135,7 +136,35 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
     summary_writer.close()
 
 
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description='Performs the offline training for fast-osvos')
+
+    parser.add_argument('--gpu-id', default=None, type=int, help='The gpu id to use')
+
+    parser.add_argument('--network', default='vgg16', type=str, choices=['vgg16', 'resnet18'],
+                        help='The network to use')
+
+    parser.add_argument('--is-training', default=True, action='store_true',
+                        help='True if the program should train the model, else False')
+
+    parser.add_argument('--is-testing', default=True, action='store_true',
+                        help='True if the program should test the model, else False')
+
+    parser.add_argument('---model-suffix', default=None, type=str, help='suffix to add to model name')
+
+    args = parser.parse_args()
+
+    return args
+
+
 if __name__ == '__main__':
+    args = _parse_args()
+
+    if args.gpu_id is None:
+        gpu_handler.select_gpu_by_hostname()
+    else:
+        gpu_handler.select_gpu_by_id(args.gpu_id)
+
     db_root_dir = P.db_root_dir()
     save_dir_root = P.save_root_dir()
 
@@ -144,15 +173,17 @@ if __name__ == '__main__':
     save_dir_results = Path('results')
     save_dir_results.mkdir(parents=True, exist_ok=True)
 
-    is_training = True
-    is_training = False
-
-    settings = OfflineSettings(is_training=is_training, start_epoch=0, n_epochs=240, avg_grad_every_n=10,
+    settings = OfflineSettings(is_training=args.is_training, start_epoch=0, n_epochs=240, avg_grad_every_n=10,
                                snapshot_every_n=40, is_testing_while_training=False, test_every_n=5,
                                batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
                                is_visualizing_results=False, is_loading_vgg_caffe=False)
 
-    net_provider = VGGOfflineProvider('vgg16', save_dir_models, settings)
-    net_provider = ResNetOfflineProvider('resnet18', save_dir_models, settings)
+    if args.network == 'vgg16':
+        net_provider = VGGOfflineProvider('vgg16', save_dir_models, settings)
+    elif args.network == 'resnet18':
+        net_provider = ResNetOfflineProvider('resnet18', save_dir_models, settings)
+    else:
+        net_provider = None
 
-    train_and_test(net_provider, settings, is_training=is_training)
+    train_and_test(net_provider, settings, is_training=args.is_training, is_testing=args.is_testing)
+
