@@ -124,7 +124,7 @@ class VGGOnlineProvider(NetworkProvider):
 
     def load_network_test(self, sequence: Optional[str] = None) -> None:
         self.init_network(pretrained=0)
-        self.load_model(self._settings.offline_epoch, sequence=sequence)
+        self.load_model(self._settings.n_epochs, sequence=sequence)
 
     def get_optimizer(self, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
                       momentum: float = 0.9) -> optim.SGD:
