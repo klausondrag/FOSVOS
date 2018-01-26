@@ -13,7 +13,7 @@ from config.mypath import Path as P
 from dataloaders.helpers import *
 from util import gpu_handler, io_helper, experiment_helper, args_helper
 from util.logger import get_logger
-from util.network_provider import NetworkProvider, OnlineSettings, VGGOnlineProvider, ResNetOnlineProvider
+from util.network_provider import NetworkProvider, OnlineSettings, provider_mapping
 
 if P.is_custom_pytorch():
     sys.path.append(P.custom_pytorch())  # Custom PyTorch
@@ -125,12 +125,8 @@ if __name__ == '__main__':
                               batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
                               is_visualizing_results=False, offline_epoch=240)
 
-    if args.network == 'vgg16':
-        net_provider = VGGOnlineProvider('vgg16', save_dir_models, settings)
-    elif args.network == 'resnet18':
-        net_provider = ResNetOnlineProvider('resnet18', save_dir_models, settings)
-    else:
-        net_provider = None
+    provider_class = provider_mapping[('offline', args.network)]
+    net_provider = provider_class(args.network, save_dir_models, settings)
 
     if args.object == 'all':
         sequences_val = ['blackswan', 'bmx-trees', 'breakdance', 'camel', 'car-roundabout', 'car-shadow', 'cows',

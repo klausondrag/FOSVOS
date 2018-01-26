@@ -12,7 +12,7 @@ from layers.osvos_layers import class_balanced_cross_entropy_loss
 from config.mypath import Path as P
 from util import gpu_handler, io_helper, experiment_helper, args_helper
 from util.logger import get_logger
-from util.network_provider import NetworkProvider, VGGOfflineProvider, ResNetOfflineProvider
+from util.network_provider import NetworkProvider, provider_mapping
 from util.settings import OfflineSettings
 
 if P.is_custom_pytorch():
@@ -151,11 +151,7 @@ if __name__ == '__main__':
                                batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
                                is_visualizing_results=False, is_loading_vgg_caffe=False)
 
-    if args.network == 'vgg16':
-        net_provider = VGGOfflineProvider('vgg16', save_dir_models, settings)
-    elif args.network == 'resnet18':
-        net_provider = ResNetOfflineProvider('resnet18', save_dir_models, settings)
-    else:
-        net_provider = None
+    provider_class = provider_mapping[('offline', args.network)]
+    net_provider = provider_class(args.network, save_dir_models, settings)
 
     train_and_test(net_provider, settings, is_training=args.is_training, is_testing=args.is_testing)

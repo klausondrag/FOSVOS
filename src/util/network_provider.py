@@ -227,3 +227,11 @@ class ResNetOnlineProvider(NetworkProvider):
             {'params': net.layer_fuse.bias, 'lr': 2 * learning_rate / 100, 'initial_lr': 2 * learning_rate / 100},
         ], lr=learning_rate, momentum=momentum)
         return optimizer
+
+
+provider_mapping = {
+    ('offline', 'vgg16'): VGGOfflineProvider,
+    ('online', 'vgg16'): VGGOnlineProvider,
+    ('offline', 'resnet18'): ResNetOfflineProvider,
+    ('online', 'resnet18'): ResNetOnlineProvider
+}
