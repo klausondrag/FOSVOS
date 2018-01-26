@@ -113,6 +113,9 @@ def _parse_args() -> argparse.Namespace:
 
     parser.add_argument('--gpu-id', default=None, type=int, help='The gpu id to use')
 
+    parser.add_argument('--network', default='vgg16', type=str, choices=['vgg16', 'resnet18'],
+                        help='The network to use')
+
     parser.add_argument('-o', '--object', default='all', type=str, help='The object to train on')
 
     parser.add_argument('--is-training', default=True, action='store_true',
@@ -149,8 +152,12 @@ if __name__ == '__main__':
                               batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
                               is_visualizing_results=False, offline_epoch=240)
 
-    net_provider = VGGOnlineProvider('vgg16', save_dir_models, settings)
-    # net_provider = ResNetOnlineProvider('resnet18', save_dir_models, settings)
+    if args.network == 'vgg16':
+        net_provider = VGGOnlineProvider('vgg16', save_dir_models, settings)
+    elif args.network == 'resnet18':
+        net_provider = ResNetOnlineProvider('resnet18', save_dir_models, settings)
+    else:
+        net_provider = None
 
     if args.object == 'all':
         sequences_val = ['blackswan', 'bmx-trees', 'breakdance', 'camel', 'car-roundabout', 'car-shadow', 'cows',
