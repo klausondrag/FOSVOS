@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from layers.osvos_layers import class_balanced_cross_entropy_loss
 from config.mypath import Path as P
-from util import gpu_handler, io_helper, experiment_helper
+from util import gpu_handler, io_helper, experiment_helper, args_helper
 from util.logger import get_logger
 from util.network_provider import NetworkProvider, VGGOfflineProvider, ResNetOfflineProvider
 from util.settings import OfflineSettings
@@ -134,31 +134,8 @@ def _train(net_provider: NetworkProvider, data_loader_train: DataLoader, data_lo
     summary_writer.close()
 
 
-def _parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='Performs the offline training for fast-osvos')
-
-    parser.add_argument('--gpu-id', default=None, type=int, help='The gpu id to use')
-
-    parser.add_argument('--network', default='vgg16', type=str, choices=['vgg16', 'resnet18'],
-                        help='The network to use')
-
-    parser.add_argument('--no-training', action='store_true',
-                        help='True if the program should train the model, else False')
-
-    parser.add_argument('--no-testing', action='store_true',
-                        help='True if the program should test the model, else False')
-
-    parser.add_argument('---model-suffix', default=None, type=str, help='suffix to add to model name')
-
-    args = parser.parse_args()
-    args.is_training = not args.no_training
-    args.is_testing = not args.no_testing
-
-    return args
-
-
 if __name__ == '__main__':
-    args = _parse_args()
+    args = args_helper.parse_args(is_online=False)
 
     if args.gpu_id is None:
         gpu_handler.select_gpu_by_hostname()
