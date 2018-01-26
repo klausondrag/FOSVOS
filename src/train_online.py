@@ -1,6 +1,7 @@
 import sys
 import timeit
 from pathlib import Path
+import argparse
 
 from tensorboardX import SummaryWriter
 from torch import optim
@@ -17,7 +18,6 @@ from util.network_provider import NetworkProvider, OnlineSettings, VGGOnlineProv
 if P.is_custom_pytorch():
     sys.path.append(P.custom_pytorch())  # Custom PyTorch
 
-gpu_handler.select_gpu_by_hostname()
 log = get_logger(__file__)
 
 
@@ -108,7 +108,34 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: op
     log.info('Train {0}: time per sample {1} sec'.format(seq_name, str(time_per_sample)))
 
 
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description='Performs the online training for fast-osvos')
+
+    parser.add_argument('--gpu-id', default=None, type=int, help='The gpu id to use')
+
+    parser.add_argument('-o', '--object', default='all', type=str, help='The object to train on')
+
+    parser.add_argument('--is-training', default=True, action='store_true',
+                        help='True if the program should train the model, else False')
+
+    parser.add_argument('--is-testing', default=True, action='store_true',
+                        help='True if the program should test the model, else False')
+
+    parser.add_argument('---model-suffix', default=None, type=str, help='suffix to add to model name')
+
+    args = parser.parse_args()
+
+    return args
+
+
 if __name__ == '__main__':
+    args = _parse_args()
+
+    if args.gpu_id is None:
+        gpu_handler.select_gpu_by_hostname()
+    else:
+        gpu_handler.select_gpu_by_id(args.gpu_id)
+
     db_root_dir = P.db_root_dir()
     exp_dir = P.exp_dir()
 
@@ -117,10 +144,7 @@ if __name__ == '__main__':
     save_dir_results = Path('results')
     save_dir_results.mkdir(parents=True, exist_ok=True)
 
-    is_training = True
-    # is_training = False
-
-    settings = OnlineSettings(is_training=is_training, start_epoch=0, n_epochs=10000, avg_grad_every_n=5,
+    settings = OnlineSettings(is_training=args.is_training, start_epoch=0, n_epochs=10000, avg_grad_every_n=5,
                               snapshot_every_n=10000, is_testing_while_training=False, test_every_n=5,
                               batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
                               is_visualizing_results=False, offline_epoch=240)
@@ -128,19 +152,23 @@ if __name__ == '__main__':
     net_provider = VGGOnlineProvider('vgg16', save_dir_models, settings)
     # net_provider = ResNetOnlineProvider('resnet18', save_dir_models, settings)
 
-    sequences_val = ['blackswan', 'bmx-trees', 'breakdance', 'camel', 'car-roundabout', 'car-shadow', 'cows',
-                     'dance-twirl', 'dog', 'drift-chicane', 'drift-straight', 'goat', 'horsejump-high', 'kite-surf',
-                     'libby', 'motocross-jump', 'paragliding-launch', 'parkour', 'scooter-black', 'soapbox']
+    if args.object == 'all':
+        sequences_val = ['blackswan', 'bmx-trees', 'breakdance', 'camel', 'car-roundabout', 'car-shadow', 'cows',
+                         'dance-twirl', 'dog', 'drift-chicane', 'drift-straight', 'goat', 'horsejump-high', 'kite-surf',
+                         'libby', 'motocross-jump', 'paragliding-launch', 'parkour', 'scooter-black', 'soapbox']
 
-    sequences_train = ['bear', 'bmx-bumps', 'boat', 'breakdance-flare', 'bus', 'car-turn', 'dance-jump', 'dog-agility',
-                       'drift-turn', 'elephant', 'flamingo', 'hike', 'hockey', 'horsejump-low', 'kite-walk', 'lucia',
-                       'mallard-fly', 'mallard-water', 'motocross-bumps', 'motorbike', 'paragliding', 'rhino',
-                       'rollerblade', 'scooter-gray', 'soccerball', 'stroller', 'surf', 'swing', 'tennis', 'train']
+        sequences_train = ['bear', 'bmx-bumps', 'boat', 'breakdance-flare', 'bus', 'car-turn', 'dance-jump',
+                           'dog-agility', 'drift-turn', 'elephant', 'flamingo', 'hike', 'hockey', 'horsejump-low',
+                           'kite-walk', 'lucia', 'mallard-fly', 'mallard-water', 'motocross-bumps', 'motorbike',
+                           'paragliding', 'rhino', 'rollerblade', 'scooter-gray', 'soccerball', 'stroller', 'surf',
+                           'swing', 'tennis', 'train']
 
-    sequences_all = list(set(sequences_train + sequences_val))
+        sequences_all = list(set(sequences_train + sequences_val))
 
-    already_done = ['blackswan']
-    sequences = [s for s in sequences_val if s not in already_done]
+        already_done = ['blackswan']
+        sequences = [s for s in sequences_val if s not in already_done]
 
-    [train_and_test(net_provider, s, settings, is_training=is_training) for s in sequences]
-    # train_and_test(net_provider, 'blackswan', settings, is_training=is_training)
+        [train_and_test(net_provider, s, settings, is_training=args.is_training, is_testing=args.is_testing)
+         for s in sequences]
+    else:
+        train_and_test(net_provider, args.object, settings, is_training=args.is_training, is_testing=args.is_testing)
