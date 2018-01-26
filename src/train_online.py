@@ -118,15 +118,17 @@ def _parse_args() -> argparse.Namespace:
 
     parser.add_argument('-o', '--object', default='all', type=str, help='The object to train on')
 
-    parser.add_argument('--is-training', default=True, action='store_true',
+    parser.add_argument('--no-training', action='store_true',
                         help='True if the program should train the model, else False')
 
-    parser.add_argument('--is-testing', default=True, action='store_true',
+    parser.add_argument('--no-testing', action='store_true',
                         help='True if the program should test the model, else False')
 
     parser.add_argument('---model-suffix', default=None, type=str, help='suffix to add to model name')
 
     args = parser.parse_args()
+    args.is_training = not args.no_training
+    args.is_testing = not args.no_testing
 
     return args
 
