@@ -20,10 +20,9 @@ if P.is_custom_pytorch():
 log = get_logger(__file__)
 
 
-def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: OnlineSettings,
-                   is_training: bool = True, is_testing: bool = True) -> None:
+def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: OnlineSettings) -> None:
     io_helper.write_settings(save_dir_models, net_provider.name, settings)
-    if is_training:
+    if settings.is_training:
         net_provider.load_network_train()
         data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_train, seq_name)
         optimizer = net_provider.get_optimizer()
@@ -32,7 +31,7 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Onlin
         _train(net_provider, data_loader, optimizer, summary_writer, seq_name, settings.start_epoch, settings.n_epochs,
                settings.avg_grad_every_n, settings.snapshot_every_n)
 
-    if is_testing:
+    if settings.is_testing:
         net_provider.load_network_test(sequence=seq_name)
         data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test, seq_name)
         save_dir = save_dir_results / net_provider.name / 'online'
@@ -119,9 +118,9 @@ if __name__ == '__main__':
     save_dir_results = Path('results')
     save_dir_results.mkdir(parents=True, exist_ok=True)
 
-    settings = OnlineSettings(is_training=args.is_training, start_epoch=0, n_epochs=10000, avg_grad_every_n=5,
-                              snapshot_every_n=10000, is_testing_while_training=False, test_every_n=5,
-                              batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
+    settings = OnlineSettings(is_training=args.is_training, is_testing=args.is_testing, start_epoch=0, n_epochs=10000,
+                              avg_grad_every_n=5, snapshot_every_n=10000, is_testing_while_training=False,
+                              test_every_n=5, batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
                               is_visualizing_results=False, offline_epoch=240)
 
     provider_class = provider_mapping[('offline', args.network)]
@@ -143,7 +142,8 @@ if __name__ == '__main__':
         already_done = ['blackswan']
         sequences = [s for s in sequences_val if s not in already_done]
 
-        [train_and_test(net_provider, s, settings, is_training=args.is_training, is_testing=args.is_testing)
+        [train_and_test(net_provider, s, settings)
          for s in sequences]
+
     else:
-        train_and_test(net_provider, args.object, settings, is_training=args.is_training, is_testing=args.is_testing)
+        train_and_test(net_provider, args.object, settings)
