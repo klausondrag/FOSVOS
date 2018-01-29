@@ -123,7 +123,7 @@ if __name__ == '__main__':
                               test_every_n=5, batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
                               is_visualizing_results=False, offline_epoch=240)
 
-    provider_class = provider_mapping[('offline', args.network)]
+    provider_class = provider_mapping[('online', args.network)]
     net_provider = provider_class(args.network, save_dir_models, settings)
 
     if args.object == 'all':
