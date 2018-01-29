@@ -4,6 +4,7 @@ import attr
 @attr.s
 class Settings:
     is_training = attr.ib()
+    is_testing = attr.ib()
     start_epoch = attr.ib()
     n_epochs = attr.ib()
     avg_grad_every_n = attr.ib()

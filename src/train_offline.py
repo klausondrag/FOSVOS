@@ -23,10 +23,9 @@ if P.is_custom_opencv():
 log = get_logger(__file__)
 
 
-def train_and_test(net_provider: NetworkProvider, settings: OfflineSettings, is_training: bool = True,
-                   is_testing: bool = True, variant: Optional[int] = None) -> None:
+def train_and_test(net_provider: NetworkProvider, settings: OfflineSettings, variant: Optional[int] = None) -> None:
     io_helper.write_settings(save_dir_models, net_provider.name, settings)
-    if is_training:
+    if settings.is_training:
         net_provider.load_network_train()
         data_loader_train = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_train)
         data_loader_test = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test)
@@ -37,7 +36,7 @@ def train_and_test(net_provider: NetworkProvider, settings: OfflineSettings, is_
                settings.n_epochs, settings.avg_grad_every_n, settings.snapshot_every_n,
                settings.is_testing_while_training, settings.test_every_n)
 
-    if is_testing:
+    if settings.is_testing:
         net_provider.load_network_test()
         data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test)
 
@@ -151,13 +150,12 @@ if __name__ == '__main__':
     save_dir_results = Path('results')
     save_dir_results.mkdir(parents=True, exist_ok=True)
 
-    settings = OfflineSettings(is_training=args.is_training, start_epoch=0, n_epochs=240, avg_grad_every_n=10,
-                               snapshot_every_n=40, is_testing_while_training=False, test_every_n=5,
-                               batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
+    settings = OfflineSettings(is_training=args.is_training, is_testing=args.is_testing, start_epoch=0, n_epochs=240,
+                               avg_grad_every_n=10, snapshot_every_n=40, is_testing_while_training=False,
+                               test_every_n=5, batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
                                is_visualizing_results=False, is_loading_vgg_caffe=False, variant=args.variant)
 
     provider_class = provider_mapping[('offline', args.network)]
     net_provider = provider_class(args.network, save_dir_models, settings, variant=args.variant)
 
-    train_and_test(net_provider, settings, is_training=args.is_training, is_testing=args.is_testing,
-                   variant=args.variant)
+    train_and_test(net_provider, settings, variant=args.variant)
