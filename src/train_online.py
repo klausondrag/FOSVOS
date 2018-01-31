@@ -139,8 +139,12 @@ if __name__ == '__main__':
 
         sequences_all = list(set(sequences_train + sequences_val))
 
-        already_done = ['blackswan']
-        sequences = [s for s in sequences_val if s not in already_done]
+        if args.batch is None:
+            already_done = []
+            # already_done = ['blackswan']
+            sequences = [s for s in sequences_val if s not in already_done]
+        else:
+            sequences = [s for i, s in enumerate(sequences_val) if i % args.batch_size == args.batch]
 
         [train_and_test(net_provider, s, settings)
          for s in sequences]
