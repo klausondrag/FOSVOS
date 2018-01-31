@@ -151,19 +151,21 @@ class VGGOnlineProvider(NetworkProvider):
 
 class ResNetOfflineProvider(NetworkProvider):
 
-    def __init__(self, name: str, save_dir: Path, settings: OfflineSettings, variant: Optional[int] = None):
+    def __init__(self, name: str, save_dir: Path, settings: OfflineSettings, variant: Optional[int] = None,
+                 version: int = 18):
         super(ResNetOfflineProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
                                                     network_type=OSVOS_RESNET, variant=variant)
+        self.version = version
 
     def load_network_train(self) -> None:
         if self._settings.start_epoch == 0:
-            self.init_network(pretrained=True)
+            self.init_network(pretrained=True, version=self.version)
         else:
-            self.init_network(pretrained=False)
+            self.init_network(pretrained=False, version=self.version)
             self.load_model(self._settings.start_epoch)
 
     def load_network_test(self, sequence: Optional[str] = None) -> None:
-        self.init_network(pretrained=False)
+        self.init_network(pretrained=False, version=self.version)
         self.load_model(self._settings.n_epochs, sequence=sequence)
 
     def get_optimizer(self, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
@@ -209,16 +211,18 @@ class ResNetOfflineProvider(NetworkProvider):
 
 class ResNetOnlineProvider(NetworkProvider):
 
-    def __init__(self, name: str, save_dir: Path, settings: OnlineSettings, variant: Optional[int] = None):
+    def __init__(self, name: str, save_dir: Path, settings: OnlineSettings, variant: Optional[int] = None,
+                 version: int = 18):
         super(ResNetOnlineProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
                                                    network_type=OSVOS_RESNET, variant=variant)
+        self.version = version
 
     def load_network_train(self) -> None:
-        self.init_network(pretrained=False)
-        self.load_model(self._settings.offline_epoch, sequence=self._settings.offline_name)
+        self.init_network(pretrained=False, version=self.version)
+        self.load_model(self._settings.offline_epoch)
 
     def load_network_test(self, sequence: Optional[str] = None) -> None:
-        self.init_network(pretrained=False)
+        self.init_network(pretrained=False, version=self.version)
         self.load_model(self._settings.offline_epoch, sequence=sequence)
 
     def get_optimizer(self, learning_rate: float = 1e-8, weight_decay: float = 0.0002,
@@ -283,5 +287,7 @@ provider_mapping = {
     ('offline', 'vgg16'): VGGOfflineProvider,
     ('online', 'vgg16'): VGGOnlineProvider,
     ('offline', 'resnet18'): ResNetOfflineProvider,
-    ('online', 'resnet18'): ResNetOnlineProvider
+    ('online', 'resnet18'): ResNetOnlineProvider,
+    ('offline', 'resnet34'): ResNetOfflineProvider,
+    ('online', 'resnet34'): ResNetOnlineProvider
 }  # type: Dict[(str, str), NetworkProvider]

@@ -156,6 +156,9 @@ if __name__ == '__main__':
                                is_visualizing_results=False, is_loading_vgg_caffe=False, variant=args.variant)
 
     provider_class = provider_mapping[('offline', args.network)]
-    net_provider = provider_class(args.network, save_dir_models, settings, variant=args.variant)
+    if args.network == 'resnet34':
+        net_provider = provider_class(args.network, save_dir_models, settings, variant=args.variant, version=34)
+    else:
+        net_provider = provider_class(args.network, save_dir_models, settings, variant=args.variant)
 
     train_and_test(net_provider, settings, variant=args.variant)

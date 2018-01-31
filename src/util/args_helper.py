@@ -6,7 +6,7 @@ def _get_base_parser():
 
     parser.add_argument('--gpu-id', default=None, type=int, help='The gpu id to use')
 
-    parser.add_argument('--network', default='vgg16', type=str, choices=['vgg16', 'resnet18'],
+    parser.add_argument('--network', default='vgg16', type=str, choices=['vgg16', 'resnet18', 'resnet34'],
                         help='The network to use')
 
     parser.add_argument('--no-training', action='store_true',
