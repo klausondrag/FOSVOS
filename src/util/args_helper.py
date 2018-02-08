@@ -17,6 +17,8 @@ def _get_base_parser():
 
     parser.add_argument('--variant', default=None, type=int, help='version to try')
 
+    parser.add_argument('--eval-speeds', action='store_true', help='evaluates the network speeds')
+
     return parser
 
 
