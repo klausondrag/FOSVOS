@@ -7,6 +7,7 @@ from scipy import misc
 import matplotlib.pyplot as plt
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
+from torch import cuda
 
 from dataloaders.helpers import im_normalize
 from . import gpu_handler
@@ -17,7 +18,7 @@ log = get_logger(__file__)
 
 
 def test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path,
-         is_visualizing_results: bool, seq_name: Optional[str] = None) -> None:
+         is_visualizing_results: bool, eval_speeds: bool, seq_name: Optional[str] = None) -> None:
     log.info('Testing Network')
 
     net = net_provider.network
@@ -25,29 +26,45 @@ def test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path,
     if is_visualizing_results:
         ax_arr = _init_plot()
 
+    n_runs = 1
+    times = []
+    if eval_speeds:
+        n_runs = 10
     time_all_start = timeit.default_timer()
-    for minibatch in data_loader:
-        img, gt, minibatch_seq_name, fname = minibatch['image'], minibatch['gt'], \
-                                             minibatch['seq_name'], minibatch['fname']
+    for _ in range(n_runs):
+        for minibatch_index, minibatch in enumerate(data_loader):
+            img, gt, minibatch_seq_name, fname = minibatch['image'], minibatch['gt'], \
+                                                 minibatch['seq_name'], minibatch['fname']
 
-        inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
-        inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
+            inputs, gts = Variable(img, volatile=True), Variable(gt, volatile=True)
+            inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
-        outputs = net.forward(inputs)
+            if eval_speeds:
+                # https://github.com/jcjohnson/cnn-benchmarks/blob/master/utils.lua
+                cuda.synchronize()
+                time_image_start = timeit.default_timer()
+            outputs = net.forward(inputs)
+            if eval_speeds:
+                cuda.synchronize()
+                time_image_stop = timeit.default_timer()
+                time_image_total = time_image_stop - time_image_start
+                if minibatch_index > 0:
+                    # first allocate takes longer
+                    times.append(time_image_total)
+            else:
+                for index in range(inputs.size()[0]):
+                    pred = np.transpose(outputs[-1].cpu().data.numpy()[index, :, :, :], (1, 2, 0))
+                    pred = 1 / (1 + np.exp(-pred))
+                    pred = np.squeeze(pred)
 
-        for index in range(inputs.size()[0]):
-            pred = np.transpose(outputs[-1].cpu().data.numpy()[index, :, :, :], (1, 2, 0))
-            pred = 1 / (1 + np.exp(-pred))
-            pred = np.squeeze(pred)
+                    save_dir_seq = save_dir / minibatch_seq_name[index]
+                    save_dir_seq.mkdir(parents=True, exist_ok=True)
 
-            save_dir_seq = save_dir / minibatch_seq_name[index]
-            save_dir_seq.mkdir(parents=True, exist_ok=True)
+                    file_name = save_dir_seq / '{0}.png'.format(fname[index])
+                    misc.imsave(str(file_name), pred)
 
-            file_name = save_dir_seq / '{0}.png'.format(fname[index])
-            misc.imsave(str(file_name), pred)
-
-            if is_visualizing_results:
-                _visualize_results(ax_arr, gt, img, index, pred)
+                    if is_visualizing_results:
+                        _visualize_results(ax_arr, gt, img, index, pred)
 
     time_all_stop = timeit.default_timer()
     time_for_all = time_all_stop - time_all_start
