@@ -74,6 +74,11 @@ def test(net_provider: NetworkProvider, data_loader: DataLoader, save_dir: Path,
     log.info('Test {0}: {1} images'.format(seq_name, str(n_images)))
     log.info('Test {0}: time per sample {1} sec'.format(seq_name, str(time_per_sample)))
 
+    if eval_speeds:
+        log.info('Test {0}: accurate {1} images'.format(seq_name, str((n_images - 1) * n_runs)))
+        log.info('Test {0}: accurate total time {1} sec ({2} runs)'.format(seq_name, np.sum (times), n_runs))
+        log.info('Test {0}: accurate time per sample {1} sec ({2} runs)'.format(seq_name, np.average(times), n_runs))
+
 
 def _init_plot():
     plt.close('all')
