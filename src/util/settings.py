@@ -16,6 +16,7 @@ class Settings:
     is_visualizing_network = attr.ib()
     is_visualizing_results = attr.ib()
     variant = attr.ib()
+    eval_speeds = attr.ib()
 
 
 @attr.s

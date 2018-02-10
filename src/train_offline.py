@@ -45,7 +45,8 @@ def train_and_test(net_provider: NetworkProvider, settings: OfflineSettings, var
         else:
             save_dir = save_dir_results / net_provider.name / str(variant) / 'offline'
 
-        experiment_helper.test(net_provider, data_loader, save_dir, settings.is_visualizing_results)
+        experiment_helper.test(net_provider, data_loader, save_dir, settings.is_visualizing_results,
+                               settings.eval_speeds)
 
     if settings.is_visualizing_network:
         io_helper.visualize_network(net_provider.network)
@@ -153,7 +154,8 @@ if __name__ == '__main__':
     settings = OfflineSettings(is_training=args.is_training, is_testing=args.is_testing, start_epoch=0, n_epochs=240,
                                avg_grad_every_n=10, snapshot_every_n=40, is_testing_while_training=False,
                                test_every_n=5, batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
-                               is_visualizing_results=False, is_loading_vgg_caffe=False, variant=args.variant)
+                               is_visualizing_results=False, is_loading_vgg_caffe=False, variant=args.variant,
+                               eval_speeds=args.eval_speeds)
 
     provider_class = provider_mapping[('offline', args.network)]
     if args.network == 'resnet34':
