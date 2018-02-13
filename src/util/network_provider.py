@@ -18,12 +18,12 @@ log = get_logger(__file__)
 class NetworkProvider(ABC):
 
     def __init__(self, name: str, save_dir: Path, network_type: type, settings: Settings,
-                 variant: Optional[int] = None) -> None:
+                 variant_offline: Optional[int] = None) -> None:
         self.name = name
         self.save_dir = save_dir
         self.network_type = network_type
         self._settings = settings
-        self.variant = variant
+        self.variant_offline = variant_offline
         self.network = None
 
     def init_network(self, **kwargs) -> object:
@@ -34,8 +34,8 @@ class NetworkProvider(ABC):
 
     def _get_file_path(self, epoch: int, sequence: Optional[str] = None) -> Path:
         model_name = self.name
-        if self.variant is not None:
-            model_name += '_' + str(self.variant)
+        if self.variant_offline is not None:
+            model_name += '_' + str(self.variant_offline)
         if sequence is not None:
             model_name += '_' + sequence
 
