@@ -23,7 +23,7 @@ if P.is_custom_opencv():
 log = get_logger(__file__)
 
 
-def train_and_test(net_provider: NetworkProvider, settings: OfflineSettings, variant: Optional[int] = None) -> None:
+def train_and_test(net_provider: NetworkProvider, settings: OfflineSettings) -> None:
     io_helper.write_settings(save_dir_models, net_provider.name, settings)
     if settings.is_training:
         net_provider.load_network_train()
