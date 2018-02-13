@@ -40,10 +40,10 @@ def train_and_test(net_provider: NetworkProvider, settings: OfflineSettings, var
         net_provider.load_network_test()
         data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test)
 
-        if variant is None:
+        if settings.variant_offline is None:
             save_dir = save_dir_results / net_provider.name / 'offline'
         else:
-            save_dir = save_dir_results / net_provider.name / str(variant) / 'offline'
+            save_dir = save_dir_results / net_provider.name / str(settings.variant_offline) / 'offline'
 
         experiment_helper.test(net_provider, data_loader, save_dir, settings.is_visualizing_results,
                                settings.eval_speeds)
@@ -154,13 +154,14 @@ if __name__ == '__main__':
     settings = OfflineSettings(is_training=args.is_training, is_testing=args.is_testing, start_epoch=0, n_epochs=240,
                                avg_grad_every_n=10, snapshot_every_n=40, is_testing_while_training=False,
                                test_every_n=5, batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
-                               is_visualizing_results=False, is_loading_vgg_caffe=False, variant=args.variant,
-                               eval_speeds=args.eval_speeds)
+                               is_visualizing_results=False, is_loading_vgg_caffe=False,
+                               variant_offline=args.variant_offline, eval_speeds=args.eval_speeds)
 
     provider_class = provider_mapping[('offline', args.network)]
     if args.network == 'resnet34':
-        net_provider = provider_class(args.network, save_dir_models, settings, variant=args.variant, version=34)
+        net_provider = provider_class(args.network, save_dir_models, settings, variant_offline=args.variant_offline,
+                                      version=34)
     else:
-        net_provider = provider_class(args.network, save_dir_models, settings, variant=args.variant)
+        net_provider = provider_class(args.network, save_dir_models, settings, variant_offline=args.variant_offline)
 
-    train_and_test(net_provider, settings, variant=args.variant)
+    train_and_test(net_provider, settings)
