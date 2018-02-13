@@ -41,7 +41,9 @@ def _get_timestamp() -> str:
     return datetime.datetime.now().replace(microsecond=0).isoformat()
 
 
-def write_settings(save_dir: Path, name: str, settings: Settings) -> None:
+def write_settings(save_dir: Path, name: str, settings: Settings, variant_offline: Optional[int] = None) -> None:
+    if variant_offline is not None:
+        name += '_' + str(variant_offline)
     file_name = '{0}_settings_{1}.yml'.format(name, _get_timestamp())
     file_path = save_dir / file_name
     with open(str(file_path), 'w') as f:
