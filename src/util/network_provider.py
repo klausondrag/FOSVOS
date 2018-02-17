@@ -151,10 +151,10 @@ class VGGOnlineProvider(NetworkProvider):
 
 class ResNetOfflineProvider(NetworkProvider):
 
-    def __init__(self, name: str, save_dir: Path, settings: OfflineSettings, variant: Optional[int] = None,
+    def __init__(self, name: str, save_dir: Path, settings: OfflineSettings, variant_offline: Optional[int] = None,
                  version: int = 18):
         super(ResNetOfflineProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
-                                                    network_type=OSVOS_RESNET, variant=variant)
+                                                    network_type=OSVOS_RESNET, variant_offline=variant_offline)
         self.version = version
 
     def load_network_train(self) -> None:
@@ -193,13 +193,13 @@ class ResNetOfflineProvider(NetworkProvider):
             {'params': net.layer_fuse.bias, 'lr': 2 * learning_rate / 100, 'initial_lr': 2 * learning_rate / 100},
         ], lr=learning_rate, momentum=momentum)
 
-        if self.variant is None:
+        if self.variant_offline is None:
             optimizer = default_var
         else:
-            from .variants import variants
-            v = variants[self.variant][1]
+            v = self.variant_offline
             params = [net.layer_stages.parameters, net.side_prep.parameters, net.score_dsn.parameters,
                       net.upscale_side_prep.parameters, net.upscale_score_dsn.parameters, net.layer_fuse.parameters]
+            log.info('Offline variant: {0}'.format(v))
             if v == 0:
                 optimizer = default_var
             elif v == 1:
