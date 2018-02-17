@@ -213,10 +213,10 @@ class ResNetOfflineProvider(NetworkProvider):
 
 class ResNetOnlineProvider(NetworkProvider):
 
-    def __init__(self, name: str, save_dir: Path, settings: OnlineSettings, variant: Optional[int] = None,
+    def __init__(self, name: str, save_dir: Path, settings: OnlineSettings, variant_offline: Optional[int] = None,
                  version: int = 18):
         super(ResNetOnlineProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
-                                                   network_type=OSVOS_RESNET, variant=variant)
+                                                   network_type=OSVOS_RESNET, variant_offline=variant_offline)
         self.version = version
 
     def load_network_train(self) -> None:
