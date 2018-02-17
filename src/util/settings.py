@@ -15,7 +15,7 @@ class Settings:
     batch_size_test = attr.ib()
     is_visualizing_network = attr.ib()
     is_visualizing_results = attr.ib()
-    variant = attr.ib()
+    variant_offline = attr.ib()
     eval_speeds = attr.ib()
 
 
