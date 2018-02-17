@@ -131,9 +131,10 @@ if __name__ == '__main__':
 
     provider_class = provider_mapping[('online', args.network)]
     if args.network == 'resnet34':
-        net_provider = provider_class(args.network, save_dir_models, settings, version=34)
+        net_provider = provider_class(args.network, save_dir_models, settings, variant_offline=args.variant_offline,
+                                      version=34)
     else:
-        net_provider = provider_class(args.network, save_dir_models, settings)
+        net_provider = provider_class(args.network, save_dir_models, settings, variant_offline=args.variant_offline)
 
     if args.object == 'all':
         sequences_val = ['blackswan', 'bmx-trees', 'breakdance', 'camel', 'car-roundabout', 'car-shadow', 'cows',
