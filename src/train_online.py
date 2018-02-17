@@ -21,7 +21,7 @@ log = get_logger(__file__)
 
 
 def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: OnlineSettings) -> None:
-    io_helper.write_settings(save_dir_models, net_provider.name, settings)
+    io_helper.write_settings(save_dir_models, net_provider.name, settings, variant_offline=settings.variant_offline)
     if settings.is_training:
         net_provider.load_network_train()
         data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_train, seq_name)
@@ -34,7 +34,11 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Onlin
     if settings.is_testing:
         net_provider.load_network_test(sequence=seq_name)
         data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_test, seq_name)
-        save_dir = save_dir_results / net_provider.name / 'online'
+
+        if settings.variant_offline is None:
+            save_dir = save_dir_results / net_provider.name / 'online'
+        else:
+            save_dir = (save_dir_results / net_provider.name / str(settings.variant_offline) / "online")
 
         experiment_helper.test(net_provider, data_loader, save_dir, settings.is_visualizing_results,
                                settings.eval_speeds, seq_name=seq_name)
