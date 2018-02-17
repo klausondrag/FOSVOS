@@ -27,3 +27,4 @@ class OfflineSettings(Settings):
 @attr.s
 class OnlineSettings(Settings):
     offline_epoch = attr.ib()
+    variant_online = attr.ib()
