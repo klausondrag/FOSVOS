@@ -39,7 +39,8 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Onlin
         if settings.variant_offline is None:
             save_dir = save_dir_results / net_provider.name / 'online'
         else:
-            save_dir = (save_dir_results / net_provider.name / str(settings.variant_offline) / "online")
+            save_dir = (save_dir_results / net_provider.name / str(settings.variant_offline) /
+                        str(settings.variant_online))
 
         experiment_helper.test(net_provider, data_loader, save_dir, settings.is_visualizing_results,
                                settings.eval_speeds, seq_name=seq_name)
