@@ -21,7 +21,8 @@ log = get_logger(__file__)
 
 
 def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: OnlineSettings) -> None:
-    io_helper.write_settings(save_dir_models, net_provider.name, settings, variant_offline=settings.variant_offline)
+    io_helper.write_settings(save_dir_models, net_provider.name, settings, variant_offline=settings.variant_offline,
+                             variant_online=settings.variant_online)
     if settings.is_training:
         net_provider.load_network_train()
         data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_train, seq_name)
