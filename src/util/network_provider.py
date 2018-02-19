@@ -18,12 +18,13 @@ log = get_logger(__file__)
 class NetworkProvider(ABC):
 
     def __init__(self, name: str, save_dir: Path, network_type: type, settings: Settings,
-                 variant_offline: Optional[int] = None) -> None:
+                 variant_offline: Optional[int] = None, variant_online: Optional[int] = None) -> None:
         self.name = name
         self.save_dir = save_dir
         self.network_type = network_type
         self._settings = settings
         self.variant_offline = variant_offline
+        self.variant_online = variant_online
         self.network = None
 
     def init_network(self, **kwargs) -> object:
