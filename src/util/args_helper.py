@@ -28,6 +28,7 @@ def parse_args(is_online: bool) -> argparse.Namespace:
         parser.add_argument('-o', '--object', default='all', type=str, help='The object to train on')
         parser.add_argument('-b', '--batch', default=None, type=int, help='The batch of objects to train')
         parser.add_argument('-bs', '--batch-size', default=None, type=int, help='The batch size of objects to train')
+        parser.add_argument('--variant-online', default=None, type=int, help='version to try')
 
     args = parser.parse_args()
 
