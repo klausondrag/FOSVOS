@@ -127,7 +127,8 @@ if __name__ == '__main__':
                               avg_grad_every_n=5, snapshot_every_n=10000, is_testing_while_training=False,
                               test_every_n=5, batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
                               is_visualizing_results=False, offline_epoch=240,
-                              variant_offline=args.variant_offline, eval_speeds=args.eval_speeds)
+                              variant_offline=args.variant_offline, variant_online=args.variant_online,
+                              eval_speeds=args.eval_speeds)
 
     provider_class = provider_mapping[('online', args.network)]
     if args.network == 'resnet34':
