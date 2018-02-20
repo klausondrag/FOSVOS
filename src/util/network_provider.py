@@ -288,6 +288,8 @@ class ResNetOnlineProvider(NetworkProvider):
                 optimizer = optim.SGD(params)
             elif v == 3:
                 optimizer = optim.Adam(params)
+            else:
+                raise ValueError('invalid variant')
         return optimizer
 
 
