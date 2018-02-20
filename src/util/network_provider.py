@@ -258,11 +258,10 @@ class ResNetOnlineProvider(NetworkProvider):
             {'params': net.layer_fuse.bias, 'lr': 2 * learning_rate / 100, 'initial_lr': 2 * learning_rate / 100},
         ], lr=learning_rate, momentum=momentum)
 
-        if self.variant is None:
+        if self.variant_online is None:
             optimizer = default_var
         else:
-            from .variants import variants
-            v = variants[self.variant][1]
+            v = self.variant_online
             params = [net.layer_stages.parameters, net.side_prep.parameters, net.score_dsn.parameters,
                       net.upscale_side_prep.parameters, net.upscale_score_dsn.parameters, net.layer_fuse.parameters]
             if v == 0:
