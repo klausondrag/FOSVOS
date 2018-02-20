@@ -38,6 +38,8 @@ class NetworkProvider(ABC):
         if self.variant_offline is not None:
             model_name += '_' + str(self.variant_offline)
         if sequence is not None:
+            if self.variant_online is not None:
+                model_name += '_' + str(self.variant_online)
             model_name += '_' + sequence
 
         file_path = self.save_dir / '{0}_epoch-{1}.pth'.format(model_name, str(epoch))
