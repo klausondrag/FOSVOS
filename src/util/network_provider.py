@@ -264,6 +264,7 @@ class ResNetOnlineProvider(NetworkProvider):
             v = self.variant_online
             params = [net.layer_stages.parameters, net.side_prep.parameters, net.score_dsn.parameters,
                       net.upscale_side_prep.parameters, net.upscale_score_dsn.parameters, net.layer_fuse.parameters]
+            log.info('Online variant: {0}'.format(v))
             if v == 0:
                 optimizer = default_var
             elif v == 1:
