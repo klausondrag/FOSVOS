@@ -122,9 +122,11 @@ class VGGOfflineProvider(NetworkProvider):
 
 class VGGOnlineProvider(NetworkProvider):
 
-    def __init__(self, name: str, save_dir: Path, settings: OnlineSettings, variant_offline: Optional[int] = None):
+    def __init__(self, name: str, save_dir: Path, settings: OnlineSettings, variant_offline: Optional[int] = None,
+                 variant_online: Optional[int] = None):
         super(VGGOnlineProvider, self).__init__(name=name, save_dir=save_dir, settings=settings,
-                                                network_type=OSVOS_VGG, variant_offline=variant_offline)
+                                                network_type=OSVOS_VGG, variant_offline=variant_offline,
+                                                variant_online=variant_online)
 
     def load_network_train(self) -> None:
         self.init_network(pretrained=0)
