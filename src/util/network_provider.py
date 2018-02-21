@@ -386,6 +386,42 @@ class ResNetOnlineProvider(NetworkProvider):
                 optimizer = optim.SGD(params)
             elif v == 3:
                 optimizer = optim.Adam(params)
+            elif v == 4:
+                optimizer = optim.Adam([
+                    {'params': [pr[1] for pr in net.layer_stages.named_parameters() if 'weight' in pr[0]],
+                     'weight_decay': weight_decay},
+                    {'params': [pr[1] for pr in net.layer_stages.named_parameters() if 'bias' in pr[0]],
+                     'lr': learning_rate * 2},
+                    {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'weight' in pr[0]],
+                     'weight_decay': weight_decay},
+                    {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'bias' in pr[0]],
+                     'lr': learning_rate * 2},
+                    {'params': [pr[1] for pr in net.upscale_side_prep.named_parameters() if 'weight' in pr[0]],
+                     'lr': 0},
+                    {'params': [pr[1] for pr in net.upscale_score_dsn.named_parameters() if 'weight' in pr[0]],
+                     'lr': 0},
+                    {'params': net.layer_fuse.weight, 'lr': learning_rate / 100, 'weight_decay': weight_decay},
+                    {'params': net.layer_fuse.bias, 'lr': 2 * learning_rate / 100},
+                ], lr=learning_rate)
+            elif v == 5:
+                optimizer = optim.Adadelta(params)
+            elif v == 6:
+                optimizer = optim.Adadelta([
+                    {'params': [pr[1] for pr in net.layer_stages.named_parameters() if 'weight' in pr[0]],
+                     'weight_decay': weight_decay},
+                    {'params': [pr[1] for pr in net.layer_stages.named_parameters() if 'bias' in pr[0]],
+                     'lr': learning_rate * 2},
+                    {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'weight' in pr[0]],
+                     'weight_decay': weight_decay},
+                    {'params': [pr[1] for pr in net.side_prep.named_parameters() if 'bias' in pr[0]],
+                     'lr': learning_rate * 2},
+                    {'params': [pr[1] for pr in net.upscale_side_prep.named_parameters() if 'weight' in pr[0]],
+                     'lr': 0},
+                    {'params': [pr[1] for pr in net.upscale_score_dsn.named_parameters() if 'weight' in pr[0]],
+                     'lr': 0},
+                    {'params': net.layer_fuse.weight, 'lr': learning_rate / 100, 'weight_decay': weight_decay},
+                    {'params': net.layer_fuse.bias, 'lr': 2 * learning_rate / 100},
+                ], lr=learning_rate)
             else:
                 raise ValueError('invalid variant')
         return optimizer
