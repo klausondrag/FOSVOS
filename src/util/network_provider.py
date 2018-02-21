@@ -458,6 +458,18 @@ class ResNetOnlineProvider(NetworkProvider):
                 optimizer = optim.Adam(net.parameters(), lr=1e-7, weight_decay=0.0002)
             elif v == 15:
                 optimizer = optim.Adam(net.parameters(), lr=1e-8, weight_decay=0.0002)
+            elif v == 16:
+                optimizer = optim.SGD(net.parameters(), lr=1e-3, weight_decay=0.0002, momentum=0.9)
+            elif v == 17:
+                optimizer = optim.SGD(net.parameters(), lr=1e-4, weight_decay=0.0002, momentum=0.9)
+            elif v == 18:
+                optimizer = optim.SGD(net.parameters(), lr=1e-5, weight_decay=0.0002, momentum=0.9)
+            elif v == 19:
+                optimizer = optim.SGD(net.parameters(), lr=1e-6, weight_decay=0.0002, momentum=0.9)
+            elif v == 20:
+                optimizer = optim.SGD(net.parameters(), lr=1e-7, weight_decay=0.0002, momentum=0.9)
+            elif v == 21:
+                optimizer = optim.SGD(net.parameters(), lr=1e-8, weight_decay=0.0002, momentum=0.9)
             else:
                 raise ValueError('invalid variant')
         return optimizer
