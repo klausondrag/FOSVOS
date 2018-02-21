@@ -333,6 +333,12 @@ class ResNetOfflineProvider(NetworkProvider):
                 optimizer = optim.SGD(net.parameters(), lr=1e-7, weight_decay=0.0002, momentum=0.9)
             elif v == 21:
                 optimizer = optim.SGD(net.parameters(), lr=1e-8, weight_decay=0.0002, momentum=0.9)
+            elif v == 22:
+                optimizer = optim.Adam(net.parameters(), lr=1, weight_decay=0.0002)
+            elif v == 23:
+                optimizer = optim.Adam(net.parameters(), lr=1e-1, weight_decay=0.0002)
+            elif v == 24:
+                optimizer = optim.Adam(net.parameters(), lr=1e-2, weight_decay=0.0002)
             else:
                 raise ValueError('invalid variant')
         return optimizer
