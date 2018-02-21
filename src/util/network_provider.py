@@ -434,6 +434,18 @@ class ResNetOnlineProvider(NetworkProvider):
                     {'params': net.layer_fuse.weight, 'lr': learning_rate / 100, 'weight_decay': weight_decay},
                     {'params': net.layer_fuse.bias, 'lr': 2 * learning_rate / 100},
                 ], lr=learning_rate)
+            elif v == 10:
+                optimizer = optim.Adam(net.parameters(), lr=1e-3, weight_decay=0.0002)
+            elif v == 11:
+                optimizer = optim.Adam(net.parameters(), lr=1e-4, weight_decay=0.0002)
+            elif v == 12:
+                optimizer = optim.Adam(net.parameters(), lr=1e-5, weight_decay=0.0002)
+            elif v == 13:
+                optimizer = optim.Adam(net.parameters(), lr=1e-6, weight_decay=0.0002)
+            elif v == 14:
+                optimizer = optim.Adam(net.parameters(), lr=1e-7, weight_decay=0.0002)
+            elif v == 15:
+                optimizer = optim.Adam(net.parameters(), lr=1e-8, weight_decay=0.0002)
             else:
                 raise ValueError('invalid variant')
         return optimizer
