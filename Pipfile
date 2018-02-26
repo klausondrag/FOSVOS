@@ -21,6 +21,7 @@ tensorboardx = "*"
 graphviz = "*"
 attrs = "*"
 colorlog = "*"
+jupyter = "*"
 
 
 [requires]
