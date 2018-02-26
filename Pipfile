@@ -24,6 +24,7 @@ colorlog = "*"
 jupyter = "*"
 pyyaml = "*"
 plotly = "*"
+imageio = "*"
 
 
 [requires]
