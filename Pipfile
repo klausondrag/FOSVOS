@@ -22,6 +22,8 @@ graphviz = "*"
 attrs = "*"
 colorlog = "*"
 jupyter = "*"
+pyyaml = "*"
+plotly = "*"
 
 
 [requires]
