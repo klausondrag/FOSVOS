@@ -1,6 +1,5 @@
-from typing import List, Tuple, Union, Callable
+from typing import Optional
 
-import torch
 import torch.nn as nn
 
 from util.logger import get_logger
@@ -16,8 +15,12 @@ class NetTrim(nn.Module):
         TensorFlow implementation provided by the authors at https://github.com/DNNToolBox/Net-Trim-v1
     """
 
-    def __init__(self, rho: float, alpha: float, lmbda: float):
-        pass
+    def __init__(self, rho: Optional[float] = 5, alpha: Optional[float] = 1.8, lmbda: Optional[float] = 4) -> None:
+        super(NetTrim, self).__init__()
+
+        self.rho = rho
+        self.alpha = alpha
+        self.lmbda = lmbda
 
     def forward(self, x):
         pass
