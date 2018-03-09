@@ -36,7 +36,7 @@ class NetTrim(nn.Module):
                                                                            torch.FloatTensor, torch.FloatTensor]:
         # first iteration to compute x with initial values of 0 for other variables
         # compute x
-        _1 = self._c - u + z  # c-u-z
+        _1 = self._c - u + z  # c-u-z ??? (original comment - z, original code + z
         _2 = self._rho * torch.t(self._A) @ _1  # rho*A'*(c-u-z)
         _3 = _2 - self._q  # rho*A'*(c-u-z)-q
         _4 = torch.tril(self._L, _3)
