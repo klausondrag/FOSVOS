@@ -30,7 +30,7 @@ class NetTrim(nn.Module):
         self._alpha = alpha
         self._n_iterations = n_iterations
 
-        self._relu = nn.ReLU(inplace=True)
+        self._relu = nn.ReLU(inplace=False)
 
     def forward(self, z: torch.FloatTensor, u: torch.FloatTensor) -> Tuple[torch.FloatTensor, torch.FloatTensor,
                                                                            torch.FloatTensor, torch.FloatTensor]:
