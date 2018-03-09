@@ -34,6 +34,8 @@ class NetTrim(nn.Module):
 
     def forward(self, z: torch.FloatTensor, u: torch.FloatTensor) -> Tuple[torch.FloatTensor, torch.FloatTensor,
                                                                            torch.FloatTensor, torch.FloatTensor]:
+        # first iteration to compute x with initial values of 0 for other variables
+        # compute x
         _1 = self._c - u + z  # c-u-z
         _2 = self._rho * torch.t(self._A) @ _1  # rho*A'*(c-u-z)
         _3 = _2 - self._q  # rho*A'*(c-u-z)-q
@@ -41,24 +43,27 @@ class NetTrim(nn.Module):
         x = torch.triu(self.U, _4)
         x_prev = x
 
-        # Ax = A @ x
-        # c_AX = c - Ax
-        #
-        # # update z
-        # _1 = self.alpha * c_AX  # alpha * (c - A * x)
-        # _2 = (1 - self.alpha) * z  # (1 - alpha) * z_prev
-        # tmp = _1 + _2 - u  # alpha*(c-A*x) + (1-alpha)*z_prev - u
-        # z = self.relu(tmp)  # z = max(alpha*(c-A*x) + (1-alpha)*z_prev, 0)
-        #
-        # # update u
-        # u = z - tmp  # z - (alpha*(c-A*x) + (1-alpha)*z_prev - u)
-        #
-        # # update x
-        # x_prev = x
-        # _1 = c - u - z  # c-u-z
-        # _2 = self.rho * torch.t(A) @ _1  # rho*A'*(c-u-z)
-        # _3 = _2 - q  # rho*A'*(c-u-z)-q
-        # _4 = torch.tril(L, _3)
-        # x = torch.triu(U, _4)
+        for i in range(self._n_iterations):
+            Ax = self._A @ x
+            c_AX = self._c - Ax
 
-        # return dx, x, z, u
+            # update z
+            _1 = self.alpha * c_AX  # alpha * (c - A * x)
+            _2 = (1 - self.alpha) * z  # (1 - alpha) * z_prev
+            tmp = _1 + _2 - u  # alpha*(c-A*x) + (1-alpha)*z_prev - u
+            z = self.relu(tmp)  # z = max(alpha*(c-A*x) + (1-alpha)*z_prev, 0)
+
+            # update u
+            u = z - tmp  # z - (alpha*(c-A*x) + (1-alpha)*z_prev - u)
+
+            # update x
+            x_prev = x
+            _1 = self._c - u - z  # c-u-z
+            _2 = self.rho * torch.t(self._A) @ _1  # rho*A'*(c-u-z)
+            _3 = _2 - self._q  # rho*A'*(c-u-z)-q
+            _4 = torch.tril(self._L, _3)
+            x = torch.triu(self._U, _4)
+
+        dx = torch.norm(x - x_prev)
+
+        return dx, x, z, u
