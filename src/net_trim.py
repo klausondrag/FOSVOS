@@ -1,9 +1,13 @@
 import timeit
+from pathlib import Path
 
 import numpy as np
 import torch
 
 from networks.trimmer import Trimmer
+from util.logger import get_logger
+
+log = get_logger(__file__)
 
 
 def _trim_layer(X, y, rho, alpha, lmbda, n_iterations=5, n_inner_iterations=100):
@@ -85,3 +89,17 @@ def trim_network(layers):
     print('number of non-zero values in the original weight matrix = ', np.count_nonzero(original_W == 0))
     print('number of non-zero values in the refined weight matrix = ', np.count_nonzero(refined_W == 0))
     print('total elapsed time = ', total_time)
+
+
+def main():
+    save_dir = Path('models')
+    file_path = save_dir / 'resnet18_11_11_blackswan_epoch-9999.pth'
+    log.info("Loading weights from: {0}".format(str(file_path)))
+    if not file_path.exists():
+        log.error('Model {0} does not exist!'.format(str(file_path)))
+    state = torch.load(str(file_path), map_location=lambda storage, loc: storage)
+    log.info('done')
+
+
+if __name__ == '__main__':
+    main()
