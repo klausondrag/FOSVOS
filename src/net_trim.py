@@ -1,10 +1,12 @@
+import timeit
+
 import numpy as np
 import torch
 
 from networks.trimmer import Trimmer
 
 
-def _trim_layer(X, y, rho, alpha, lmbda, num_iterations=100):
+def _trim_layer(X, y, rho, alpha, lmbda, n_iterations=5, n_inner_iterations=100):
     lmbda = 1 / lmbda
     y = np.reshape(y, newshape=(1, -1))  # make sure y is a row vector
     N = X.shape[0]
@@ -42,9 +44,9 @@ def _trim_layer(X, y, rho, alpha, lmbda, num_iterations=100):
     q = torch.from_numpy(q)
     c = torch.from_numpy(c)
 
-    trimmer = Trimmer(L=L, U=U, A=A, q=q, c=c, rho=rho, alpha=alpha)
+    trimmer = Trimmer(L=L, U=U, A=A, q=q, c=c, rho=rho, alpha=alpha, n_iterations=n_inner_iterations)
     cnt = 0
-    for cnt in range(num_iterations):
+    for cnt in range(n_iterations):
         dx, x, z, u = trimmer.forward(z=z, u=u)
         if np.linalg.norm(dx) < 1e-3:
             break
@@ -54,3 +56,32 @@ def _trim_layer(X, y, rho, alpha, lmbda, num_iterations=100):
     w = w.squeeze()
 
     return w, cnt
+
+
+def trim_network(layers):
+    X = layers['X0']
+    Y = layers['X1']
+    X = X.transpose()
+    Y = Y.transpose()
+
+    # append 1 to the last row of X for model y = ReLU(W'x+b)
+    X = np.append(X, np.ones(shape=(1, X.shape[1])), axis=0)
+
+    original_W = layers['W0']
+    original_b = layers['b0']
+    refined_W = original_W.copy()
+    refined_b = original_b.copy()
+    total_time = 0
+    for i in range(Y.shape[0]):
+        start = timeit.default_timer()
+        w_tf, num_iter_tf = _trim_layer(X=X, y=Y[i, :], rho=5, alpha=1.8, lmbda=4)
+        elapsed_time = timeit.default_timer() - start
+        print('execution time:', elapsed_time)
+        refined_W[:, i] = w_tf[:-1]
+        refined_b[0, i] = w_tf[-1]
+
+        total_time += elapsed_time
+
+    print('number of non-zero values in the original weight matrix = ', np.count_nonzero(original_W == 0))
+    print('number of non-zero values in the refined weight matrix = ', np.count_nonzero(refined_W == 0))
+    print('total elapsed time = ', total_time)

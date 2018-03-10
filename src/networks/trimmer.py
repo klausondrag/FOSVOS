@@ -9,7 +9,7 @@ from util.logger import get_logger
 log = get_logger(__file__)
 
 
-class NetTrim(nn.Module):
+class Trimmer(nn.Module):
     """
         Original paper by A. Aghasi, A. Abdi, N. Nguyen, and J. Romberg, "Net-Trim: Convex Pruning of Deep Neural
         Networks with Performance Guarantee," NIPSs 2017
@@ -19,7 +19,7 @@ class NetTrim(nn.Module):
     def __init__(self, L: torch.FloatTensor, U: torch.FloatTensor, A: torch.FloatTensor, q: torch.FloatTensor,
                  c: torch.FloatTensor, rho: Optional[float] = 5, alpha: Optional[float] = 1.8,
                  n_iterations: Optional[int] = 10) -> None:
-        super(NetTrim, self).__init__()
+        super(Trimmer, self).__init__()
 
         self._L = L
         self._U = U
