@@ -3,9 +3,14 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from torch.autograd import Variable
 
 from networks.trimmer import Trimmer
+from util import io_helper, gpu_handler
 from util.logger import get_logger
+from util.network_provider import ResNetOnlineProvider
+from util.settings import OnlineSettings
+from config.mypath import Path as P
 
 log = get_logger(__file__)
 
@@ -63,16 +68,16 @@ def _trim_layer(X, y, rho, alpha, lmbda, n_iterations=5, n_inner_iterations=100)
 
 
 def trim_network(layers):
-    X = layers['X0']
-    Y = layers['X1']
+    X = layers['']
+    Y = layers['layer_base.1.weight']
     X = X.transpose()
     Y = Y.transpose()
 
     # append 1 to the last row of X for model y = ReLU(W'x+b)
     X = np.append(X, np.ones(shape=(1, X.shape[1])), axis=0)
 
-    original_W = layers['W0']
-    original_b = layers['b0']
+    original_W = layers['layer_base.0.weight']
+    original_b = layers['layer_base.0.weight']
     refined_W = original_W.copy()
     refined_b = original_b.copy()
     total_time = 0
@@ -92,12 +97,39 @@ def trim_network(layers):
 
 
 def main():
-    save_dir = Path('models')
-    file_path = save_dir / 'resnet18_11_11_blackswan_epoch-9999.pth'
-    log.info("Loading weights from: {0}".format(str(file_path)))
-    if not file_path.exists():
-        log.error('Model {0} does not exist!'.format(str(file_path)))
-    state = torch.load(str(file_path), map_location=lambda storage, loc: storage)
+    sequence_name = 'blackswan'
+    variant_offline = 11
+    variant_online = 11
+    resnet_version = 18
+
+    gpu_handler.select_gpu()
+
+    db_root_dir = P.db_root_dir()
+
+    save_dir_models = Path('models')
+    save_dir_models.mkdir(parents=True, exist_ok=True)
+    save_dir_results = Path('results')
+    save_dir_results.mkdir(parents=True, exist_ok=True)
+
+    settings = OnlineSettings(is_training=False, is_testing=True, start_epoch=0, n_epochs=10000,
+                              avg_grad_every_n=5, snapshot_every_n=10000, is_testing_while_training=False,
+                              test_every_n=5, batch_size_train=1, batch_size_test=1, is_visualizing_network=False,
+                              is_visualizing_results=False, offline_epoch=240,
+                              variant_offline=variant_offline, variant_online=variant_online, eval_speeds=False)
+
+    net_provider = ResNetOnlineProvider(name='resnet{0}'.format(resnet_version), save_dir=save_dir_models,
+                                        settings=settings, variant_offline=variant_offline,
+                                        variant_online=variant_online, version=resnet_version)
+    net_provider.load_network_test(sequence=sequence_name)
+    net = net_provider.network
+
+    data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_train, sequence_name)
+    for minibatch_index, minibatch in enumerate(data_loader):
+        inputs, gts = minibatch['image'], minibatch['gt']
+        inputs, gts = Variable(inputs), Variable(gts)
+        inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
+        net.forward(inputs)
+        break
     log.info('done')
 
 
