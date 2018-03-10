@@ -29,7 +29,7 @@ def select_gpu_by_hostname(hostname: Optional[str] = None) -> None:
     select_gpu_by_id(gpu_id)
 
 
-def select_gpu(gpu_id: Optional[int]) -> None:
+def select_gpu(gpu_id: Optional[int] = None) -> None:
     if gpu_id is None:
         select_gpu_by_hostname()
     else:
