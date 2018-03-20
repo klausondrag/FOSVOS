@@ -2,6 +2,7 @@ import timeit
 from pathlib import Path
 
 import numpy as np
+from scipy.linalg import circulant
 import torch
 from torch.autograd import Variable
 
@@ -23,8 +24,10 @@ def _trim_layer(X, y, rho, alpha, lmbda, n_iterations=5, n_inner_iterations=100)
     if y.shape[1] != X.shape[1]:
         raise ValueError("Dimensions of input data, X & y, are not consistent.")
 
-    Omega = np.where(y > 1e-6)[1]
-    Omega_c = np.where(y <= 1e-6)[1]
+    # Omega = np.where(y > 1e-6)[1]
+    Omega = list(range(y.shape[1]))
+    # Omega_c = np.where(y <= 1e-6)[1]
+    Omega_c = []
 
     Q = lmbda * np.matmul(X[:, Omega], np.transpose(X[:, Omega]))
     q = -lmbda * np.matmul(X, np.transpose(y))
@@ -53,6 +56,10 @@ def _trim_layer(X, y, rho, alpha, lmbda, n_iterations=5, n_inner_iterations=100)
     q = torch.from_numpy(q)
     c = torch.from_numpy(c)
 
+    z = torch.from_numpy(z)
+    x = torch.from_numpy(x)
+    u = torch.from_numpy(u)
+
     trimmer = Trimmer(L=L, U=U, A=A, q=q, c=c, rho=rho, alpha=alpha, n_iterations=n_inner_iterations)
     cnt = 0
     for cnt in range(n_iterations):
@@ -67,27 +74,29 @@ def _trim_layer(X, y, rho, alpha, lmbda, n_iterations=5, n_inner_iterations=100)
     return w, cnt
 
 
-def trim_network(layers):
-    X = layers['']
-    Y = layers['layer_base.1.weight']
-    X = X.transpose()
-    Y = Y.transpose()
+def trim_network(X, Y, W):
+    # X = X0
+    # Y = X1
+    # X = X.transpose()
+    # Y = Y.transpose()
 
     # append 1 to the last row of X for model y = ReLU(W'x+b)
-    X = np.append(X, np.ones(shape=(1, X.shape[1])), axis=0)
+    # X = np.append(X, np.ones(shape=(1, X.shape[1])), axis=0)
 
-    original_W = layers['layer_base.0.weight']
-    original_b = layers['layer_base.0.weight']
+    # original_W = layers['layer_stages.0.0.conv1.weight']
+    original_W = W
+    # original_b = layers['layer_stages.0.0.conv1.bias']
     refined_W = original_W.copy()
-    refined_b = original_b.copy()
+    # refined_b = original_b.copy()
     total_time = 0
     for i in range(Y.shape[0]):
         start = timeit.default_timer()
         w_tf, num_iter_tf = _trim_layer(X=X, y=Y[i, :], rho=5, alpha=1.8, lmbda=4)
         elapsed_time = timeit.default_timer() - start
         print('execution time:', elapsed_time)
-        refined_W[:, i] = w_tf[:-1]
-        refined_b[0, i] = w_tf[-1]
+        # refined_W[:, i] = w_tf[:-1]
+        refined_W[:, i] = w_tf
+        # refined_b[0, i] = w_tf[-1]
 
         total_time += elapsed_time
 
@@ -96,13 +105,48 @@ def trim_network(layers):
     print('total elapsed time = ', total_time)
 
 
+def transform(x, y, w):
+    x = np.pad(x, 1, 'constant')
+    n_rows_in_x, n_columns_in_x = x.shape
+    x = x.reshape((-1))
+    n_elements_in_x = len(x)
+    n_rows_in_w, n_columns_in_w = w.shape
+
+    f = np.zeros((n_rows_in_x, n_columns_in_x))
+    f[:n_rows_in_w, :n_columns_in_w] = w
+    f = f.reshape(-1)
+
+    w_ = circulant(f).T
+
+    stride = 1
+    n_rows_in_output = int(np.floor((n_rows_in_x - n_rows_in_w) / stride + 1))
+    n_columns_in_output = int(np.floor((n_columns_in_x - n_columns_in_w) / stride + 1))
+
+    indices = np.zeros(w_.shape[0], dtype=bool)
+    for index_row, index_start in enumerate(range(0, indices.shape[0], n_columns_in_x)):
+        if index_row >= n_rows_in_output:
+            break
+        index_end = index_start + n_columns_in_output
+        indices[index_start:index_end] = [True] * n_columns_in_output
+
+    if n_rows_in_output * n_columns_in_output != np.sum(indices):
+        raise Exception('Sum of indices should match the values in output')
+
+    w_result = w_[indices, :]
+
+    x = x.reshape((-1, 1))
+    y = y.reshape((-1, 1))
+
+    return x, y, w_result
+
+
 def main():
     sequence_name = 'blackswan'
     variant_offline = 11
     variant_online = 11
     resnet_version = 18
 
-    gpu_handler.select_gpu()
+    gpu_handler.select_gpu(1)
 
     db_root_dir = P.db_root_dir()
 
@@ -123,13 +167,34 @@ def main():
     net_provider.load_network_test(sequence=sequence_name)
     net = net_provider.network
 
-    data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_train, sequence_name)
+    data_loader = io_helper.get_data_loader_test(db_root_dir, settings.batch_size_train, sequence_name)
     for minibatch_index, minibatch in enumerate(data_loader):
         inputs, gts = minibatch['image'], minibatch['gt']
         inputs, gts = Variable(inputs), Variable(gts)
         inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
-        net.forward(inputs)
+        X, Y = net.forward(inputs)
         break
+
+    W = net.state_dict()['side_prep.0.weight']
+
+    def to_np(x):
+        return x.cpu().data.numpy()
+
+    X = to_np(X)
+    Y = to_np(Y)
+    W = W.cpu().numpy()
+
+    def get_first(x):
+        return x[0, 0, :, :]
+
+    X = get_first(X)
+    Y = get_first(Y)
+    W = get_first(W)
+
+    X, Y, W = transform(X, Y, W)
+
+    trim_network(X, Y, W)
+
     log.info('done')
 
 
