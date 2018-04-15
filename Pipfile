@@ -28,6 +28,7 @@ jupyter = "*"
 pyyaml = "*"
 plotly = "*"
 moviepy = "*"
+tqdm = "*"
 
 
 [requires]
