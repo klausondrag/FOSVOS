@@ -47,7 +47,6 @@ class OSVOS_RESNET(nn.Module):
                                                               self.score_dsn, self.upscale_score_dsn):
             x = layer_stage(x)
             temp_side_prep = layer_side_prep(x)
-            return x, temp_side_prep
 
             temp_upscale = layer_upscale_side_prep(temp_side_prep)
             temp_cropped = center_crop(temp_upscale, crop_h, crop_w)
