@@ -426,22 +426,59 @@ def prune_resnet18_conv_layer(net, layer_index, filter_index):
 def batchnorm_modify(net, layer_index, filter_index):
     if layer_index == 0:
         batchnorm_old = net.layer_base[1]
-        new_batchnorm = nn.BatchNorm2d(num_features=batchnorm_old.num_features - 1,
-                                       eps=batchnorm_old.eps,
-                                       momentum=batchnorm_old.momentum,
-                                       affine=batchnorm_old.affine)
-        # net.layer_base[1].track_running_stats no attribute...
+    else:
+        index_stage = (layer_index - 1) // 4
+        index_block = (layer_index - 1) % 4
+        if index_block == 0:
+            batchnorm_old = net.layer_stages[index_stage][0].bn1
+        elif index_block == 1:
+            batchnorm_old = net.layer_stages[index_stage][0].bn2
+        elif index_block == 2:
+            batchnorm_old = net.layer_stages[index_stage][1].bn1
+        else:
+            batchnorm_old = net.layer_stages[index_stage][1].bn1
 
-        old_weights = batchnorm_old.weight.data.cpu().numpy()
-        new_weights = new_batchnorm.weight.data.cpu().numpy()
+    new_batchnorm = nn.BatchNorm2d(num_features=batchnorm_old.num_features - 1,
+                                   eps=batchnorm_old.eps,
+                                   momentum=batchnorm_old.momentum,
+                                   affine=batchnorm_old.affine)
+    # net.layer_base[1].track_running_stats no attribute...
 
-        new_weights[:filter_index] = old_weights[:filter_index]
-        new_weights[filter_index:] = old_weights[filter_index + 1:]
-        new_batchnorm.weight.data = torch.from_numpy(new_weights).cuda()
+    old_weights = batchnorm_old.weight.data.cpu().numpy()
+    new_weights = new_batchnorm.weight.data.cpu().numpy()
+
+    new_weights[:filter_index] = old_weights[:filter_index]
+    new_weights[filter_index:] = old_weights[filter_index + 1:]
+    new_batchnorm.weight.data = torch.from_numpy(new_weights).cuda()
+
+    if layer_index == 0:
         # new_batchnorm.weight.data = torch.from_numpy(new_weights)
         # 'layer_base.1.weight', 'layer_base.1.bias', 'layer_base.1.running_mean', 'layer_base.1.running_var'
         children = list(net.layer_base.children())
         net.layer_base = nn.Sequential(children[0], new_batchnorm, *children[2:])
+    else:
+        index_stage = (layer_index - 1) // 4
+        index_block = (layer_index - 1) % 4
+        if index_block == 0:
+            bb_old = net.layer_stages[index_stage][0]
+            bb_new = BasicBlockDummy(bb_old.conv1, new_batchnorm, bb_old.relu, bb_old.conv2, bb_old.bn2,
+                                     bb_old.downsample, bb_old.stride)
+            net.layer_stages[index_stage] = nn.Sequential(bb_new, net.layer_stages[index_stage][1])
+        elif index_block == 1:
+            bb_old = net.layer_stages[index_stage][0]
+            bb_new = BasicBlockDummy(bb_old.conv1, bb_old.bn1, bb_old.relu, bb_old.conv2, new_batchnorm,
+                                     bb_old.downsample, bb_old.stride)
+            net.layer_stages[index_stage] = nn.Sequential(bb_new, net.layer_stages[index_stage][1])
+        elif index_block == 2:
+            bb_old = net.layer_stages[index_stage][1]
+            bb_new = BasicBlockDummy(bb_old.conv1, new_batchnorm, bb_old.relu, bb_old.conv2, bb_old.bn2,
+                                     bb_old.downsample, bb_old.stride)
+            net.layer_stages[index_stage] = nn.Sequential(net.layer_stages[index_stage][0], bb_new)
+        else:
+            bb_old = net.layer_stages[index_stage][1]
+            bb_new = BasicBlockDummy(bb_old.conv1, bb_old.bn1, bb_old.relu, bb_old.conv2, new_batchnorm,
+                                     bb_old.downsample, bb_old.stride)
+            net.layer_stages[index_stage] = nn.Sequential(net.layer_stages[index_stage][0], bb_new)
 
     return net
 
