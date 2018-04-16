@@ -113,7 +113,7 @@ class FilterPruner:
 
         for l in self.net.layer_base:
             x = l(x)
-            if isinstance(l, torch.nn.modules.conv.Conv2d):
+            if isinstance(l, nn.modules.conv.Conv2d):
                 x.register_hook(self.compute_rank)
                 self.activations.append(x)
                 self.activation_to_layer[activation_index] = kk
@@ -127,7 +127,37 @@ class FilterPruner:
              layer_score_dsn, layer_upscale_score_dsn) in zip(self.net.layer_stages, self.net.side_prep,
                                                               self.net.upscale_side_prep,
                                                               self.net.score_dsn, self.net.upscale_score_dsn):
-            x = layer_stage(x)
+            # x = layer_stage(x)
+            for kt in range(2):
+                residual = x
+                x = layer_stage[kt].conv1(x)
+                x.register_hook(self.compute_rank)
+                self.activations.append(x)
+                self.activation_to_layer[activation_index] = kk
+                activation_index += 1
+                kk += 1
+                x = layer_stage[kt].bn1(x)
+                x = layer_stage[kt].relu(x)
+                x = layer_stage[kt].conv2(x)
+                x.register_hook(self.compute_rank)
+                self.activations.append(x)
+                self.activation_to_layer[activation_index] = kk
+                activation_index += 1
+                kk += 1
+                x = layer_stage[kt].bn2(x)
+
+                if layer_stage[kt].downsample is not None:
+                    residual = layer_stage[kt].downsample[0](residual)
+                    # TODO: figure out activation to layer
+                    # x.register_hook(self.compute_rank)
+                    # self.activations.append(x)
+                    # self.activation_to_layer[activation_index] = kk
+                    # activation_index += 1
+                    # kk += 1
+                    residual = layer_stage[kt].downsample[1](residual)
+                x += residual
+                x = layer_stage[kt].relu(x)
+
             temp_side_prep = layer_side_prep(x)
 
             temp_upscale = layer_upscale_side_prep(temp_side_prep)
@@ -250,9 +280,42 @@ def prune_resnet18_conv_layer(net, layer_index, filter_index):
     next_downin_conv = None
     new_down_conv = None
 
+    # (0): BasicBlock(
+    #     (conv1): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    # (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True)
+    # (relu): ReLU(inplace)
+    # (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    # (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True)
+    # )
+    # (1): BasicBlock(
+    #     (conv1): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    # (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True)
+    # (relu): ReLU(inplace)
+    # (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
+    # (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True)
+    # )
+
     if layer_index == 0:
         conv = net.layer_base[0]
         next_conv = net.layer_stages[0][0].conv1
+    else:
+        index_stage = (layer_index - 1) // 4
+        index_block = (layer_index - 1) % 4
+        if index_block == 0:
+            conv = net.layer_stages[index_stage][0].conv1
+            next_conv = net.layer_stages[index_stage][0].conv2
+        elif index_block == 1:
+            conv = net.layer_stages[index_stage][0].conv2
+            next_conv = net.layer_stages[index_stage][1].conv1
+        elif index_block == 2:
+            conv = net.layer_stages[index_stage][1].conv1
+            next_conv = net.layer_stages[index_stage][1].conv2
+        elif index_block == 3:
+            conv = net.layer_stages[index_stage][1].conv2
+            if index_stage <= 2:
+                next_conv = net.layer_stages[index_stage + 1][0].conv1
+            else:
+                next_conv = None
 
     new_conv = torch.nn.Conv2d(in_channels=conv.in_channels,
                                out_channels=conv.out_channels - 1,
@@ -289,17 +352,73 @@ def prune_resnet18_conv_layer(net, layer_index, filter_index):
         next_new_conv.weight.data = torch.from_numpy(new_weights).cuda()
         # next_new_conv.weight.data = torch.from_numpy(new_weights)
 
-        if not next_conv is None:
-            if layer_index == 0:
-                net.layer_base = nn.Sequential(new_conv, *list(net.layer_base.children())[1:])
+    if not next_conv is None:
+        if layer_index == 0:
+            net.layer_base = nn.Sequential(new_conv, *list(net.layer_base.children())[1:])
 
-                downsample = nn.Sequential(nn.Conv2d(next_new_conv.in_channels, next_new_conv.out_channels,
+            downsample = nn.Sequential(nn.Conv2d(next_new_conv.in_channels, next_new_conv.out_channels,
+                                                 kernel_size=1, stride=1, bias=False),
+                                       nn.BatchNorm2d(next_new_conv.out_channels))
+            bb_old = net.layer_stages[0][0]
+            net.layer_stages[0] = nn.Sequential(BasicBlockDummy(next_new_conv, bb_old.bn1, bb_old.relu,
+                                                                bb_old.conv2, bb_old.bn2, downsample,
+                                                                bb_old.stride),
+                                                net.layer_stages[0][1])
+        else:
+            index_stage = (layer_index - 1) // 4
+            index_block = (layer_index - 1) % 4
+            # TODO: downsample could exist already
+            if index_block == 0:
+                downsample = nn.Sequential(nn.Conv2d(new_conv.in_channels, next_new_conv.out_channels,
                                                      kernel_size=1, stride=1, bias=False),
                                            nn.BatchNorm2d(next_new_conv.out_channels))
-                bb = net.layer_stages[0][0]
-                net.layer_stages[0] = nn.Sequential(BasicBlockDummy(next_new_conv, bb.bn1, bb.relu,
-                                                                    bb.conv2, bb.bn2, downsample, bb.stride),
-                                                    net.layer_stages[0][1])
+                bb_old = net.layer_stages[index_stage][0]
+                bb_new = BasicBlockDummy(new_conv, bb_old.bn1, bb_old.relu, next_new_conv, bb_old.bn2, downsample,
+                                         bb_old.stride)
+                net.layer_stages[index_stage] = nn.Sequential(bb_new, net.layer_stages[index_stage][1])
+            elif index_block == 1:
+                downsample = nn.Sequential(nn.Conv2d(net.layer_stages[index_stage][0].conv1.in_channels,
+                                                     new_conv.out_channels, kernel_size=1, stride=1, bias=False),
+                                           nn.BatchNorm2d(new_conv.out_channels))
+                bb_old = net.layer_stages[index_stage][0]
+                bb_new = BasicBlockDummy(bb_old.conv1, bb_old.bn1, bb_old.relu, new_conv, bb_old.bn2, downsample,
+                                         bb_old.stride)
+
+                downsample2 = nn.Sequential(nn.Conv2d(next_new_conv.in_channels, next_new_conv.out_channels,
+                                                      kernel_size=1, stride=1, bias=False),
+                                            nn.BatchNorm2d(next_new_conv.out_channels))
+                bb_old2 = net.layer_stages[index_stage][1]
+                bb_new2 = BasicBlockDummy(next_new_conv, bb_old2.bn1, bb_old2.relu, bb_old2.conv2, bb_old2.bn2,
+                                          downsample2, bb_old2.stride)
+
+                net.layer_stages[index_stage] = nn.Sequential(bb_new, bb_new2)
+            elif index_block == 2:
+                downsample = nn.Sequential(nn.Conv2d(new_conv.in_channels, next_new_conv.out_channels,
+                                                     kernel_size=1, stride=1, bias=False),
+                                           nn.BatchNorm2d(next_new_conv.out_channels))
+                bb_old = net.layer_stages[index_stage][1]
+                bb_new = BasicBlockDummy(new_conv, bb_old.bn1, bb_old.relu, next_new_conv, bb_old.bn2, downsample,
+                                         bb_old.stride)
+                net.layer_stages[index_stage] = nn.Sequential(net.layer_stages[index_stage][0], bb_new)
+            elif index_block == 3:
+                downsample = nn.Sequential(nn.Conv2d(net.layer_stages[index_stage][1].conv1.in_channels,
+                                                     new_conv.out_channels, kernel_size=1, stride=1, bias=False),
+                                           nn.BatchNorm2d(new_conv.out_channels))
+                bb_old = net.layer_stages[index_stage][1]
+                bb_new = BasicBlockDummy(bb_old.conv1, bb_old.bn1, bb_old.relu, new_conv, bb_old.bn2, downsample,
+                                         bb_old.stride)
+
+                net.layer_stages[index_stage] = nn.Sequential(net.layer_stages[index_stage][0], bb_new)
+
+                if index_stage <= 2:
+                    downsample2 = nn.Sequential(nn.Conv2d(next_new_conv.in_channels, next_new_conv.out_channels,
+                                                          kernel_size=1, stride=1, bias=False),
+                                                nn.BatchNorm2d(next_new_conv.out_channels))
+                    bb_old2 = net.layer_stages[index_stage + 1][0]
+                    bb_new2 = BasicBlockDummy(next_new_conv, bb_old2.bn1, bb_old2.relu, bb_old2.conv2, bb_old2.bn2,
+                                              downsample2, bb_old2.stride)
+
+                    net.layer_stages[index_stage] = nn.Sequential(bb_new2, net.layer_stages[index_stage + 1][1])
 
     return net
 
