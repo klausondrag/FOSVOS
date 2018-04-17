@@ -41,7 +41,18 @@ def get_net() -> nn.Module:
 net = get_net()
 
 
-def total_num_filters(net: nn.Module) -> int:
+def total_num_filters(net: OSVOS_RESNET) -> int:
+    n_filters = 0
+    for m in net.layer_base.modules():
+        if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            n_filters += m.out_channels
+    for m in net.layer_stages.modules():
+        if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+            n_filters += m.out_channels
+    return n_filters
+
+
+def total_num_filters_old(net: nn.Module) -> int:
     n_filters = 0
     for m in net.modules():
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
@@ -52,8 +63,8 @@ def total_num_filters(net: nn.Module) -> int:
 
 
 n_filters = total_num_filters(net)
-# n_filters_to_prune_per_iter = 512
-n_filters_to_prune_per_iter = 8
+n_filters_to_prune_per_iter = 512
+# n_filters_to_prune_per_iter = 1
 n_iterations = int(n_filters / n_filters_to_prune_per_iter * 2 / 3)
 
 print('Filters in model:', n_filters)
@@ -271,216 +282,193 @@ def fine_tune(net: nn.Module(), data_loader: data.DataLoader, n_epochs: Optional
                 optimizer.zero_grad()
 
 
-def prune_resnet18_conv_layer(net, layer_index, filter_index):
+def prune_resnet18_conv_layer(net: OSVOS_RESNET, layer_index: int, filter_index: int) -> OSVOS_RESNET:
     # fix missing bias
-    next_conv = None
-    next_new_conv = None
-    downin_conv = None
-    downout_conv = None
-    next_downin_conv = None
-    new_down_conv = None
-
-    # (0): BasicBlock(
-    #     (conv1): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
-    # (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True)
-    # (relu): ReLU(inplace)
-    # (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
-    # (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True)
-    # )
-    # (1): BasicBlock(
-    #     (conv1): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
-    # (bn1): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True)
-    # (relu): ReLU(inplace)
-    # (conv2): Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False)
-    # (bn2): BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True)
-    # )
 
     if layer_index == 0:
-        conv = net.layer_base[0]
-        next_conv = net.layer_stages[0][0].conv1
+        conv_old = net.layer_base[0]
+        batchnorm_old = net.layer_base[1]
+        conv_next_old = net.layer_stages[0][0].conv1
+        downsample_1_old = net.layer_stages[0][0].downsample
+
+        conv_new = prune_convolution(conv_old, filter_index, is_reducing_channels_out=True)
+        batchnorm_new = prune_batchnorm(batchnorm_old, filter_index)
+        conv_next_new = prune_convolution(conv_next_old, filter_index, is_reducing_channels_out=False)
+        if downsample_1_old is None:
+            n_channels_out = net.layer_stages[0][0].bn2.num_features
+            downsample_1_new = nn.Sequential(nn.Conv2d(conv_next_new.in_channels, n_channels_out,
+                                                       kernel_size=1, stride=1, bias=False),
+                                             nn.BatchNorm2d(n_channels_out))
+        else:
+            conv_downsample_1_new = prune_convolution(downsample_1_old[0], filter_index, is_reducing_channels_out=False)
+            downsample_1_new = nn.Sequential(conv_downsample_1_new, downsample_1_old[1])
+
+        net.layer_base = nn.Sequential(conv_new, batchnorm_new, *list(net.layer_base.children())[2:])
+
+        bb_old = net.layer_stages[0][0]
+        bb_new = BasicBlockDummy(conv_next_new, bb_old.bn1, bb_old.relu, bb_old.conv2, bb_old.bn2, downsample_1_new,
+                                 bb_old.stride)
+        net.layer_stages[0] = nn.Sequential(bb_new, net.layer_stages[0][1])
+
     else:
         index_stage = (layer_index - 1) // 4
         index_block = (layer_index - 1) % 4
         if index_block == 0:
-            conv = net.layer_stages[index_stage][0].conv1
-            next_conv = net.layer_stages[index_stage][0].conv2
-        elif index_block == 1:
-            conv = net.layer_stages[index_stage][0].conv2
-            next_conv = net.layer_stages[index_stage][1].conv1
-        elif index_block == 2:
-            conv = net.layer_stages[index_stage][1].conv1
-            next_conv = net.layer_stages[index_stage][1].conv2
-        elif index_block == 3:
-            conv = net.layer_stages[index_stage][1].conv2
-            if index_stage <= 2:
-                next_conv = net.layer_stages[index_stage + 1][0].conv1
-            else:
-                next_conv = None
+            # don't need to change downsample because the [0]conv1.in_channels and [1].conv2.out_channels stay the same
+            conv_old = net.layer_stages[index_stage][0].conv1
+            batchnorm_old = net.layer_stages[index_stage][0].bn1
+            conv_next_old = net.layer_stages[index_stage][0].conv2
 
-    new_conv = torch.nn.Conv2d(in_channels=conv.in_channels,
-                               out_channels=conv.out_channels - 1,
+            conv_new = prune_convolution(conv_old, filter_index, is_reducing_channels_out=True)
+            batchnorm_new = prune_batchnorm(batchnorm_old, filter_index)
+            conv_next_new = prune_convolution(conv_next_old, filter_index, is_reducing_channels_out=False)
+
+            bb_old = net.layer_stages[index_stage][0]
+            bb_new = BasicBlockDummy(conv_new, batchnorm_new, bb_old.relu, conv_next_new, bb_old.bn2, bb_old.downsample,
+                                     bb_old.stride)
+            net.layer_stages[index_stage] = nn.Sequential(bb_new, net.layer_stages[index_stage][1])
+        elif index_block == 1:
+            conv_old = net.layer_stages[index_stage][0].conv2
+            batchnorm_old = net.layer_stages[index_stage][0].bn2
+            conv_next_old = net.layer_stages[index_stage][1].conv1
+            downsample_1_old = net.layer_stages[index_stage][0].downsample
+
+            conv_new = prune_convolution(conv_old, filter_index, is_reducing_channels_out=True)
+            batchnorm_new = prune_batchnorm(batchnorm_old, filter_index)
+            conv_next_new = prune_convolution(conv_next_old, filter_index, is_reducing_channels_out=False)
+
+            if downsample_1_old is None:
+                n_channels_out = batchnorm_new.num_features
+                downsample_1_new = nn.Sequential(nn.Conv2d(conv_next_new.in_channels, n_channels_out,
+                                                           kernel_size=1, stride=1, bias=False),
+                                                 nn.BatchNorm2d(n_channels_out))
+            else:
+                conv_downsample_1_new = prune_convolution(downsample_1_old[0], filter_index,
+                                                          is_reducing_channels_out=True)
+                batchnorm_downsample_1_new = prune_batchnorm(downsample_1_old[1], filter_index)
+                downsample_1_new = nn.Sequential(conv_downsample_1_new, batchnorm_downsample_1_new)
+
+            bb_1_old = net.layer_stages[index_stage][0]
+            bb_1_new = BasicBlockDummy(bb_1_old.conv1, bb_1_old.bn1, bb_1_old.relu, conv_new, batchnorm_new,
+                                       downsample_1_new, bb_1_old.stride)
+
+            downsample_2_old = net.layer_stages[index_stage][1].downsample
+            if downsample_2_old is None:
+                n_channels_out = net.layer_stages[index_stage][1].bn2.num_features
+                downsample_2_new = nn.Sequential(nn.Conv2d(conv_next_new.in_channels, n_channels_out,
+                                                           kernel_size=1, stride=1, bias=False),
+                                                 nn.BatchNorm2d(n_channels_out))
+            else:
+                conv_downsample_2_new = prune_convolution(downsample_2_old[0], filter_index,
+                                                          is_reducing_channels_out=False)
+                downsample_2_new = nn.Sequential(conv_downsample_2_new, downsample_2_old[1])
+
+            bb_2_old = net.layer_stages[index_stage][1]
+            bb_2_new = BasicBlockDummy(conv_next_new, bb_2_old.bn1, bb_2_old.relu, bb_2_old.conv2, bb_2_old.bn2,
+                                       downsample_2_new, bb_2_old.stride)
+            net.layer_stages[index_stage] = nn.Sequential(bb_1_new, bb_2_new)
+
+        elif index_block == 2:
+            # don't need to change downsample because the [0]conv1.in_channels and [1].conv2.out_channels stay the same
+            conv_old = net.layer_stages[index_stage][1].conv1
+            batchnorm_old = net.layer_stages[index_stage][1].bn1
+            conv_next_old = net.layer_stages[index_stage][1].conv2
+
+            conv_new = prune_convolution(conv_old, filter_index, is_reducing_channels_out=True)
+            batchnorm_new = prune_batchnorm(batchnorm_old, filter_index)
+            conv_next_new = prune_convolution(conv_next_old, filter_index, is_reducing_channels_out=False)
+
+            bb_old = net.layer_stages[index_stage][1]
+            bb_new = BasicBlockDummy(conv_new, batchnorm_new, bb_old.relu, conv_next_new, bb_old.bn2, bb_old.downsample,
+                                     bb_old.stride)
+            net.layer_stages[index_stage] = nn.Sequential(net.layer_stages[index_stage][0], bb_new)
+        else:
+            conv_old = net.layer_stages[index_stage][1].conv2
+            batchnorm_old = net.layer_stages[index_stage][1].bn2
+            downsample_1_old = net.layer_stages[index_stage][1].downsample
+
+            conv_new = prune_convolution(conv_old, filter_index, is_reducing_channels_out=True)
+            batchnorm_new = prune_batchnorm(batchnorm_old, filter_index)
+
+            if downsample_1_old is None:
+                n_channels_out = conv_new.out_channels
+                downsample_1_new = nn.Sequential(nn.Conv2d(net.layer_stages[index_stage][1].conv1.in_channels,
+                                                           n_channels_out, kernel_size=1, stride=1, bias=False),
+                                                 nn.BatchNorm2d(n_channels_out))
+            else:
+                conv_downsample_1_new = prune_convolution(downsample_1_old[0], filter_index,
+                                                          is_reducing_channels_out=True)
+                batchnorm_downsample_1_new = prune_batchnorm(downsample_1_old[1], filter_index)
+                downsample_1_new = nn.Sequential(conv_downsample_1_new, batchnorm_downsample_1_new)
+
+            bb_old = net.layer_stages[index_stage][1]
+            bb_new = BasicBlockDummy(bb_old.conv1, bb_old.bn1, bb_old.relu, conv_new, batchnorm_new, downsample_1_new,
+                                     bb_old.stride)
+            net.layer_stages[index_stage] = nn.Sequential(net.layer_stages[index_stage][0], bb_new)
+
+            net.side_prep[index_stage] = prune_convolution(net.side_prep[index_stage], filter_index,
+                                                           is_reducing_channels_out=False)
+
+            if index_stage <= 2:
+                conv_next_old = net.layer_stages[index_stage + 1][0].conv1
+                conv_next_new = prune_convolution(conv_next_old, filter_index, is_reducing_channels_out=False)
+                downsample_2_old = net.layer_stages[index_stage + 1][0].downsample
+
+                if downsample_2_old is None:
+                    n_channels_out = net.layer_stages[index_stage + 1][0].bn2.num_features
+                    downsample_2_new = nn.Sequential(nn.Conv2d(conv_next_new.in_channels, n_channels_out,
+                                                               kernel_size=1, stride=1, bias=False),
+                                                     nn.BatchNorm2d(n_channels_out))
+                else:
+                    conv_downsample_2_new = prune_convolution(downsample_2_old[0], filter_index,
+                                                              is_reducing_channels_out=False)
+                    downsample_2_new = nn.Sequential(conv_downsample_2_new, downsample_2_old[1])
+                bb_old = net.layer_stages[index_stage + 1][0]
+                bb_new = BasicBlockDummy(conv_next_new, bb_old.bn1, bb_old.relu, bb_old.conv2, bb_old.bn2,
+                                         downsample_2_new, bb_old.stride)
+                net.layer_stages[index_stage + 1] = nn.Sequential(bb_new, net.layer_stages[index_stage + 1][1])
+
+    return net
+
+
+def prune_convolution(conv, filter_index, is_reducing_channels_out: bool):
+    reduction_channels_in = 0 if is_reducing_channels_out else 1
+    reduction_channels_out = 1 if is_reducing_channels_out else 0
+    new_conv = torch.nn.Conv2d(in_channels=conv.in_channels - reduction_channels_in,
+                               out_channels=conv.out_channels - reduction_channels_out,
                                kernel_size=conv.kernel_size,
                                stride=conv.stride,
                                padding=conv.padding,
                                dilation=conv.dilation,
                                groups=conv.groups,
-                               bias=conv.bias)
-
+                               bias=False)
     old_weights = conv.weight.data.cpu().numpy()
     new_weights = new_conv.weight.data.cpu().numpy()
 
-    new_weights[:filter_index, :, :, :] = old_weights[:filter_index, :, :, :]
-    new_weights[filter_index:, :, :, :] = old_weights[filter_index + 1:, :, :, :]
-    new_conv.weight.data = torch.from_numpy(new_weights).cuda()
-    # new_conv.weight.data = torch.from_numpy(new_weights)
-
-    if next_conv is not None:
-        next_new_conv = torch.nn.Conv2d(in_channels=next_conv.in_channels - 1,
-                                        out_channels=next_conv.out_channels,
-                                        kernel_size=next_conv.kernel_size,
-                                        stride=next_conv.stride,
-                                        padding=next_conv.padding,
-                                        dilation=next_conv.dilation,
-                                        groups=next_conv.groups,
-                                        bias=next_conv.bias)
-
-        old_weights = next_conv.weight.data.cpu().numpy()
-        new_weights = next_new_conv.weight.data.cpu().numpy()
-
+    if is_reducing_channels_out:
+        new_weights[:filter_index, :, :, :] = old_weights[:filter_index, :, :, :]
+        new_weights[filter_index:, :, :, :] = old_weights[filter_index + 1:, :, :, :]
+    else:
         new_weights[:, :filter_index, :, :] = old_weights[:, :filter_index, :, :]
         new_weights[:, filter_index:, :, :] = old_weights[:, filter_index + 1:, :, :]
-        next_new_conv.weight.data = torch.from_numpy(new_weights).cuda()
-        # next_new_conv.weight.data = torch.from_numpy(new_weights)
 
-    if not next_conv is None:
-        if layer_index == 0:
-            net.layer_base = nn.Sequential(new_conv, *list(net.layer_base.children())[1:])
-
-            downsample = nn.Sequential(nn.Conv2d(next_new_conv.in_channels, next_new_conv.out_channels,
-                                                 kernel_size=1, stride=1, bias=False),
-                                       nn.BatchNorm2d(next_new_conv.out_channels))
-            bb_old = net.layer_stages[0][0]
-            net.layer_stages[0] = nn.Sequential(BasicBlockDummy(next_new_conv, bb_old.bn1, bb_old.relu,
-                                                                bb_old.conv2, bb_old.bn2, downsample,
-                                                                bb_old.stride),
-                                                net.layer_stages[0][1])
-        else:
-            index_stage = (layer_index - 1) // 4
-            index_block = (layer_index - 1) % 4
-            # TODO: downsample could exist already
-            if index_block == 0:
-                downsample = nn.Sequential(nn.Conv2d(new_conv.in_channels, next_new_conv.out_channels,
-                                                     kernel_size=1, stride=1, bias=False),
-                                           nn.BatchNorm2d(next_new_conv.out_channels))
-                bb_old = net.layer_stages[index_stage][0]
-                bb_new = BasicBlockDummy(new_conv, bb_old.bn1, bb_old.relu, next_new_conv, bb_old.bn2, downsample,
-                                         bb_old.stride)
-                net.layer_stages[index_stage] = nn.Sequential(bb_new, net.layer_stages[index_stage][1])
-            elif index_block == 1:
-                downsample = nn.Sequential(nn.Conv2d(net.layer_stages[index_stage][0].conv1.in_channels,
-                                                     new_conv.out_channels, kernel_size=1, stride=1, bias=False),
-                                           nn.BatchNorm2d(new_conv.out_channels))
-                bb_old = net.layer_stages[index_stage][0]
-                bb_new = BasicBlockDummy(bb_old.conv1, bb_old.bn1, bb_old.relu, new_conv, bb_old.bn2, downsample,
-                                         bb_old.stride)
-
-                downsample2 = nn.Sequential(nn.Conv2d(next_new_conv.in_channels, next_new_conv.out_channels,
-                                                      kernel_size=1, stride=1, bias=False),
-                                            nn.BatchNorm2d(next_new_conv.out_channels))
-                bb_old2 = net.layer_stages[index_stage][1]
-                bb_new2 = BasicBlockDummy(next_new_conv, bb_old2.bn1, bb_old2.relu, bb_old2.conv2, bb_old2.bn2,
-                                          downsample2, bb_old2.stride)
-
-                net.layer_stages[index_stage] = nn.Sequential(bb_new, bb_new2)
-            elif index_block == 2:
-                downsample = nn.Sequential(nn.Conv2d(new_conv.in_channels, next_new_conv.out_channels,
-                                                     kernel_size=1, stride=1, bias=False),
-                                           nn.BatchNorm2d(next_new_conv.out_channels))
-                bb_old = net.layer_stages[index_stage][1]
-                bb_new = BasicBlockDummy(new_conv, bb_old.bn1, bb_old.relu, next_new_conv, bb_old.bn2, downsample,
-                                         bb_old.stride)
-                net.layer_stages[index_stage] = nn.Sequential(net.layer_stages[index_stage][0], bb_new)
-            elif index_block == 3:
-                downsample = nn.Sequential(nn.Conv2d(net.layer_stages[index_stage][1].conv1.in_channels,
-                                                     new_conv.out_channels, kernel_size=1, stride=1, bias=False),
-                                           nn.BatchNorm2d(new_conv.out_channels))
-                bb_old = net.layer_stages[index_stage][1]
-                bb_new = BasicBlockDummy(bb_old.conv1, bb_old.bn1, bb_old.relu, new_conv, bb_old.bn2, downsample,
-                                         bb_old.stride)
-
-                net.layer_stages[index_stage] = nn.Sequential(net.layer_stages[index_stage][0], bb_new)
-
-                if index_stage <= 2:
-                    downsample2 = nn.Sequential(nn.Conv2d(next_new_conv.in_channels, next_new_conv.out_channels,
-                                                          kernel_size=1, stride=1, bias=False),
-                                                nn.BatchNorm2d(next_new_conv.out_channels))
-                    bb_old2 = net.layer_stages[index_stage + 1][0]
-                    bb_new2 = BasicBlockDummy(next_new_conv, bb_old2.bn1, bb_old2.relu, bb_old2.conv2, bb_old2.bn2,
-                                              downsample2, bb_old2.stride)
-
-                    net.layer_stages[index_stage] = nn.Sequential(bb_new2, net.layer_stages[index_stage + 1][1])
-
-    return net
+    new_conv.weight.data = torch.from_numpy(new_weights).cuda()
+    # new_conv.weight.data = torch.from_numpy(new_weights)
+    return new_conv
 
 
-def batchnorm_modify(net, layer_index, filter_index):
-    if layer_index == 0:
-        batchnorm_old = net.layer_base[1]
-    else:
-        index_stage = (layer_index - 1) // 4
-        index_block = (layer_index - 1) % 4
-        if index_block == 0:
-            batchnorm_old = net.layer_stages[index_stage][0].bn1
-        elif index_block == 1:
-            batchnorm_old = net.layer_stages[index_stage][0].bn2
-        elif index_block == 2:
-            batchnorm_old = net.layer_stages[index_stage][1].bn1
-        else:
-            batchnorm_old = net.layer_stages[index_stage][1].bn1
-
+def prune_batchnorm(batchnorm_old, filter_index):
     new_batchnorm = nn.BatchNorm2d(num_features=batchnorm_old.num_features - 1,
                                    eps=batchnorm_old.eps,
                                    momentum=batchnorm_old.momentum,
                                    affine=batchnorm_old.affine)
     # net.layer_base[1].track_running_stats no attribute...
-
     old_weights = batchnorm_old.weight.data.cpu().numpy()
     new_weights = new_batchnorm.weight.data.cpu().numpy()
-
     new_weights[:filter_index] = old_weights[:filter_index]
     new_weights[filter_index:] = old_weights[filter_index + 1:]
     new_batchnorm.weight.data = torch.from_numpy(new_weights).cuda()
-
-    if layer_index == 0:
-        # new_batchnorm.weight.data = torch.from_numpy(new_weights)
-        # 'layer_base.1.weight', 'layer_base.1.bias', 'layer_base.1.running_mean', 'layer_base.1.running_var'
-        children = list(net.layer_base.children())
-        net.layer_base = nn.Sequential(children[0], new_batchnorm, *children[2:])
-    else:
-        index_stage = (layer_index - 1) // 4
-        index_block = (layer_index - 1) % 4
-        if index_block == 0:
-            bb_old = net.layer_stages[index_stage][0]
-            bb_new = BasicBlockDummy(bb_old.conv1, new_batchnorm, bb_old.relu, bb_old.conv2, bb_old.bn2,
-                                     bb_old.downsample, bb_old.stride)
-            net.layer_stages[index_stage] = nn.Sequential(bb_new, net.layer_stages[index_stage][1])
-        elif index_block == 1:
-            bb_old = net.layer_stages[index_stage][0]
-            bb_new = BasicBlockDummy(bb_old.conv1, bb_old.bn1, bb_old.relu, bb_old.conv2, new_batchnorm,
-                                     bb_old.downsample, bb_old.stride)
-            net.layer_stages[index_stage] = nn.Sequential(bb_new, net.layer_stages[index_stage][1])
-        elif index_block == 2:
-            bb_old = net.layer_stages[index_stage][1]
-            bb_new = BasicBlockDummy(bb_old.conv1, new_batchnorm, bb_old.relu, bb_old.conv2, bb_old.bn2,
-                                     bb_old.downsample, bb_old.stride)
-            net.layer_stages[index_stage] = nn.Sequential(net.layer_stages[index_stage][0], bb_new)
-        else:
-            bb_old = net.layer_stages[index_stage][1]
-            bb_new = BasicBlockDummy(bb_old.conv1, bb_old.bn1, bb_old.relu, bb_old.conv2, new_batchnorm,
-                                     bb_old.downsample, bb_old.stride)
-            net.layer_stages[index_stage] = nn.Sequential(net.layer_stages[index_stage][0], bb_new)
-
-    return net
+    return new_batchnorm
 
 
 # net.layer_base[1]
@@ -494,27 +482,16 @@ def get_candidates_to_prune(pruner: FilterPruner, n_filters_to_prune: int, net: 
 
 
 for _ in tqdm(range(n_iterations)):
-    # print('Ranking filters')
     prune_targets = get_candidates_to_prune(pruner, n_filters_to_prune_per_iter, net, data_loader)
     layers_prunned = {}
-    for layer_index, filter_index in prune_targets:
-        if layer_index not in layers_prunned:
-            layers_prunned[layer_index] = 0
-        layers_prunned[layer_index] = layers_prunned[layer_index] + 1
 
-    # print("Layers that will be prunned", layers_prunned)
-    # print("Prunning filters.. ")
     net = net.cpu()
     for layer_index, filter_index in prune_targets:
         net = prune_resnet18_conv_layer(net, layer_index, filter_index)
-        net = batchnorm_modify(net, layer_index, filter_index)
 
     net = net.cuda()
     # print("Plan to prune...", net)
 
-    # message = str(100 * total_num_filters(net) / n_filters) + "%"
-    # print("Filters prunned", str(message))
-    # print("Fine tuning to recover from prunning iteration.")
     fine_tune(net, data_loader, n_epochs=10)
 
 path_export = Path('../models/resnet18_11_11_blackswan_epoch-9999_min.pth')
@@ -528,9 +505,9 @@ class DummyProvider:
 
 net_provider = DummyProvider(net)
 # first time to measure the speed
-experiment_helper.test(net_provider, data_loader, Path('../results/resnet18/11/11_min'), is_visualizing_results=False,
+experiment_helper.test(net_provider, data_loader, Path('../results/resnet18/11/11_min2'), is_visualizing_results=False,
                        eval_speeds=True, seq_name='blackswan')
 
 # second time for image output
-experiment_helper.test(net_provider, data_loader, Path('../results/resnet18/11/11_min'), is_visualizing_results=False,
+experiment_helper.test(net_provider, data_loader, Path('../results/resnet18/11/11_min2'), is_visualizing_results=False,
                        eval_speeds=False, seq_name='blackswan')
