@@ -31,10 +31,10 @@ from layers.osvos_layers import class_balanced_cross_entropy_loss, center_crop
 import argparse
 
 parser = argparse.ArgumentParser(add_help=False)
-parser.add_argument('--n-epochs-train', default=None, type=int, help='version to try')
-parser.add_argument('--n-epochs-finetune', default=None, type=int, help='version to try')
-parser.add_argument('--percentage-prune', default=None, type=int, help='version to try')
-parser.add_argument('--gpu-id', default=None, type=int, help='The gpu id to use')
+parser.add_argument('--n-epochs-train', default=20, type=int, help='version to try')
+parser.add_argument('--n-epochs-finetune', default=20, type=int, help='version to try')
+parser.add_argument('--percentage-prune', default=50, type=int, help='version to try')
+parser.add_argument('--gpu-id', default=1, type=int, help='The gpu id to use')
 args = parser.parse_args()
 
 print('GPU:', args.gpu_id)
@@ -82,8 +82,8 @@ def total_num_filters_old(net: nn.Module) -> int:
 
 n_filters = total_num_filters(net)
 n_filters_to_prune_per_iter = 256
-# n_filters_to_prune_per_iter = 1
-n_iterations = int(n_filters / n_filters_to_prune_per_iter * args.percentage_prune / 100)
+n_filters_to_prune_per_iter = 512
+n_iterations = 1 + int(n_filters / n_filters_to_prune_per_iter * args.percentage_prune / 100)
 
 print('Filters in model:', n_filters)
 print('Prune n filters per iteration:', n_filters_to_prune_per_iter)
@@ -222,8 +222,10 @@ class FilterPruner:
     def normalize_ranks_per_layer(self):
         for i in self.filter_ranks:
             v = torch.abs(self.filter_ranks[i])
-            v = v / np.sqrt(torch.sum(v * v))
-            self.filter_ranks[i] = v.cpu()
+            divisor = np.sqrt(torch.sum(v * v))
+            if divisor > 1e-5:
+                v = v / divisor
+                self.filter_ranks[i] = v.cpu()
 
     def lowest_ranking_filters(self, n_filters_to_prune_per_iter):
         data = []
@@ -295,6 +297,7 @@ def fine_tune(net: nn.Module(), data_loader: data.DataLoader, n_epochs: Optional
             counter_gradient += 1
 
             if counter_gradient % avg_grad_every_n == 0:
+                counter_gradient = 0
                 optimizer.step()
                 optimizer.zero_grad()
 
@@ -356,8 +359,8 @@ def prune_resnet18_conv_layer(net: OSVOS_RESNET, layer_index: int, filter_index:
 
             if downsample_1_old is None:
                 n_channels_out = batchnorm_new.num_features
-                downsample_1_new = nn.Sequential(nn.Conv2d(conv_next_new.in_channels, n_channels_out,
-                                                           kernel_size=1, stride=1, bias=False),
+                downsample_1_new = nn.Sequential(nn.Conv2d(net.layer_stages[index_stage][0].conv1.in_channels,
+                                                           n_channels_out, kernel_size=1, stride=1, bias=False),
                                                  nn.BatchNorm2d(n_channels_out))
             else:
                 conv_downsample_1_new = prune_convolution(downsample_1_old[0], filter_index,
@@ -502,11 +505,15 @@ for _ in tqdm(range(n_iterations)):
     prune_targets = get_candidates_to_prune(pruner, n_filters_to_prune_per_iter, net, data_loader)
     layers_prunned = {}
 
-    net = net.cpu()
+    # net = net.cpu()
+    layer_index_prev = -1
     for layer_index, filter_index in prune_targets:
+        # if layer_index != layer_index_prev:
+        #     print(layer_index_prev, net)
+        #     layer_index_prev = layer_index
         net = prune_resnet18_conv_layer(net, layer_index, filter_index)
 
-    net = net.cuda()
+    # net = net.cuda()
     # print("Plan to prune...", net)
 
     fine_tune(net, data_loader, n_epochs=args.n_epochs_finetune)
