@@ -276,16 +276,19 @@ def prune_resnet18_conv_layer(net: OSVOS_RESNET, layer_index: int, filter_index:
         conv_next_old = net.layer_stages[0][0].conv1
         downsample_1_old = net.layer_stages[0][0].downsample
 
-        conv_new = prune_convolution(conv_old, filter_index, is_reducing_channels_out=True)
-        batchnorm_new = prune_batchnorm(batchnorm_old, filter_index)
-        conv_next_new = prune_convolution(conv_next_old, filter_index, is_reducing_channels_out=False)
+        conv_new = prune_convolution(conv_old, filter_index, is_reducing_channels_out=True, layer_index=layer_index,
+                                     net=net)
+        batchnorm_new = prune_batchnorm(batchnorm_old, filter_index, layer_index=layer_index, net=net)
+        conv_next_new = prune_convolution(conv_next_old, filter_index, is_reducing_channels_out=False,
+                                          layer_index=layer_index, net=net)
         if downsample_1_old is None:
             n_channels_out = net.layer_stages[0][0].bn2.num_features
             downsample_1_new = nn.Sequential(nn.Conv2d(conv_next_new.in_channels, n_channels_out,
                                                        kernel_size=1, stride=1, bias=False),
                                              nn.BatchNorm2d(n_channels_out))
         else:
-            conv_downsample_1_new = prune_convolution(downsample_1_old[0], filter_index, is_reducing_channels_out=False)
+            conv_downsample_1_new = prune_convolution(downsample_1_old[0], filter_index, is_reducing_channels_out=False,
+                                                      layer_index=layer_index, net=net)
             downsample_1_new = nn.Sequential(conv_downsample_1_new, downsample_1_old[1])
 
         net.layer_base = nn.Sequential(conv_new, batchnorm_new, *list(net.layer_base.children())[2:])
@@ -304,9 +307,11 @@ def prune_resnet18_conv_layer(net: OSVOS_RESNET, layer_index: int, filter_index:
             batchnorm_old = net.layer_stages[index_stage][0].bn1
             conv_next_old = net.layer_stages[index_stage][0].conv2
 
-            conv_new = prune_convolution(conv_old, filter_index, is_reducing_channels_out=True)
-            batchnorm_new = prune_batchnorm(batchnorm_old, filter_index)
-            conv_next_new = prune_convolution(conv_next_old, filter_index, is_reducing_channels_out=False)
+            conv_new = prune_convolution(conv_old, filter_index, is_reducing_channels_out=True, layer_index=layer_index,
+                                         net=net)
+            batchnorm_new = prune_batchnorm(batchnorm_old, filter_index, layer_index=layer_index, net=net)
+            conv_next_new = prune_convolution(conv_next_old, filter_index, is_reducing_channels_out=False,
+                                              layer_index=layer_index, net=net)
 
             bb_old = net.layer_stages[index_stage][0]
             bb_new = BasicBlockDummy(conv_new, batchnorm_new, bb_old.relu, conv_next_new, bb_old.bn2, bb_old.downsample,
@@ -318,9 +323,11 @@ def prune_resnet18_conv_layer(net: OSVOS_RESNET, layer_index: int, filter_index:
             conv_next_old = net.layer_stages[index_stage][1].conv1
             downsample_1_old = net.layer_stages[index_stage][0].downsample
 
-            conv_new = prune_convolution(conv_old, filter_index, is_reducing_channels_out=True)
-            batchnorm_new = prune_batchnorm(batchnorm_old, filter_index)
-            conv_next_new = prune_convolution(conv_next_old, filter_index, is_reducing_channels_out=False)
+            conv_new = prune_convolution(conv_old, filter_index, is_reducing_channels_out=True, layer_index=layer_index,
+                                         net=net)
+            batchnorm_new = prune_batchnorm(batchnorm_old, filter_index, layer_index=layer_index, net=net)
+            conv_next_new = prune_convolution(conv_next_old, filter_index, is_reducing_channels_out=False,
+                                              layer_index=layer_index, net=net)
 
             if downsample_1_old is None:
                 n_channels_out = batchnorm_new.num_features
@@ -329,8 +336,10 @@ def prune_resnet18_conv_layer(net: OSVOS_RESNET, layer_index: int, filter_index:
                                                  nn.BatchNorm2d(n_channels_out))
             else:
                 conv_downsample_1_new = prune_convolution(downsample_1_old[0], filter_index,
-                                                          is_reducing_channels_out=True)
-                batchnorm_downsample_1_new = prune_batchnorm(downsample_1_old[1], filter_index)
+                                                          is_reducing_channels_out=True, layer_index=layer_index,
+                                                          net=net)
+                batchnorm_downsample_1_new = prune_batchnorm(downsample_1_old[1], filter_index, layer_index=layer_index,
+                                                             net=net)
                 downsample_1_new = nn.Sequential(conv_downsample_1_new, batchnorm_downsample_1_new)
 
             bb_1_old = net.layer_stages[index_stage][0]
@@ -345,7 +354,8 @@ def prune_resnet18_conv_layer(net: OSVOS_RESNET, layer_index: int, filter_index:
                                                  nn.BatchNorm2d(n_channels_out))
             else:
                 conv_downsample_2_new = prune_convolution(downsample_2_old[0], filter_index,
-                                                          is_reducing_channels_out=False)
+                                                          is_reducing_channels_out=False, layer_index=layer_index,
+                                                          net=net)
                 downsample_2_new = nn.Sequential(conv_downsample_2_new, downsample_2_old[1])
 
             bb_2_old = net.layer_stages[index_stage][1]
@@ -359,9 +369,11 @@ def prune_resnet18_conv_layer(net: OSVOS_RESNET, layer_index: int, filter_index:
             batchnorm_old = net.layer_stages[index_stage][1].bn1
             conv_next_old = net.layer_stages[index_stage][1].conv2
 
-            conv_new = prune_convolution(conv_old, filter_index, is_reducing_channels_out=True)
-            batchnorm_new = prune_batchnorm(batchnorm_old, filter_index)
-            conv_next_new = prune_convolution(conv_next_old, filter_index, is_reducing_channels_out=False)
+            conv_new = prune_convolution(conv_old, filter_index, is_reducing_channels_out=True, layer_index=layer_index,
+                                         net=net)
+            batchnorm_new = prune_batchnorm(batchnorm_old, filter_index, layer_index=layer_index, net=net)
+            conv_next_new = prune_convolution(conv_next_old, filter_index, is_reducing_channels_out=False,
+                                              layer_index=layer_index, net=net)
 
             bb_old = net.layer_stages[index_stage][1]
             bb_new = BasicBlockDummy(conv_new, batchnorm_new, bb_old.relu, conv_next_new, bb_old.bn2, bb_old.downsample,
@@ -372,8 +384,9 @@ def prune_resnet18_conv_layer(net: OSVOS_RESNET, layer_index: int, filter_index:
             batchnorm_old = net.layer_stages[index_stage][1].bn2
             downsample_1_old = net.layer_stages[index_stage][1].downsample
 
-            conv_new = prune_convolution(conv_old, filter_index, is_reducing_channels_out=True)
-            batchnorm_new = prune_batchnorm(batchnorm_old, filter_index)
+            conv_new = prune_convolution(conv_old, filter_index, is_reducing_channels_out=True, layer_index=layer_index,
+                                         net=net)
+            batchnorm_new = prune_batchnorm(batchnorm_old, filter_index, layer_index=layer_index, net=net)
 
             if downsample_1_old is None:
                 n_channels_out = conv_new.out_channels
@@ -382,8 +395,10 @@ def prune_resnet18_conv_layer(net: OSVOS_RESNET, layer_index: int, filter_index:
                                                  nn.BatchNorm2d(n_channels_out))
             else:
                 conv_downsample_1_new = prune_convolution(downsample_1_old[0], filter_index,
-                                                          is_reducing_channels_out=True)
-                batchnorm_downsample_1_new = prune_batchnorm(downsample_1_old[1], filter_index)
+                                                          is_reducing_channels_out=True, layer_index=layer_index,
+                                                          net=net)
+                batchnorm_downsample_1_new = prune_batchnorm(downsample_1_old[1], filter_index, layer_index=layer_index,
+                                                             net=net)
                 downsample_1_new = nn.Sequential(conv_downsample_1_new, batchnorm_downsample_1_new)
 
             bb_old = net.layer_stages[index_stage][1]
@@ -392,11 +407,13 @@ def prune_resnet18_conv_layer(net: OSVOS_RESNET, layer_index: int, filter_index:
             net.layer_stages[index_stage] = nn.Sequential(net.layer_stages[index_stage][0], bb_new)
 
             net.side_prep[index_stage] = prune_convolution(net.side_prep[index_stage], filter_index,
-                                                           is_reducing_channels_out=False)
+                                                           is_reducing_channels_out=False, layer_index=layer_index,
+                                                           net=net)
 
             if index_stage <= 2:
                 conv_next_old = net.layer_stages[index_stage + 1][0].conv1
-                conv_next_new = prune_convolution(conv_next_old, filter_index, is_reducing_channels_out=False)
+                conv_next_new = prune_convolution(conv_next_old, filter_index, is_reducing_channels_out=False,
+                                                  layer_index=layer_index, net=net)
                 downsample_2_old = net.layer_stages[index_stage + 1][0].downsample
 
                 if downsample_2_old is None:
@@ -406,7 +423,8 @@ def prune_resnet18_conv_layer(net: OSVOS_RESNET, layer_index: int, filter_index:
                                                      nn.BatchNorm2d(n_channels_out))
                 else:
                     conv_downsample_2_new = prune_convolution(downsample_2_old[0], filter_index,
-                                                              is_reducing_channels_out=False)
+                                                              is_reducing_channels_out=False, layer_index=layer_index,
+                                                              net=net)
                     downsample_2_new = nn.Sequential(conv_downsample_2_new, downsample_2_old[1])
                 bb_old = net.layer_stages[index_stage + 1][0]
                 bb_new = BasicBlockDummy(conv_next_new, bb_old.bn1, bb_old.relu, bb_old.conv2, bb_old.bn2,
@@ -416,7 +434,7 @@ def prune_resnet18_conv_layer(net: OSVOS_RESNET, layer_index: int, filter_index:
     return net
 
 
-def prune_convolution(conv, filter_index, is_reducing_channels_out: bool):
+def prune_convolution(conv, filter_index, is_reducing_channels_out: bool, layer_index, net):
     reduction_channels_in = 0 if is_reducing_channels_out else 1
     reduction_channels_out = 1 if is_reducing_channels_out else 0
     new_conv = torch.nn.Conv2d(in_channels=conv.in_channels - reduction_channels_in,
@@ -431,9 +449,15 @@ def prune_convolution(conv, filter_index, is_reducing_channels_out: bool):
     new_weights = new_conv.weight.data.cpu().numpy()
 
     if is_reducing_channels_out:
+        if (new_weights[:filter_index, :, :, :].shape != old_weights[:filter_index, :, :, :].shape or
+                new_weights[filter_index:, :, :, :].shape != old_weights[filter_index + 1:, :, :, :].shape):
+            print('About to crash', conv, filter_index, is_reducing_channels_out, layer_index, net)
         new_weights[:filter_index, :, :, :] = old_weights[:filter_index, :, :, :]
         new_weights[filter_index:, :, :, :] = old_weights[filter_index + 1:, :, :, :]
     else:
+        if (new_weights[:, :filter_index, :, :].shape != old_weights[:, :filter_index, :, :].shape or
+                new_weights[:, filter_index:, :, :].shape != old_weights[:, filter_index + 1:, :, :].shape):
+            print('About to crash', conv, filter_index, is_reducing_channels_out, layer_index, net)
         new_weights[:, :filter_index, :, :] = old_weights[:, :filter_index, :, :]
         new_weights[:, filter_index:, :, :] = old_weights[:, filter_index + 1:, :, :]
 
@@ -442,7 +466,7 @@ def prune_convolution(conv, filter_index, is_reducing_channels_out: bool):
     return new_conv
 
 
-def prune_batchnorm(batchnorm_old, filter_index):
+def prune_batchnorm(batchnorm_old, filter_index, layer_index, net):
     new_batchnorm = nn.BatchNorm2d(num_features=batchnorm_old.num_features - 1,
                                    eps=batchnorm_old.eps,
                                    momentum=batchnorm_old.momentum,
@@ -450,6 +474,11 @@ def prune_batchnorm(batchnorm_old, filter_index):
     # net.layer_base[1].track_running_stats no attribute...
     old_weights = batchnorm_old.weight.data.cpu().numpy()
     new_weights = new_batchnorm.weight.data.cpu().numpy()
+
+    if (new_weights[:filter_index].shape != old_weights[:filter_index].shape or
+            new_weights[filter_index:].shape != old_weights[filter_index + 1:].shape):
+        print('About to crash', batchnorm_old, filter_index, layer_index, net)
+
     new_weights[:filter_index] = old_weights[:filter_index]
     new_weights[filter_index:] = old_weights[filter_index + 1:]
     new_batchnorm.weight.data = gpu_handler.cast_cuda_if_possible(torch.from_numpy(new_weights))
@@ -479,6 +508,12 @@ if __name__ == '__main__':
     parser.add_argument('--gpu-id', default=1, type=int, help='The gpu id to use')
     parser.add_argument('--prune-per-iter', default=256, type=int, help='filters to prune per iteration')
     args = parser.parse_args()
+
+    args.gpu_id = 1
+    args.n_epochs_train = 10
+    args.n_epochs_finetune = 100
+    args.percentage_prune = 66
+    args.prune_per_iter = 64
 
     print('GPU:', args.gpu_id)
     gpu_handler.select_gpu(args.gpu_id)
