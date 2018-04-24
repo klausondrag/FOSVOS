@@ -25,26 +25,10 @@ if path_ros in sys.path:
     del sys.path[sys.path.index(path_ros)]
 
 from networks.osvos_resnet import OSVOS_RESNET
-from util import io_helper, experiment_helper
+from util import io_helper, experiment_helper, gpu_handler
 from layers.osvos_layers import class_balanced_cross_entropy_loss, center_crop
 
 import argparse
-
-parser = argparse.ArgumentParser(add_help=False)
-parser.add_argument('--n-epochs-train', default=20, type=int, help='version to try')
-parser.add_argument('--n-epochs-finetune', default=20, type=int, help='version to try')
-parser.add_argument('--percentage-prune', default=50, type=int, help='version to try')
-parser.add_argument('--gpu-id', default=1, type=int, help='The gpu id to use')
-args = parser.parse_args()
-
-print('GPU:', args.gpu_id)
-torch.cuda.set_device(device=args.gpu_id)
-
-p = Path('../results/resnet18/11/11_min_{0}_{1}_{2}'.format(args.n_epochs_train,
-                                                            args.n_epochs_finetune,
-                                                            args.percentage_prune))
-
-print(args.n_epochs_train, args.n_epochs_finetune, args.percentage_prune, str(p))
 
 
 def get_net() -> nn.Module:
@@ -52,11 +36,8 @@ def get_net() -> nn.Module:
     path_model = Path('../models/resnet18_11_11_blackswan_epoch-9999.pth')
     parameters = torch.load(str(path_model), map_location=lambda storage, loc: storage)
     net.load_state_dict(parameters)
-    net = net.cuda()
+    net = gpu_handler.cast_cuda_if_possible(net)
     return net
-
-
-net = get_net()
 
 
 def total_num_filters(net: OSVOS_RESNET) -> int:
@@ -78,16 +59,6 @@ def total_num_filters_old(net: nn.Module) -> int:
         if n_filters > 0:
             return n_filters
     return n_filters
-
-
-n_filters = total_num_filters(net)
-n_filters_to_prune_per_iter = 256
-n_filters_to_prune_per_iter = 512
-n_iterations = 1 + int(n_filters / n_filters_to_prune_per_iter * args.percentage_prune / 100)
-
-print('Filters in model:', n_filters)
-print('Prune n filters per iteration:', n_filters_to_prune_per_iter)
-print('Number of iterations:', n_iterations)
 
 
 class BasicBlockDummy(nn.Module):
@@ -213,8 +184,8 @@ class FilterPruner:
         values = values / (activation.size(0) * activation.size(2) * activation.size(3))
 
         if activation_index not in self.filter_ranks:
-            self.filter_ranks[activation_index] = torch.FloatTensor(activation.size(1)).zero_().cuda()
-            # self.filter_ranks[activation_index] = torch.FloatTensor(activation.size(1)).zero_()
+            self.filter_ranks[activation_index] = gpu_handler.cast_cuda_if_possible(
+                torch.FloatTensor(activation.size(1)).zero_())
 
         self.filter_ranks[activation_index] += values
         self.grad_index += 1
@@ -259,19 +230,13 @@ class FilterPruner:
         return filters_to_prune
 
 
-pruner = FilterPruner(net)
-
-# data_loader = io_helper.get_data_loader_test(Path('/home/klaus/dev/datasets/DAVIS'), batch_size=1, seq_name='blackswan')
-data_loader = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name='blackswan')
-
-
 def train(pruner: FilterPruner, data_loader: data.DataLoader, n_epochs: Optional[int] = 1) -> None:
     for epoch in range(n_epochs):
         for minibatch in data_loader:
             pruner.net.zero_grad()
             inputs, gts = minibatch['image'], minibatch['gt']
             inputs, gts = Variable(inputs), Variable(gts)
-            inputs, gts = inputs.cuda(), gts.cuda()
+            inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
             outputs = pruner.forward(inputs)
             loss = class_balanced_cross_entropy_loss(outputs[-1], gts, size_average=False)
@@ -288,7 +253,7 @@ def fine_tune(net: nn.Module(), data_loader: data.DataLoader, n_epochs: Optional
             net.zero_grad()
             inputs, gts = minibatch['image'], minibatch['gt']
             inputs, gts = Variable(inputs), Variable(gts)
-            inputs, gts = inputs.cuda(), gts.cuda()
+            inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
             outputs = net.forward(inputs)
             loss = class_balanced_cross_entropy_loss(outputs[-1], gts, size_average=False)
@@ -472,7 +437,7 @@ def prune_convolution(conv, filter_index, is_reducing_channels_out: bool):
         new_weights[:, :filter_index, :, :] = old_weights[:, :filter_index, :, :]
         new_weights[:, filter_index:, :, :] = old_weights[:, filter_index + 1:, :, :]
 
-    new_conv.weight.data = torch.from_numpy(new_weights).cuda()
+    new_conv.weight.data = gpu_handler.cast_cuda_if_possible(torch.from_numpy(new_weights))
     # new_conv.weight.data = torch.from_numpy(new_weights)
     return new_conv
 
@@ -487,7 +452,7 @@ def prune_batchnorm(batchnorm_old, filter_index):
     new_weights = new_batchnorm.weight.data.cpu().numpy()
     new_weights[:filter_index] = old_weights[:filter_index]
     new_weights[filter_index:] = old_weights[filter_index + 1:]
-    new_batchnorm.weight.data = torch.from_numpy(new_weights).cuda()
+    new_batchnorm.weight.data = gpu_handler.cast_cuda_if_possible(torch.from_numpy(new_weights))
     return new_batchnorm
 
 
@@ -501,39 +466,75 @@ def get_candidates_to_prune(pruner: FilterPruner, n_filters_to_prune: int, net: 
     return pruner.get_prunning_plan(n_filters_to_prune)
 
 
-for _ in tqdm(range(n_iterations)):
-    prune_targets = get_candidates_to_prune(pruner, n_filters_to_prune_per_iter, net, data_loader)
-    layers_prunned = {}
-
-    # net = net.cpu()
-    layer_index_prev = -1
-    for layer_index, filter_index in prune_targets:
-        # if layer_index != layer_index_prev:
-        #     print(layer_index_prev, net)
-        #     layer_index_prev = layer_index
-        net = prune_resnet18_conv_layer(net, layer_index, filter_index)
-
-    # net = net.cuda()
-    # print("Plan to prune...", net)
-
-    fine_tune(net, data_loader, n_epochs=args.n_epochs_finetune)
-
-
-# path_export = Path('../models/resnet18_11_11_blackswan_epoch-9999_min.pth')
-# torch.save(net.state_dict(), str(path_export))
-
-
 class DummyProvider:
     def __init__(self, net):
         self.network = net
 
 
-net_provider = DummyProvider(net)
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--n-epochs-train', default=20, type=int, help='version to try')
+    parser.add_argument('--n-epochs-finetune', default=20, type=int, help='version to try')
+    parser.add_argument('--percentage-prune', default=50, type=int, help='version to try')
+    parser.add_argument('--gpu-id', default=1, type=int, help='The gpu id to use')
+    parser.add_argument('--prune-per-iter', default=256, type=int, help='filters to prune per iteration')
+    args = parser.parse_args()
 
-# first time to measure the speed
-experiment_helper.test(net_provider, data_loader, p, is_visualizing_results=False, eval_speeds=True,
-                       seq_name='blackswan')
+    print('GPU:', args.gpu_id)
+    gpu_handler.select_gpu(args.gpu_id)
 
-# second time for image output
-experiment_helper.test(net_provider, data_loader, p, is_visualizing_results=False, eval_speeds=False,
-                       seq_name='blackswan')
+    p = Path('../results/resnet18/11/11_min_{0}_{1}_{2}_{3}'.format(args.n_epochs_train,
+                                                                    args.n_epochs_finetune,
+                                                                    args.percentage_prune,
+                                                                    args.prune_per_iter))
+
+    print(args.n_epochs_train, args.n_epochs_finetune, args.percentage_prune, str(p))
+    net = get_net()
+
+    n_filters = total_num_filters(net)
+    n_filters_to_prune_per_iter = args.prune_per_iter
+    n_iterations = 1 + int(n_filters / n_filters_to_prune_per_iter * args.percentage_prune / 100)
+
+    print('Filters in model:', n_filters)
+    print('Prune n filters per iteration:', n_filters_to_prune_per_iter)
+    print('Number of iterations:', n_iterations)
+
+    pruner = FilterPruner(net)
+
+    # data_loader = io_helper.get_data_loader_train(Path('/home/klaus/dev/datasets/DAVIS'), batch_size=1, seq_name='blackswan')
+    data_loader = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name='blackswan')
+
+    print('Plan to prune...', net)
+    for _ in tqdm(range(n_iterations)):
+        prune_targets = get_candidates_to_prune(pruner, n_filters_to_prune_per_iter, net, data_loader)
+        layers_prunned = {}
+
+        # net = net.cpu()
+        layer_index_prev = -1
+        for layer_index, filter_index in prune_targets:
+            # if layer_index != layer_index_prev:
+            #     print(layer_index_prev, net)
+            #     layer_index_prev = layer_index
+            net = prune_resnet18_conv_layer(net, layer_index, filter_index)
+
+        net = gpu_handler.cast_cuda_if_possible(net)
+        print(str(_), 'Plan to prune...', net)
+
+        fine_tune(net, data_loader, n_epochs=args.n_epochs_finetune)
+
+    # path_export = Path('../models/resnet18_11_11_blackswan_epoch-9999_min.pth')
+    # torch.save(net.state_dict(), str(path_export))
+
+    net_provider = DummyProvider(net)
+
+    # load test dataset
+    # data_loader = io_helper.get_data_loader_test(Path('/home/klaus/dev/datasets/DAVIS'), batch_size=1, seq_name='blackswan')
+    data_loader = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name='blackswan')
+
+    # first time to measure the speed
+    experiment_helper.test(net_provider, data_loader, p, is_visualizing_results=False, eval_speeds=True,
+                           seq_name='blackswan')
+
+    # second time for image output
+    experiment_helper.test(net_provider, data_loader, p, is_visualizing_results=False, eval_speeds=False,
+                           seq_name='blackswan')
