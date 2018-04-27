@@ -449,15 +449,9 @@ def prune_convolution(conv, filter_index, is_reducing_channels_out: bool, layer_
     new_weights = new_conv.weight.data.cpu().numpy()
 
     if is_reducing_channels_out:
-        if (new_weights[:filter_index, :, :, :].shape != old_weights[:filter_index, :, :, :].shape or
-                new_weights[filter_index:, :, :, :].shape != old_weights[filter_index + 1:, :, :, :].shape):
-            print('About to crash', conv, filter_index, is_reducing_channels_out, layer_index, net)
         new_weights[:filter_index, :, :, :] = old_weights[:filter_index, :, :, :]
         new_weights[filter_index:, :, :, :] = old_weights[filter_index + 1:, :, :, :]
     else:
-        if (new_weights[:, :filter_index, :, :].shape != old_weights[:, :filter_index, :, :].shape or
-                new_weights[:, filter_index:, :, :].shape != old_weights[:, filter_index + 1:, :, :].shape):
-            print('About to crash', conv, filter_index, is_reducing_channels_out, layer_index, net)
         new_weights[:, :filter_index, :, :] = old_weights[:, :filter_index, :, :]
         new_weights[:, filter_index:, :, :] = old_weights[:, filter_index + 1:, :, :]
 
@@ -474,11 +468,6 @@ def prune_batchnorm(batchnorm_old, filter_index, layer_index, net):
     # net.layer_base[1].track_running_stats no attribute...
     old_weights = batchnorm_old.weight.data.cpu().numpy()
     new_weights = new_batchnorm.weight.data.cpu().numpy()
-
-    if (new_weights[:filter_index].shape != old_weights[:filter_index].shape or
-            new_weights[filter_index:].shape != old_weights[filter_index + 1:].shape):
-        print('About to crash', batchnorm_old, filter_index, layer_index, net)
-
     new_weights[:filter_index] = old_weights[:filter_index]
     new_weights[filter_index:] = old_weights[filter_index + 1:]
     new_batchnorm.weight.data = gpu_handler.cast_cuda_if_possible(torch.from_numpy(new_weights))
