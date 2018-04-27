@@ -29,9 +29,13 @@ def dir_to_images(path: Path):
 
 def generate_gif(path_input: Path, path_output_file: Path) -> None:
     if not path_output_file.exists():
-        files = dir_to_images(path_input)
-        clip = ImageSequenceClip(files, fps=16)
-        clip.write_gif(str(path_output_file), fps=16)
+        try:
+            files = dir_to_images(path_input)
+            clip = ImageSequenceClip(files, fps=16)
+            # clip.write_videofile(str(path_output_file), fps=16)
+            clip.write_gif(str(path_output_file), fps=16)
+        except Exception as e:
+            print('Skipped ', str(path_output_file), 'because', str(e))
 
 
 path_base = Path('../results/resnet18/11/')
