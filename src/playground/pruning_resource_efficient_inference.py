@@ -230,7 +230,7 @@ class FilterPruner:
         return filters_to_prune
 
 
-def train(pruner: FilterPruner, data_loader: data.DataLoader, n_epochs: Optional[int] = 1) -> None:
+def train(pruner: FilterPruner, data_loader: data.DataLoader, n_epochs: int = 1) -> None:
     for epoch in range(n_epochs):
         for minibatch in data_loader:
             pruner.net.zero_grad()
@@ -243,7 +243,7 @@ def train(pruner: FilterPruner, data_loader: data.DataLoader, n_epochs: Optional
             loss.backward()
 
 
-def fine_tune(net: nn.Module(), data_loader: data.DataLoader, n_epochs: Optional[int] = 1) -> None:
+def fine_tune(net: nn.Module(), data_loader: data.DataLoader, n_epochs: int = 1) -> None:
     optimizer = optim.Adam(net.parameters(), lr=1e-4, weight_decay=0.0002)
     avg_grad_every_n = 5
     counter_gradient = 0

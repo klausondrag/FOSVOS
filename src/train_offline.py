@@ -1,7 +1,6 @@
 import sys
 import timeit
 from pathlib import Path
-from typing import Optional
 
 from tensorboardX import SummaryWriter
 from torch import optim

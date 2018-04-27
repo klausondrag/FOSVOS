@@ -13,8 +13,7 @@ log = get_logger(__file__)
 
 
 class OSVOS_RESNET(nn.Module):
-    def __init__(self, pretrained: bool, version: Optional[int] = 18, n_channels_input: Optional[int] = 3,
-                 n_channels_output: Optional[int] = 1):
+    def __init__(self, pretrained: bool, version: int = 18, n_channels_input: int = 3, n_channels_output: int = 1):
         self.inplanes = 64
         super(OSVOS_RESNET, self).__init__()
         log.info("Constructing OSVOS resnet architecture...")
