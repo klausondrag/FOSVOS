@@ -535,6 +535,7 @@ def main(n_epochs_train, n_epochs_finetune, prune_per_iter, seq_name):
     data_loader_test = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=seq_name)
 
     for index_percentage in range(percentage_prune_steps, percentage_prune_max + 1, percentage_prune_steps):
+        log.info('Remaining filters in model: %d', total_num_filters(net))
         log.info('Pruning to percentage: %d', index_percentage)
         log.debug('Plan to prune %d...%s', 0, str(net))
         for index_iteration in tqdm(range(n_iterations)):
