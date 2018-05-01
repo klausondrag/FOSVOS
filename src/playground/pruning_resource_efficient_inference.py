@@ -505,6 +505,11 @@ class DummyProvider:
         self.network = net
 
 
+def get_suffix(percentage_pruned, prune_per_iter, n_epochs_finetune, n_epochs_train):
+    return '_min_{0}_{1}_{2}_{3}'.format(percentage_pruned, prune_per_iter,
+                                         n_epochs_finetune, n_epochs_train)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--n-epochs-train', default=20, type=int, help='version to try')
@@ -523,10 +528,10 @@ if __name__ == '__main__':
     print('GPU:', args.gpu_id)
     gpu_handler.select_gpu(args.gpu_id)
 
-    p = Path('../results/resnet18/11/11_min_{0}_{1}_{2}_{3}'.format(args.n_epochs_train,
-                                                                    args.n_epochs_finetune,
-                                                                    args.percentage_prune,
-                                                                    args.prune_per_iter))
+    percentage_pruned = args.percentage_prune
+
+    suffix = get_suffix(args.percentage_pruned, args.prune_per_iter, args.n_epochs_finetune, args.n_epochs_train)
+    p = Path('../results/resnet18/11/11' + suffix)
 
     print(args.n_epochs_train, args.n_epochs_finetune, args.percentage_prune, str(p))
     net = get_net()
@@ -562,8 +567,9 @@ if __name__ == '__main__':
 
         fine_tune(net, data_loader, n_epochs=args.n_epochs_finetune)
 
-    # path_export = Path('../models/resnet18_11_11_blackswan_epoch-9999_min.pth')
-    # torch.save(net.state_dict(), str(path_export))
+    suffix = get_suffix(args.percentage_pruned, args.prune_per_iter, args.n_epochs_finetune, args.n_epochs_train)
+    path_export = Path('../models/resnet18_11_11_blackswan_epoch-9999' + suffix + '.pth')
+    torch.save(net, str(path_export))
 
     net_provider = DummyProvider(net)
 
