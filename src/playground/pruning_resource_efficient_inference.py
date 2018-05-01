@@ -547,7 +547,6 @@ if __name__ == '__main__':
 
     pruner = FilterPruner(net)
 
-    # data_loader = io_helper.get_data_loader_train(Path('/home/klaus/dev/datasets/DAVIS'), batch_size=1, seq_name=args.object)
     data_loader = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=args.object)
 
     print('Plan to prune...', net)
@@ -575,7 +574,6 @@ if __name__ == '__main__':
     net_provider = DummyProvider(net)
 
     # load test dataset
-    # data_loader = io_helper.get_data_loader_test(Path('/home/klaus/dev/datasets/DAVIS'), batch_size=1, seq_name=args.object)
     data_loader = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=args.object)
 
     # first time to measure the speed
