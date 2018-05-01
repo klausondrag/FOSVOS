@@ -32,9 +32,9 @@ from util.logger import get_logger
 log = get_logger(__file__)
 
 
-def get_net() -> nn.Module:
+def get_net(seq_name) -> nn.Module:
     net = OSVOS_RESNET(pretrained=False)
-    path_model = Path('../models/resnet18_11_11_blackswan_epoch-9999.pth')
+    path_model = Path('../models/resnet18_11_11_' + seq_name + '_epoch-9999.pth')
     parameters = torch.load(str(path_model), map_location=lambda storage, loc: storage)
     net.load_state_dict(parameters)
     net = gpu_handler.cast_cuda_if_possible(net)
@@ -511,79 +511,84 @@ def get_suffix(percentage_pruned, prune_per_iter, n_epochs_finetune, n_epochs_tr
                                          n_epochs_finetune, n_epochs_train)
 
 
+def main(n_epochs_train, n_epochs_finetune, prune_per_iter, seq_name):
+    percentage_prune_max = 95
+    percentage_prune_steps = 5
+
+    suffix = get_suffix(percentage_prune_max, prune_per_iter, n_epochs_finetune, n_epochs_train)
+    log.info('Suffix: %s', suffix)
+    net = get_net(seq_name)
+
+    n_filters = total_num_filters(net)
+    n_filters_to_prune_per_iter = prune_per_iter
+    n_iterations = 1 + int(n_filters / n_filters_to_prune_per_iter * percentage_prune_steps / 100)
+
+    log.info('Filters in model: %d', n_filters)
+    log.info('Pruning maximal percentage: %d', percentage_prune_max)
+    log.info('Output every percentage: %d', percentage_prune_steps)
+    log.info('Number of iterations per percentage step: %d', n_iterations)
+    log.info('Prune n filters per iteration: %d', n_filters_to_prune_per_iter)
+
+    pruner = FilterPruner(net)
+
+    data_loader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=seq_name)
+    data_loader_test = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=seq_name)
+
+    for index_percentage in range(percentage_prune_steps, percentage_prune_max + 1, percentage_prune_steps):
+        log.info('Pruning to percentage: %d', index_percentage)
+        log.debug('Plan to prune %d...%s', 0, str(net))
+        for index_iteration in tqdm(range(n_iterations)):
+            prune_targets = get_candidates_to_prune(pruner, n_filters_to_prune_per_iter, net, data_loader_train)
+
+            # net = net.cpu()
+            layer_index_prev = -1
+            for layer_index, filter_index in prune_targets:
+                if layer_index != layer_index_prev:
+                    log.debug(layer_index_prev, net)
+                    layer_index_prev = layer_index
+                net = prune_resnet18_conv_layer(net, layer_index, filter_index)
+
+            net = gpu_handler.cast_cuda_if_possible(net)
+            log.debug('Plan to prune %d...%s', index_iteration, str(net))
+
+            fine_tune(net, data_loader_train, n_epochs=args.n_epochs_finetune)
+
+        suffix = get_suffix(index_percentage, prune_per_iter, n_epochs_finetune, n_epochs_train)
+        log.info('Suffix: %s', suffix)
+
+        path_output_model = Path('../models/resnet18_11_11_' + seq_name + '_epoch-9999' + suffix + '.pth')
+        log.info('Saving model to %s', str(path_output_model))
+        torch.save(net, str(path_output_model))
+
+        net_provider = DummyProvider(net)
+
+        path_output_images = Path('../results/resnet18/11/11' + suffix)
+
+        # first time to measure the speed
+        experiment_helper.test(net_provider, data_loader_test, path_output_images, is_visualizing_results=False,
+                               eval_speeds=True, seq_name=seq_name)
+
+        # second time for image output
+        experiment_helper.test(net_provider, data_loader_test, path_output_images, is_visualizing_results=False,
+                               eval_speeds=False, seq_name=seq_name)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument('--n-epochs-train', default=20, type=int, help='version to try')
     parser.add_argument('--n-epochs-finetune', default=20, type=int, help='version to try')
-    parser.add_argument('--percentage-prune', default=50, type=int, help='version to try')
+    # parser.add_argument('--percentage-prune', default=50, type=int, help='version to try')
     parser.add_argument('--gpu-id', default=1, type=int, help='The gpu id to use')
-    parser.add_argument('--prune-per-iter', default=256, type=int, help='filters to prune per iteration')
+    parser.add_argument('--prune-per-iter', default=64, type=int, help='filters to prune per iteration')
     parser.add_argument('-o', '--object', default='blackswan', type=str, help='The object to train on')
     args = parser.parse_args()
 
     # args.gpu_id = 1
     # args.n_epochs_train = 10
-    # args.n_epochs_finetune = 100
-    # args.percentage_prune = 66
+    # args.n_epochs_finetune = 200
     # args.prune_per_iter = 64
+    # args.percentage_prune = 66
 
     gpu_handler.select_gpu(args.gpu_id)
 
-    percentage_prune = args.percentage_prune
-
-    suffix = get_suffix(args.percentage_prune, args.prune_per_iter, args.n_epochs_finetune, args.n_epochs_train)
-    log.info('Suffix: %s', suffix)
-    net = get_net()
-
-    n_filters = total_num_filters(net)
-    n_filters_to_prune_per_iter = args.prune_per_iter
-    n_iterations = 1 + int(n_filters / n_filters_to_prune_per_iter * args.percentage_prune / 100)
-
-    log.info('Filters in model: %d', n_filters)
-    log.info('Prune n filters per iteration: %d', n_filters_to_prune_per_iter)
-    log.info('Number of iterations: %d', n_iterations)
-
-    pruner = FilterPruner(net)
-
-    data_loader = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=args.object)
-
-    log.debug('Plan to prune %d...%s', 0, str(net))
-    for index_iteration in tqdm(range(n_iterations)):
-        prune_targets = get_candidates_to_prune(pruner, n_filters_to_prune_per_iter, net, data_loader)
-        layers_prunned = {}
-
-        # net = net.cpu()
-        layer_index_prev = -1
-        for layer_index, filter_index in prune_targets:
-            if layer_index != layer_index_prev:
-                log.debug(layer_index_prev, net)
-                layer_index_prev = layer_index
-            net = prune_resnet18_conv_layer(net, layer_index, filter_index)
-
-        net = gpu_handler.cast_cuda_if_possible(net)
-        log.debug('Plan to prune %d...%s', index_iteration, str(net))
-
-        fine_tune(net, data_loader, n_epochs=args.n_epochs_finetune)
-
-    suffix = get_suffix(percentage_prune, args.prune_per_iter, args.n_epochs_finetune, args.n_epochs_train)
-    log.info('Suffix: %s', suffix)
-
-    path_output_model = Path('../models/resnet18_11_11_blackswan_epoch-9999' + suffix + '.pth')
-    torch.save(net, str(path_output_model))
-
-    net_provider = DummyProvider(net)
-
-    # load test dataset
-    data_loader = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=args.object)
-
-    path_output_images = Path('../results/resnet18/11/11' + suffix)
-
-    # first time to measure the speed
-    experiment_helper.test(net_provider, data_loader, path_output_images, is_visualizing_results=False,
-                           eval_speeds=True,
-                           seq_name=args.object)
-
-    # second time for image output
-    experiment_helper.test(net_provider, data_loader, path_output_images, is_visualizing_results=False,
-                           eval_speeds=False,
-                           seq_name=args.object)
+    main(args.n_epochs_train, args.n_epochs_finetune, args.prune_per_iter, args.object)
