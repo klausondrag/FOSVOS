@@ -29,6 +29,7 @@ pyyaml = "*"
 plotly = "*"
 moviepy = "*"
 tqdm = "*"
+click = "*"
 
 
 [requires]
