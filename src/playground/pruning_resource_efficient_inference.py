@@ -532,8 +532,6 @@ if __name__ == '__main__':
     percentage_prune = args.percentage_prune
 
     suffix = get_suffix(args.percentage_prune, args.prune_per_iter, args.n_epochs_finetune, args.n_epochs_train)
-    p = Path('../results/resnet18/11/11' + suffix)
-
     log.info('Suffix: %s', suffix)
     net = get_net()
 
@@ -567,19 +565,25 @@ if __name__ == '__main__':
 
         fine_tune(net, data_loader, n_epochs=args.n_epochs_finetune)
 
-    suffix = get_suffix(args.percentage_prune, args.prune_per_iter, args.n_epochs_finetune, args.n_epochs_train)
-    path_export = Path('../models/resnet18_11_11_blackswan_epoch-9999' + suffix + '.pth')
-    torch.save(net, str(path_export))
+    suffix = get_suffix(percentage_prune, args.prune_per_iter, args.n_epochs_finetune, args.n_epochs_train)
+    log.info('Suffix: %s', suffix)
+
+    path_output_model = Path('../models/resnet18_11_11_blackswan_epoch-9999' + suffix + '.pth')
+    torch.save(net, str(path_output_model))
 
     net_provider = DummyProvider(net)
 
     # load test dataset
     data_loader = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=args.object)
 
+    path_output_images = Path('../results/resnet18/11/11' + suffix)
+
     # first time to measure the speed
-    experiment_helper.test(net_provider, data_loader, p, is_visualizing_results=False, eval_speeds=True,
+    experiment_helper.test(net_provider, data_loader, path_output_images, is_visualizing_results=False,
+                           eval_speeds=True,
                            seq_name=args.object)
 
     # second time for image output
-    experiment_helper.test(net_provider, data_loader, p, is_visualizing_results=False, eval_speeds=False,
+    experiment_helper.test(net_provider, data_loader, path_output_images, is_visualizing_results=False,
+                           eval_speeds=False,
                            seq_name=args.object)
