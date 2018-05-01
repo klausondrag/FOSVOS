@@ -41,5 +41,5 @@ def generate_gif(path_input: Path, path_output_file: Path) -> None:
 path_base = Path('../results/resnet18/11/')
 path_output = Path('gifs')
 path_output.mkdir(parents=True, exist_ok=True)
-for path_variant in path_base.iterdir():
+for path_variant in sorted(path_base.iterdir()):
     generate_gif(path_variant / 'blackswan', path_output / (path_variant.stem + '.gif'))
