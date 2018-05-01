@@ -517,6 +517,7 @@ if __name__ == '__main__':
     parser.add_argument('--percentage-prune', default=50, type=int, help='version to try')
     parser.add_argument('--gpu-id', default=1, type=int, help='The gpu id to use')
     parser.add_argument('--prune-per-iter', default=256, type=int, help='filters to prune per iteration')
+    parser.add_argument('-o', '--object', default='blackswan', type=str, help='The object to train on')
     args = parser.parse_args()
 
     # args.gpu_id = 1
@@ -546,8 +547,8 @@ if __name__ == '__main__':
 
     pruner = FilterPruner(net)
 
-    # data_loader = io_helper.get_data_loader_train(Path('/home/klaus/dev/datasets/DAVIS'), batch_size=1, seq_name='blackswan')
-    data_loader = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name='blackswan')
+    # data_loader = io_helper.get_data_loader_train(Path('/home/klaus/dev/datasets/DAVIS'), batch_size=1, seq_name=args.object)
+    data_loader = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=args.object)
 
     print('Plan to prune...', net)
     for _ in tqdm(range(n_iterations)):
@@ -574,13 +575,13 @@ if __name__ == '__main__':
     net_provider = DummyProvider(net)
 
     # load test dataset
-    # data_loader = io_helper.get_data_loader_test(Path('/home/klaus/dev/datasets/DAVIS'), batch_size=1, seq_name='blackswan')
-    data_loader = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name='blackswan')
+    # data_loader = io_helper.get_data_loader_test(Path('/home/klaus/dev/datasets/DAVIS'), batch_size=1, seq_name=args.object)
+    data_loader = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=args.object)
 
     # first time to measure the speed
     experiment_helper.test(net_provider, data_loader, p, is_visualizing_results=False, eval_speeds=True,
-                           seq_name='blackswan')
+                           seq_name=args.object)
 
     # second time for image output
     experiment_helper.test(net_provider, data_loader, p, is_visualizing_results=False, eval_speeds=False,
-                           seq_name='blackswan')
+                           seq_name=args.object)
