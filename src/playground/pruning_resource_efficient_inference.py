@@ -4,6 +4,8 @@
 
 from pathlib import Path
 import sys
+from typing import Optional
+
 import operator
 import heapq
 import argparse
@@ -32,9 +34,13 @@ from util.logger import get_logger
 log = get_logger(__file__)
 
 
-def get_net(seq_name) -> nn.Module:
+def get_net(seq_name, train_offline: bool) -> nn.Module:
     net = OSVOS_RESNET(pretrained=False)
-    path_model = Path('../models/resnet18_11_11_' + seq_name + '_epoch-9999.pth')
+    if train_offline:
+        path_model = '../models/resnet18_11_epoch-239.pth'
+    else:
+        path_model = '../models/resnet18_11_11_' + seq_name + '_epoch-9999.pth'
+    path_model = Path(path_model)
     parameters = torch.load(str(path_model), map_location=lambda storage, loc: storage)
     net.load_state_dict(parameters)
     net = gpu_handler.cast_cuda_if_possible(net)
@@ -506,18 +512,22 @@ class DummyProvider:
         self.network = net
 
 
-def get_suffix(percentage_pruned, prune_per_iter, n_epochs_finetune, n_epochs_train):
-    return '_min_{0}_{1}_{2}_{3}'.format(percentage_pruned, prune_per_iter,
-                                         n_epochs_finetune, n_epochs_train)
+def get_suffix(percentage_pruned, prune_per_iter, n_epochs_finetune, n_epochs_train, prune_offline):
+    return '_{4}_min_{0}_{1}_{2}_{3}'.format(percentage_pruned, prune_per_iter,
+                                             n_epochs_finetune, n_epochs_train,
+                                             ('offline' if prune_offline else 'online'))
 
 
-def main(n_epochs_train, n_epochs_finetune, prune_per_iter, seq_name):
+def main(n_epochs_train, n_epochs_finetune, prune_per_iter,
+         seq_name: Optional[str] = None, prune_offline: bool = False) -> None:
+    if prune_offline:
+        seq_name = None
     percentage_prune_max = 95
     percentage_prune_steps = 5
 
-    suffix = get_suffix(percentage_prune_max, prune_per_iter, n_epochs_finetune, n_epochs_train)
+    suffix = get_suffix(percentage_prune_max, prune_per_iter, n_epochs_finetune, n_epochs_train, prune_offline)
     log.info('Suffix: %s', suffix)
-    net = get_net(seq_name)
+    net = get_net(seq_name, prune_offline)
 
     n_filters = total_num_filters(net)
     n_filters_to_prune_per_iter = prune_per_iter
@@ -554,7 +564,7 @@ def main(n_epochs_train, n_epochs_finetune, prune_per_iter, seq_name):
 
             fine_tune(net, data_loader_train, n_epochs=args.n_epochs_finetune)
 
-        suffix = get_suffix(index_percentage, prune_per_iter, n_epochs_finetune, n_epochs_train)
+        suffix = get_suffix(index_percentage, prune_per_iter, n_epochs_finetune, n_epochs_train, prune_offline)
         log.info('Suffix: %s', suffix)
 
         path_output_model = Path('../models/resnet18_11_11_' + seq_name + '_epoch-9999' + suffix + '.pth')
@@ -582,6 +592,7 @@ if __name__ == '__main__':
     parser.add_argument('--gpu-id', default=1, type=int, help='The gpu id to use')
     parser.add_argument('--prune-per-iter', default=64, type=int, help='filters to prune per iteration')
     parser.add_argument('-o', '--object', default='blackswan', type=str, help='The object to train on')
+    parser.add_argument('--prune-offline', action='store_true', help='')
     args = parser.parse_args()
 
     # args.gpu_id = 1
@@ -592,4 +603,4 @@ if __name__ == '__main__':
 
     gpu_handler.select_gpu(args.gpu_id)
 
-    main(args.n_epochs_train, args.n_epochs_finetune, args.prune_per_iter, args.object)
+    main(args.n_epochs_train, args.n_epochs_finetune, args.prune_per_iter, args.object, args.prune_offline)
