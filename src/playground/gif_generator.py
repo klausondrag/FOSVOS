@@ -44,19 +44,33 @@ def generate_gif(path_input: Path, path_output_file: Path, output_format: str) -
             print('Skipped ', str(path_output_file), 'because', str(e))
 
 
+sequences_val = ['blackswan', 'bmx-trees', 'breakdance', 'camel', 'car-roundabout', 'car-shadow', 'cows',
+                 'dance-twirl', 'dog', 'drift-chicane', 'drift-straight', 'goat', 'horsejump-high', 'kite-surf',
+                 'libby', 'motocross-jump', 'paragliding-launch', 'parkour', 'scooter-black', 'soapbox']
+
+sequences_train = ['bear', 'bmx-bumps', 'boat', 'breakdance-flare', 'bus', 'car-turn', 'dance-jump',
+                   'dog-agility', 'drift-turn', 'elephant', 'flamingo', 'hike', 'hockey', 'horsejump-low',
+                   'kite-walk', 'lucia', 'mallard-fly', 'mallard-water', 'motocross-bumps', 'motorbike',
+                   'paragliding', 'rhino', 'rollerblade', 'scooter-gray', 'soccerball', 'stroller', 'surf',
+                   'swing', 'tennis', 'train']
+
+sequences_all = list(set(sequences_train + sequences_val))
+
+
 @click.command()
-@click.option('--path-base', type=str, default='../results/resnet18/11/')
-@click.option('--path-output', type=str, default='../results/gifs')
-@click.option('--sequence-name', type=str, default='blackswan')
+@click.option('--path-base-input', type=str, default='../results/resnet18/11/')
+@click.option('--path-base-output', type=str, default='../results/gifs')
 @click.option('--output-format', type=click.Choice(['gif', 'mp4']), default='gif')
-def convert_folder(path_base, path_output, sequence_name, output_format):
-    path_base = Path(path_base)
-    path_output = Path(path_output) / sequence_name
-    path_output.mkdir(parents=True, exist_ok=True)
-    for path_variant in sorted(path_base.iterdir()):
-        generate_gif(path_variant / sequence_name,
-                     path_output / (path_variant.stem + '.' + output_format),
-                     output_format)
+def convert_folder(path_base_input, path_base_output, output_format):
+    path_base_input = Path(path_base_input)
+    path_base_output = Path(path_base_output)
+    for sequence_name in sequences_all:
+        path_output = path_base_output / sequence_name
+        path_output.mkdir(parents=True, exist_ok=True)
+        for path_variant in sorted(path_base_input.iterdir()):
+            generate_gif(path_variant / sequence_name,
+                         path_output / (path_variant.stem + '.' + output_format),
+                         output_format)
 
 
 if __name__ == '__main__':
