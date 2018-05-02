@@ -68,9 +68,9 @@ def convert_folder(path_base_input, path_base_output, output_format):
         path_output = path_base_output / sequence_name
         path_output.mkdir(parents=True, exist_ok=True)
         for path_variant in sorted(path_base_input.iterdir()):
-            generate_gif(path_variant / sequence_name,
-                         path_output / (path_variant.stem + '.' + output_format),
-                         output_format)
+            path_input = path_variant / sequence_name
+            if path_input.exists():
+                generate_gif(path_input, path_output / (path_variant.stem + '.' + output_format), output_format)
 
 
 if __name__ == '__main__':
