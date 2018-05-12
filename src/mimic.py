@@ -84,7 +84,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
                 loss.backward()
                 optimizer.step()
 
-                if epoch & 200 == 199:
+                if epoch % 200 == 199:
                     log.info('Epoch {0}: Loss == {1}'.format(epoch, loss.data[0]))
         log.info('Finished Training')
 
