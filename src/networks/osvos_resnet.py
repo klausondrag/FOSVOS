@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import List, Tuple, Union, Callable, Optional
+from typing import List, Tuple, Union, Callable
 
 import torch
 import torch.nn as nn
@@ -13,13 +13,15 @@ log = get_logger(__file__)
 
 
 class OSVOS_RESNET(nn.Module):
-    def __init__(self, pretrained: bool, version: int = 18, n_channels_input: int = 3, n_channels_output: int = 1):
+    def __init__(self, pretrained: bool, version: int = 18, n_channels_input: int = 3, n_channels_output: int = 1,
+                 scale_down_exponential: int = 0):
         self.inplanes = 64
         super(OSVOS_RESNET, self).__init__()
         log.info("Constructing OSVOS resnet architecture...")
 
         block, layers, model_creation = self._match_version(version)
         n_channels_side_inputs = [64, 128, 256, 512]
+        n_channels_side_inputs = [i // (2 ** scale_down_exponential) for i in n_channels_side_inputs]
 
         self.layer_base = self._make_layer_base(n_channels_input=n_channels_input,
                                                 n_channels_output=n_channels_side_inputs[0])
@@ -59,6 +61,7 @@ class OSVOS_RESNET(nn.Module):
         out = torch.cat(side[:], dim=1)
         out = self.layer_fuse(out)
         side_out.append(out)
+        return torch.cat(side_out)
         return side_out
 
     @staticmethod
@@ -172,3 +175,35 @@ class OSVOS_RESNET(nn.Module):
             if isinstance(module_src, nn.Conv2d) or isinstance(module_src, nn.BatchNorm2d):
                 module_dest.weight = deepcopy(module_src.weight)
                 module_dest.bias = deepcopy(module_src.bias)
+
+
+class BasicBlockDummy(nn.Module):
+    expansion = 1
+
+    def __init__(self, conv1, bn1, relu, conv2, bn2, downsample, stride):
+        super(BasicBlockDummy, self).__init__()
+        self.conv1 = conv1
+        self.bn1 = bn1
+        self.relu = relu
+        self.conv2 = conv2
+        self.bn2 = bn2
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
