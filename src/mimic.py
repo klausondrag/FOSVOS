@@ -57,6 +57,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
 
     net_teacher = get_net(sequence_name, mimic_offline)
     net_student = OSVOS_RESNET(pretrained=False, scale_down_exponential=scale_down_exponential)
+    net_student.train()
 
     optimizer = optim.Adam(net_student.parameters(), lr=learning_rate, weight_decay=0.0002)
     criterion = nn.MSELoss()
@@ -89,10 +90,11 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
 
         log.info('Saving model to %s', str(path_output_model))
         torch.save(net_student.state_dict(), str(path_output_model))
-    else:
-        net_student = OSVOS_RESNET(pretrained=False, scale_down_exponential=scale_down_exponential)
-        net_student.load_state_dict(torch.load(str(path_output_model), map_location=lambda storage, loc: storage))
-        net_student = gpu_handler.cast_cuda_if_possible(net_student)
+
+    net_student = OSVOS_RESNET(pretrained=False, scale_down_exponential=scale_down_exponential)
+    net_student.load_state_dict(torch.load(str(path_output_model), map_location=lambda storage, loc: storage))
+    net_student = gpu_handler.cast_cuda_if_possible(net_student)
+    net_student.eval()
 
     net_provider = DummyProvider(net_student)
 
@@ -120,8 +122,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     gpu_handler.select_gpu(args.gpu_id)
-
-    args.no_training = True
 
     main(args.n_epochs, args.object, args.mimic_offline, args.scale_down_exponential, args.learning_rate,
          args.no_training)

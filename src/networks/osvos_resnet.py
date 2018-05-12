@@ -15,6 +15,7 @@ log = get_logger(__file__)
 class OSVOS_RESNET(nn.Module):
     def __init__(self, pretrained: bool, version: int = 18, n_channels_input: int = 3, n_channels_output: int = 1,
                  scale_down_exponential: int = 0):
+        self.scale_down_exponential = scale_down_exponential
         self.inplanes = 64
         super(OSVOS_RESNET, self).__init__()
         log.info("Constructing OSVOS resnet architecture...")
@@ -61,8 +62,11 @@ class OSVOS_RESNET(nn.Module):
         out = torch.cat(side[:], dim=1)
         out = self.layer_fuse(out)
         side_out.append(out)
-        return torch.cat(side_out)
-        return side_out
+
+        if self.training and self.scale_down_exponential > 0:
+            return torch.cat(side_out)
+        else:
+            return side_out
 
     @staticmethod
     def _match_version(version: int) -> Tuple[Union[BasicBlock, Bottleneck], List[int], Callable]:
