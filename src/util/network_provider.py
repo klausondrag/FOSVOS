@@ -42,7 +42,12 @@ class NetworkProvider(ABC):
                 model_name += '_' + str(self.variant_online)
             model_name += '_' + sequence
 
-        file_path = self.save_dir / '{0}_epoch-{1}.pth'.format(model_name, str(epoch))
+        x = ''
+        # x = '_offline_min_30_32_3_3'
+        # x = '_offline_min_50_32_3_3'
+        # x = '_offline_min_70_32_3_3'
+
+        file_path = self.save_dir / '{0}_epoch-{1}{2}.pth'.format(model_name, str(epoch), x)
         return file_path
 
     def load_model(self, epoch: int, sequence: Optional[str] = None) -> None:
@@ -50,12 +55,14 @@ class NetworkProvider(ABC):
         log.info("Loading weights from: {0}".format(str(file_path)))
         if not file_path.exists():
             log.error('Model {0} does not exist!'.format(str(file_path)))
+        # self.network = torch.load(str(file_path))
         self.network.load_state_dict(torch.load(str(file_path), map_location=lambda storage, loc: storage))
+        self.network = gpu_handler.cast_cuda_if_possible(self.network, verbose=True)
 
     def save_model(self, epoch: int, sequence: Optional[str] = None) -> None:
         file_path = str(self._get_file_path(epoch, sequence))
         log.info("Saving weights to: {0}".format(file_path))
-        torch.save(self.network.state_dict(), file_path)
+        torch.save(self.network, file_path)
 
     @abstractmethod
     def load_network_train(self) -> None:

@@ -3,7 +3,7 @@ import timeit
 from pathlib import Path
 
 from tensorboardX import SummaryWriter
-from torch import optim
+from torch import optim, nn
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
@@ -114,6 +114,7 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: op
 
 
 if __name__ == '__main__':
+    from playground.pruning_resource_efficient_inference import BasicBlockDummy
     args = args_helper.parse_args(is_online=True)
     gpu_handler.select_gpu(args.gpu_id)
 
