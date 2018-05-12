@@ -38,7 +38,7 @@ def get_suffix(scale_down_exponential, sequence_name, learning_rate) -> str:
 
 
 def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale_down_exponential: int,
-         learning_rate: float) -> None:
+         learning_rate: float, no_training: bool) -> None:
     if mimic_offline:
         sequence_name = None
 
@@ -50,42 +50,49 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
     data_loader_test = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1,
                                                       seq_name=sequence_name)
 
+    if mimic_offline:
+        path_output_model = Path('./models/resnet18_11' + suffix + '.pth')
+    else:
+        path_output_model = Path('./models/resnet18_11_11_' + sequence_name + '_epoch-9999' + suffix + '.pth')
+
     net_teacher = get_net(sequence_name, mimic_offline)
     net_student = OSVOS_RESNET(pretrained=False, scale_down_exponential=scale_down_exponential)
 
     optimizer = optim.Adam(net_student.parameters(), lr=learning_rate, weight_decay=0.0002)
     criterion = nn.MSELoss()
     criterion = gpu_handler.cast_cuda_if_possible(criterion)
-    log.info('Starting Training')
-    for epoch in range(n_epochs):
-        for minibatch in data_loader_train:
-            net_student.zero_grad()
-            optimizer.zero_grad()
 
-            inputs_teacher, inputs_student = minibatch['image'], minibatch['image']
-            inputs_teacher, inputs_student = (Variable(inputs_teacher, requires_grad=False),
-                                              Variable(inputs_student, requires_grad=True))
-            inputs_teacher, inputs_student = gpu_handler.cast_cuda_if_possible([inputs_teacher, inputs_student])
+    if not no_training:
+        log.info('Starting Training')
+        for epoch in range(n_epochs):
+            for minibatch in data_loader_train:
+                net_student.zero_grad()
+                optimizer.zero_grad()
 
-            outputs_teacher = net_teacher.forward(inputs_teacher)
-            outputs_teacher = outputs_teacher.detach()
-            outputs_student = net_teacher.forward(inputs_student)
+                inputs_teacher, inputs_student = minibatch['image'], minibatch['image']
+                inputs_teacher, inputs_student = (Variable(inputs_teacher, requires_grad=False),
+                                                  Variable(inputs_student, requires_grad=True))
+                inputs_teacher, inputs_student = gpu_handler.cast_cuda_if_possible([inputs_teacher, inputs_student])
 
-            loss = criterion(outputs_student, outputs_teacher)
-            loss.backward()
-            optimizer.step()
+                outputs_teacher = net_teacher.forward(inputs_teacher)
+                outputs_teacher = outputs_teacher.detach()
+                outputs_teacher = gpu_handler.cast_cuda_if_possible(outputs_teacher)
+                outputs_student = net_teacher.forward(inputs_student)
 
-            if epoch & 200 == 199:
-                log.info('Epoch {0}: Loss == {1}'.format(epoch, loss.data[0]))
-    log.info('Finished Training')
+                loss = criterion(outputs_student, outputs_teacher)
+                loss.backward()
+                optimizer.step()
 
-    if mimic_offline:
-        path_output_model = Path('./models/resnet18_11' + suffix + '.pth')
+                if epoch & 200 == 199:
+                    log.info('Epoch {0}: Loss == {1}'.format(epoch, loss.data[0]))
+        log.info('Finished Training')
+
+        log.info('Saving model to %s', str(path_output_model))
+        torch.save(net_student.state_dict(), str(path_output_model))
     else:
-        path_output_model = Path('./models/resnet18_11_11_' + sequence_name + '_epoch-9999' + suffix + '.pth')
-
-    log.info('Saving model to %s', str(path_output_model))
-    torch.save(net_student.state_dict(), str(path_output_model))
+        net_student = OSVOS_RESNET(pretrained=False, scale_down_exponential=scale_down_exponential)
+        net_student.load_state_dict(torch.load(str(path_output_model), map_location=lambda storage, loc: storage))
+        net_student = gpu_handler.cast_cuda_if_possible(net_student)
 
     net_provider = DummyProvider(net_student)
 
@@ -108,8 +115,13 @@ if __name__ == '__main__':
     parser.add_argument('--mimic-offline', action='store_true', help='')
     parser.add_argument('--scale-down-exponential', default=0, type=int, help='')
     parser.add_argument('--learning-rate', default=1e-4, type=float, help='')
+    parser.add_argument('--no-training', action='store_true',
+                        help='True if the program should train the model, else False')
     args = parser.parse_args()
 
     gpu_handler.select_gpu(args.gpu_id)
 
-    main(args.n_epochs, args.object, args.mimic_offline, args.scale_down_exponential, args.learning_rate)
+    args.no_training = True
+
+    main(args.n_epochs, args.object, args.mimic_offline, args.scale_down_exponential, args.learning_rate,
+         args.no_training)
