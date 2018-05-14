@@ -157,7 +157,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
 
     net_provider = DummyProvider(net_student)
 
-    path_output_images = Path('./results/resnet18/11/11' + suffix)
+    path_output_images = Path('./results/resnet18/11/mimic/' + suffix)
     log.info('Saving images to %s', str(path_output_images))
 
     # first time to measure the speed
