@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
+import shutil
 
 import torch
 from torch import nn, optim
@@ -35,10 +35,9 @@ class DummyProvider:
 
 
 def get_suffix(scale_down_exponential, sequence_name, learning_rate, loss) -> str:
-    return ',sde={0},sequence={1},lr={2},loss={3}'.format(str(scale_down_exponential),
-                                                          'offline' if sequence_name is None else sequence_name,
-                                                          str(learning_rate),
-                                                          loss)
+    s = 'sequence={1},sde={0},lr={2},loss={3}'
+    return s.format(str(scale_down_exponential), 'offline' if sequence_name is None else sequence_name,
+                    str(learning_rate), loss)
 
 
 def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale_down_exponential: int,
@@ -52,16 +51,19 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
     suffix = get_suffix(scale_down_exponential, sequence_name, learning_rate, loss)
     log.info('Suffix: %s', suffix)
 
-    current_time = datetime.now().isoformat()
-    tensorboard_dir = Path('tensorboard') / 'mimic' / suffix[1:] / str(current_time)
-    tensorboard_dir = str(tensorboard_dir)
-    log.info('Logging for tensorboard in directory: %s', tensorboard_dir)
-    writer = SummaryWriter(tensorboard_dir)
+    path_stem = 'resnet18/11/mimic/' + suffix
+    log.info('Path steam: %s', str(path_stem))
 
-    if mimic_offline:
-        path_output_model = Path('./models/resnet18_11' + suffix + '.pth')
-    else:
-        path_output_model = Path('./models/resnet18_11_11_' + sequence_name + '_epoch-9999' + suffix + '.pth')
+    path_tensorboard = Path('tensorboard') / path_stem
+    if path_tensorboard.exists():
+        log.warn('Deleting existing tensorboard directory: %s', str(path_tensorboard))
+        shutil.rmtree(path_tensorboard)
+
+    path_tensorboard = str(path_tensorboard)
+    log.info('Logging for tensorboard in directory: %s', path_tensorboard)
+    writer = SummaryWriter(path_tensorboard)
+
+    path_output_model = Path('models') / path_stem / (suffix + '.pth')
 
     data_loader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=5,
                                                         seq_name=sequence_name)
@@ -157,7 +159,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
 
     net_provider = DummyProvider(net_student)
 
-    path_output_images = Path('./results/resnet18/11/mimic/' + suffix)
+    path_output_images = Path('results') / path_stem / suffix
     log.info('Saving images to %s', str(path_output_images))
 
     # first time to measure the speed
