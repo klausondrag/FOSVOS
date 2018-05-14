@@ -8,6 +8,7 @@ from torch import nn, optim
 from torch.autograd import Variable
 from tensorboardX import SummaryWriter
 
+from layers.osvos_layers import class_balanced_cross_entropy_loss
 from networks.osvos_resnet import OSVOS_RESNET
 from util import gpu_handler, experiment_helper, io_helper
 from util.logger import get_logger
@@ -34,21 +35,18 @@ class DummyProvider:
         self.network = net
 
 
-def get_suffix(scale_down_exponential: int, sequence_name: Optional[str], learning_rate: float, loss: str) -> str:
-    s = 'sequence={1},sde={0},lr={2:0.1e},loss={3}'
+def get_suffix(scale_down_exponential: int, sequence_name: Optional[str], learning_rate: float, criterion: str) -> str:
+    s = 'sequence={1},sde={0},lr={2:0.1e},criterion={3}'
     return s.format(str(scale_down_exponential), 'offline' if sequence_name is None else sequence_name,
-                    learning_rate, loss)
+                    learning_rate, criterion)
 
 
 def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale_down_exponential: int,
-         learning_rate: float, no_training: bool) -> None:
+         learning_rate: float, no_training: bool, criterion: str) -> None:
     if mimic_offline:
         sequence_name = None
 
-    loss = 'L1'
-    loss = 'MSE'
-
-    suffix = get_suffix(scale_down_exponential, sequence_name, learning_rate, loss)
+    suffix = get_suffix(scale_down_exponential, sequence_name, learning_rate, criterion)
     log.info('Suffix: %s', suffix)
 
     path_stem = 'resnet18/11/mimic/' + suffix
@@ -63,7 +61,9 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
     log.info('Logging for tensorboard in directory: %s', path_tensorboard)
     writer = SummaryWriter(path_tensorboard)
 
-    path_output_model = Path('models') / path_stem / (suffix + '.pth')
+    path_output_model = Path('models') / path_stem
+    path_output_model.mkdir(parents=True, exist_ok=True)
+    path_output_model = path_output_model / (str(n_epochs) + '.pth')
 
     data_loader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=5,
                                                         seq_name=sequence_name)
@@ -83,10 +83,12 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
 
         optimizer = optim.Adam(net_student.parameters(), lr=learning_rate, weight_decay=0.0002)
 
-        if loss == 'MSE':
+        if criterion == 'MSE':
             criterion = nn.MSELoss(size_average=False)
-        elif loss == 'L1':
+        elif criterion == 'L1':
             criterion = nn.L1Loss(size_average=False)
+        elif criterion == 'CBCEL':
+            criterion = class_balanced_cross_entropy_loss
         else:
             raise Exception('Unknown loss function')
         criterion = gpu_handler.cast_cuda_if_possible(criterion)
@@ -157,7 +159,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
 
     net_provider = DummyProvider(net_student)
 
-    path_output_images = Path('results') / path_stem / suffix
+    path_output_images = Path('results') / path_stem / str(n_epochs)
     log.info('Saving images to %s', str(path_output_images))
 
     # first time to measure the speed
@@ -181,6 +183,8 @@ if __name__ == '__main__':
     parser.add_argument('--learning-rate', default=1e-4, type=float, help='')
     parser.add_argument('--no-training', action='store_true',
                         help='True if the program should train the model, else False')
+    parser.add_argument('--criterion', default='MSE', type=str, help='The loss to use',
+                        choices=['MSE', 'L1', 'CBCEL'])
     args = parser.parse_args()
 
     gpu_handler.select_gpu(args.gpu_id)
@@ -191,4 +195,4 @@ if __name__ == '__main__':
     # args.scale_down_exponential = 2
 
     main(args.n_epochs, args.object, args.mimic_offline, args.scale_down_exponential, args.learning_rate,
-         args.no_training)
+         args.no_training, args.criterion)
