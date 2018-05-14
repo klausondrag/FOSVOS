@@ -64,6 +64,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
     path_output_model = Path('models') / path_stem
     path_output_model.mkdir(parents=True, exist_ok=True)
     path_output_model = path_output_model / (str(n_epochs) + '.pth')
+    log.info('Path of model: %s', str(path_output_model))
 
     data_loader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=5,
                                                         seq_name=sequence_name)
@@ -122,7 +123,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
             loss_training /= len(data_loader_train)
             writer.add_scalar('data/training/loss', loss_training, epoch)
 
-            if epoch % 100 == 0:
+            if epoch % 25 == 0:
                 log.info('Training: epoch {0}, loss == {1}'.format(epoch, loss.data[0]))
                 log.info('Validating...')
                 loss_validation = 0.0
@@ -175,12 +176,12 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument('--n-epochs', default=20, type=int, help='')
+    parser.add_argument('--n-epochs', default=300, type=int, help='')
     parser.add_argument('--gpu-id', default=1, type=int, help='The gpu id to use')
     parser.add_argument('-o', '--object', default='blackswan', type=str, help='The object to train on')
     parser.add_argument('--mimic-offline', action='store_true', help='')
     parser.add_argument('--scale-down-exponential', default=0, type=int, help='')
-    parser.add_argument('--learning-rate', default=1e-4, type=float, help='')
+    parser.add_argument('--learning-rate', default=1e-2, type=float, help='')
     parser.add_argument('--no-training', action='store_true',
                         help='True if the program should train the model, else False')
     parser.add_argument('--criterion', default='MSE', type=str, help='The loss to use',
@@ -188,11 +189,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     gpu_handler.select_gpu(args.gpu_id)
-
-    # args.no_training = True
-    # args.n_epoch = 1000
-    # args.object = 'libby'
-    # args.scale_down_exponential = 2
-
     main(args.n_epochs, args.object, args.mimic_offline, args.scale_down_exponential, args.learning_rate,
          args.no_training, args.criterion)
