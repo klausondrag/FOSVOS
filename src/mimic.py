@@ -35,7 +35,7 @@ class DummyProvider:
 
 
 def get_suffix(scale_down_exponential, sequence_name, learning_rate, loss) -> str:
-    s = 'sequence={1},sde={0},lr={2},loss={3}'
+    s = 'sequence={1},sde={0},lr={2:0.1e},loss={3}'
     return s.format(str(scale_down_exponential), 'offline' if sequence_name is None else sequence_name,
                     str(learning_rate), loss)
 
