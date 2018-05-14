@@ -63,9 +63,12 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
     else:
         path_output_model = Path('./models/resnet18_11_11_' + sequence_name + '_epoch-9999' + suffix + '.pth')
 
+    data_loader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=5,
+                                                        seq_name=sequence_name)
+    data_loader_test = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1,
+                                                      seq_name=sequence_name)
+
     if not no_training:
-        data_loader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=5,
-                                                            seq_name=sequence_name)
 
         net_teacher = get_net(sequence_name, mimic_offline)
         net_teacher.train()
@@ -88,6 +91,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
 
         log.info('Starting Training')
         for epoch in range(n_epochs):
+            loss_training = 0.0
             for minibatch in data_loader_train:
                 net_student.zero_grad()
                 optimizer.zero_grad()
@@ -107,20 +111,43 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
                 outputs_student = gpu_handler.cast_cuda_if_possible(outputs_student)
 
                 loss = criterion(outputs_student, outputs_teacher)
+                loss_training += loss.data[0]
                 loss.backward()
                 optimizer.step()
 
-            writer.add_scalar('data/train/loss', loss.data[0], epoch)
+            loss_training /= len(data_loader_train)
+            writer.add_scalar('data/training/loss', loss_training, epoch)
+
             if epoch % 200 == 199:
-                log.info('Epoch {0}: Loss == {1}'.format(epoch, loss.data[0]))
+                log.info('Training: epoch {0}, loss == {1}'.format(epoch, loss.data[0]))
+
+            if epoch % 100 == 99:
+                log.info('Validating...')
+                loss_validation = 0.0
+                for minibatch in data_loader_train:
+                    inputs_image, inputs_ground_truth = minibatch['image'], minibatch['gt']
+                    inputs_image, inputs_ground_truth = (Variable(inputs_image, requires_grad=False,
+                                                                  volatile=True),
+                                                         Variable(inputs_ground_truth, requires_grad=False,
+                                                                  volatile=True))
+                    inputs_image, inputs_ground_truth = gpu_handler.cast_cuda_if_possible(
+                        [inputs_image, inputs_ground_truth])
+
+                    outputs_student = net_student.forward(inputs_image)
+                    outputs_student = outputs_student[-1]
+                    outputs_student = gpu_handler.cast_cuda_if_possible(outputs_student)
+
+                    loss = criterion(outputs_student, inputs_ground_truth)
+                    loss_validation += loss.data[0]
+
+                loss_validation /= len(data_loader_test)
+                writer.add_scalar('data/validation/loss', loss_validation, epoch)
+                log.info('Validation: epoch {0}, loss == {1}'.format(epoch, loss_validation))
 
         log.info('Finished Training')
 
         log.info('Saving model to %s', str(path_output_model))
         torch.save(net_student.state_dict(), str(path_output_model))
-
-    data_loader_test = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1,
-                                                      seq_name=sequence_name)
 
     net_student = OSVOS_RESNET(pretrained=False, scale_down_exponential=scale_down_exponential, is_mode_mimic=True)
     log.info('Loading model from %s', str(path_output_model))
