@@ -52,26 +52,16 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
     path_stem = 'resnet18/11/mimic/' + suffix
     log.info('Path steam: %s', str(path_stem))
 
-    path_tensorboard = Path('tensorboard') / path_stem
-    if path_tensorboard.exists():
-        log.warn('Deleting existing tensorboard directory: %s', str(path_tensorboard))
-        shutil.rmtree(str(path_tensorboard))
-
-    path_tensorboard = str(path_tensorboard)
-    log.info('Logging for tensorboard in directory: %s', path_tensorboard)
-    writer = SummaryWriter(path_tensorboard)
-
     path_output_model = Path('models') / path_stem
     path_output_model.mkdir(parents=True, exist_ok=True)
     path_output_model = path_output_model / (str(n_epochs) + '.pth')
     log.info('Path of model: %s', str(path_output_model))
-
-    data_loader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=5,
-                                                        seq_name=sequence_name)
     data_loader_test = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1,
                                                       seq_name=sequence_name)
 
     if not no_training:
+        data_loader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=5,
+                                                            seq_name=sequence_name)
 
         net_teacher = get_net(sequence_name, mimic_offline)
         net_teacher.train()
@@ -85,15 +75,24 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
         optimizer = optim.Adam(net_student.parameters(), lr=learning_rate, weight_decay=0.0002)
 
         if criterion == 'MSE':
-            criterion = nn.MSELoss(size_average=False)
+            criterion = nn.MSELoss(size_average=True)
             criterion = gpu_handler.cast_cuda_if_possible(criterion)
         elif criterion == 'L1':
-            criterion = nn.L1Loss(size_average=False)
+            criterion = nn.L1Loss(size_average=True)
             criterion = gpu_handler.cast_cuda_if_possible(criterion)
         elif criterion == 'CBCEL':
             criterion = class_balanced_cross_entropy_loss
         else:
             raise Exception('Unknown loss function')
+
+        path_tensorboard = Path('tensorboard') / path_stem
+        if path_tensorboard.exists():
+            log.warn('Deleting existing tensorboard directory: %s', str(path_tensorboard))
+            shutil.rmtree(str(path_tensorboard))
+
+        path_tensorboard = str(path_tensorboard)
+        log.info('Logging for tensorboard in directory: %s', path_tensorboard)
+        writer = SummaryWriter(path_tensorboard)
 
         log.info('Starting Training')
         for epoch in range(1, n_epochs + 1):
@@ -148,6 +147,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
                 writer.add_scalar('data/validation/loss', loss_validation, epoch)
                 log.info('Validation: epoch {0}, loss == {1}'.format(epoch, loss_validation))
 
+        writer.close()
         log.info('Finished Training')
 
         log.info('Saving model to %s', str(path_output_model))
@@ -171,8 +171,6 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
     # second time for image output
     experiment_helper.test(net_provider, data_loader_test, path_output_images, is_visualizing_results=False,
                            eval_speeds=False, seq_name=sequence_name)
-
-    writer.close()
 
 
 if __name__ == '__main__':
