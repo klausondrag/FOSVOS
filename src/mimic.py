@@ -1,10 +1,12 @@
 import argparse
 from pathlib import Path
 from typing import Optional
+from datetime import datetime
 
 import torch
 from torch import nn, optim
 from torch.autograd import Variable
+from tensorboardX import SummaryWriter
 
 from networks.osvos_resnet import OSVOS_RESNET
 from util import gpu_handler, experiment_helper, io_helper
@@ -32,10 +34,11 @@ class DummyProvider:
         self.network = net
 
 
-def get_suffix(scale_down_exponential, sequence_name, learning_rate) -> str:
-    return ',sde={0},mimic={1},lr={2}'.format(str(scale_down_exponential),
-                                              'offline' if sequence_name is None else sequence_name,
-                                              str(learning_rate))
+def get_suffix(scale_down_exponential, sequence_name, learning_rate, loss) -> str:
+    return ',sde={0},sequence={1},lr={2},loss={3}'.format(str(scale_down_exponential),
+                                                          'offline' if sequence_name is None else sequence_name,
+                                                          str(learning_rate),
+                                                          loss)
 
 
 def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale_down_exponential: int,
@@ -43,8 +46,17 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
     if mimic_offline:
         sequence_name = None
 
-    suffix = get_suffix(scale_down_exponential, sequence_name, learning_rate)
+    loss = 'L1'
+    loss = 'MSE'
+
+    suffix = get_suffix(scale_down_exponential, sequence_name, learning_rate, loss)
     log.info('Suffix: %s', suffix)
+
+    current_time = datetime.now().isoformat()
+    tensorboard_dir = Path('tensorboard') / 'mimic' / suffix[1:] / str(current_time)
+    tensorboard_dir = str(tensorboard_dir)
+    log.info('Logging for tensorboard in directory: %s', tensorboard_dir)
+    writer = SummaryWriter(tensorboard_dir)
 
     if mimic_offline:
         path_output_model = Path('./models/resnet18_11' + suffix + '.pth')
@@ -62,8 +74,13 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
         net_student.train()
 
         optimizer = optim.Adam(net_student.parameters(), lr=learning_rate, weight_decay=0.0002)
-        # criterion = nn.MSELoss()
-        criterion = nn.L1Loss()
+
+        if loss == 'MSE':
+            criterion = nn.MSELoss()
+        elif loss == 'L1':
+            criterion = nn.L1Loss()
+        else:
+            raise Exception('Unknown loss function')
         criterion = gpu_handler.cast_cuda_if_possible(criterion)
 
         log.info('Starting Training')
@@ -88,8 +105,10 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
                 loss.backward()
                 optimizer.step()
 
-                if epoch % 200 == 199:
-                    log.info('Epoch {0}: Loss == {1}'.format(epoch, loss.data[0]))
+            writer.add_scalar('data/train/loss', loss.data[0], epoch)
+            if epoch % 200 == 199:
+                log.info('Epoch {0}: Loss == {1}'.format(epoch, loss.data[0]))
+
         log.info('Finished Training')
 
         log.info('Saving model to %s', str(path_output_model))
@@ -116,6 +135,8 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
     # second time for image output
     experiment_helper.test(net_provider, data_loader_test, path_output_images, is_visualizing_results=False,
                            eval_speeds=False, seq_name=sequence_name)
+
+    writer.close()
 
 
 if __name__ == '__main__':
