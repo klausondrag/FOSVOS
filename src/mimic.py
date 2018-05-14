@@ -98,7 +98,8 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
                 outputs_teacher = outputs_teacher[-1]
                 outputs_teacher = outputs_teacher.detach()
                 outputs_teacher = gpu_handler.cast_cuda_if_possible(outputs_teacher)
-                outputs_student = net_teacher.forward(inputs_student)
+
+                outputs_student = net_student.forward(inputs_student)
                 outputs_student = outputs_student[-1]
 
                 loss = criterion(outputs_student, outputs_teacher)
