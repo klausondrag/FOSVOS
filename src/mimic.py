@@ -84,9 +84,9 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
         optimizer = optim.Adam(net_student.parameters(), lr=learning_rate, weight_decay=0.0002)
 
         if loss == 'MSE':
-            criterion = nn.MSELoss()
+            criterion = nn.MSELoss(size_average=False)
         elif loss == 'L1':
-            criterion = nn.L1Loss()
+            criterion = nn.L1Loss(size_average=False)
         else:
             raise Exception('Unknown loss function')
         criterion = gpu_handler.cast_cuda_if_possible(criterion)
