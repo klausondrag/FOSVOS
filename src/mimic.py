@@ -92,7 +92,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
         criterion = gpu_handler.cast_cuda_if_possible(criterion)
 
         log.info('Starting Training')
-        for epoch in range(n_epochs):
+        for epoch in range(1, n_epochs + 1):
             loss_training = 0.0
             for minibatch in data_loader_train:
                 net_student.zero_grad()
@@ -120,10 +120,8 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
             loss_training /= len(data_loader_train)
             writer.add_scalar('data/training/loss', loss_training, epoch)
 
-            if epoch % 200 == 199:
+            if epoch % 100 == 0:
                 log.info('Training: epoch {0}, loss == {1}'.format(epoch, loss.data[0]))
-
-            if epoch % 100 == 99:
                 log.info('Validating...')
                 loss_validation = 0.0
                 for minibatch in data_loader_train:
