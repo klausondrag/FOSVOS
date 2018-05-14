@@ -86,13 +86,14 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
 
         if criterion == 'MSE':
             criterion = nn.MSELoss(size_average=False)
+            criterion = gpu_handler.cast_cuda_if_possible(criterion)
         elif criterion == 'L1':
             criterion = nn.L1Loss(size_average=False)
+            criterion = gpu_handler.cast_cuda_if_possible(criterion)
         elif criterion == 'CBCEL':
             criterion = class_balanced_cross_entropy_loss
         else:
             raise Exception('Unknown loss function')
-        criterion = gpu_handler.cast_cuda_if_possible(criterion)
 
         log.info('Starting Training')
         for epoch in range(1, n_epochs + 1):
