@@ -57,7 +57,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
     path_tensorboard = Path('tensorboard') / path_stem
     if path_tensorboard.exists():
         log.warn('Deleting existing tensorboard directory: %s', str(path_tensorboard))
-        shutil.rmtree(path_tensorboard)
+        shutil.rmtree(str(path_tensorboard))
 
     path_tensorboard = str(path_tensorboard)
     log.info('Logging for tensorboard in directory: %s', path_tensorboard)
