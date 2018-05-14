@@ -14,12 +14,13 @@ log = get_logger(__file__)
 
 
 def get_net(sequence_name: Optional[str], mimic_offline: bool) -> nn.Module:
-    net = OSVOS_RESNET(pretrained=True)
+    net = OSVOS_RESNET(pretrained=False)
     if mimic_offline:
         path_model = './models/resnet18_11_epoch-239.pth'
     else:
         path_model = './models/resnet18_11_11_' + sequence_name + '_epoch-9999.pth'
     path_model = Path(path_model)
+    log.info('Loading model from %s', str(path_model))
     parameters = torch.load(str(path_model), map_location=lambda storage, loc: storage)
     net.load_state_dict(parameters)
     net = gpu_handler.cast_cuda_if_possible(net)
@@ -45,25 +46,26 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
     suffix = get_suffix(scale_down_exponential, sequence_name, learning_rate)
     log.info('Suffix: %s', suffix)
 
-    data_loader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=5,
-                                                        seq_name=sequence_name)
-    data_loader_test = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1,
-                                                      seq_name=sequence_name)
-
     if mimic_offline:
         path_output_model = Path('./models/resnet18_11' + suffix + '.pth')
     else:
         path_output_model = Path('./models/resnet18_11_11_' + sequence_name + '_epoch-9999' + suffix + '.pth')
 
-    net_teacher = get_net(sequence_name, mimic_offline)
-    net_student = OSVOS_RESNET(pretrained=False, scale_down_exponential=scale_down_exponential)
-    net_student.train()
-
-    optimizer = optim.Adam(net_student.parameters(), lr=learning_rate, weight_decay=0.0002)
-    criterion = nn.MSELoss()
-    criterion = gpu_handler.cast_cuda_if_possible(criterion)
-
     if not no_training:
+        data_loader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=5,
+                                                            seq_name=sequence_name)
+
+        net_teacher = get_net(sequence_name, mimic_offline)
+        net_teacher.train()
+        net_teacher.is_mode_mimic = True
+        net_student = OSVOS_RESNET(pretrained=False, scale_down_exponential=scale_down_exponential, is_mode_mimic=True)
+        net_student.train()
+
+        optimizer = optim.Adam(net_student.parameters(), lr=learning_rate, weight_decay=0.0002)
+        # criterion = nn.MSELoss()
+        criterion = nn.L1Loss()
+        criterion = gpu_handler.cast_cuda_if_possible(criterion)
+
         log.info('Starting Training')
         for epoch in range(n_epochs):
             for minibatch in data_loader_train:
@@ -76,9 +78,11 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
                 inputs_teacher, inputs_student = gpu_handler.cast_cuda_if_possible([inputs_teacher, inputs_student])
 
                 outputs_teacher = net_teacher.forward(inputs_teacher)
+                outputs_teacher = outputs_teacher[-1]
                 outputs_teacher = outputs_teacher.detach()
                 outputs_teacher = gpu_handler.cast_cuda_if_possible(outputs_teacher)
                 outputs_student = net_teacher.forward(inputs_student)
+                outputs_student = outputs_student[-1]
 
                 loss = criterion(outputs_student, outputs_teacher)
                 loss.backward()
@@ -91,14 +95,19 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
         log.info('Saving model to %s', str(path_output_model))
         torch.save(net_student.state_dict(), str(path_output_model))
 
-    net_student = OSVOS_RESNET(pretrained=False, scale_down_exponential=scale_down_exponential)
+    data_loader_test = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1,
+                                                      seq_name=sequence_name)
+
+    net_student = OSVOS_RESNET(pretrained=False, scale_down_exponential=scale_down_exponential, is_mode_mimic=True)
+    log.info('Loading model from %s', str(path_output_model))
     net_student.load_state_dict(torch.load(str(path_output_model), map_location=lambda storage, loc: storage))
     net_student = gpu_handler.cast_cuda_if_possible(net_student)
     net_student.eval()
 
     net_provider = DummyProvider(net_student)
 
-    path_output_images = Path('../results/resnet18/11' + suffix)
+    path_output_images = Path('./results/resnet18/11/11' + suffix)
+    log.info('Saving images to %s', str(path_output_images))
 
     # first time to measure the speed
     experiment_helper.test(net_provider, data_loader_test, path_output_images, is_visualizing_results=False,
@@ -122,6 +131,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     gpu_handler.select_gpu(args.gpu_id)
+
+    # args.no_training = True
+    # args.n_epoch = 1000
+    # args.object = 'libby'
+    # args.scale_down_exponential = 2
 
     main(args.n_epochs, args.object, args.mimic_offline, args.scale_down_exponential, args.learning_rate,
          args.no_training)

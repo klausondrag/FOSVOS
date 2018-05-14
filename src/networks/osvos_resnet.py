@@ -14,15 +14,17 @@ log = get_logger(__file__)
 
 class OSVOS_RESNET(nn.Module):
     def __init__(self, pretrained: bool, version: int = 18, n_channels_input: int = 3, n_channels_output: int = 1,
-                 scale_down_exponential: int = 0):
+                 scale_down_exponential: int = 0, is_mode_mimic: bool = False):
+        self.is_mode_mimic = is_mode_mimic
         self.scale_down_exponential = scale_down_exponential
-        self.inplanes = 64
+        self.inplanes = 64 // (2 ** scale_down_exponential)
         super(OSVOS_RESNET, self).__init__()
         log.info("Constructing OSVOS resnet architecture...")
 
         block, layers, model_creation = self._match_version(version)
         n_channels_side_inputs = [64, 128, 256, 512]
-        n_channels_side_inputs = [i // (2 ** scale_down_exponential) for i in n_channels_side_inputs]
+        n_channels_side_inputs = [i // (2 ** scale_down_exponential)
+                                  for i in n_channels_side_inputs]
 
         self.layer_base = self._make_layer_base(n_channels_input=n_channels_input,
                                                 n_channels_output=n_channels_side_inputs[0])
@@ -63,7 +65,8 @@ class OSVOS_RESNET(nn.Module):
         out = self.layer_fuse(out)
         side_out.append(out)
 
-        if self.training and self.scale_down_exponential > 0:
+        return side_out
+        if self.training and self.is_mode_mimic:
             return torch.cat(side_out)
         else:
             return side_out
