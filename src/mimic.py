@@ -70,8 +70,11 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
         net_teacher = get_net(sequence_name, mimic_offline)
         net_teacher.train()
         net_teacher.is_mode_mimic = True
+        net_teacher = gpu_handler.cast_cuda_if_possible(net_teacher)
+
         net_student = OSVOS_RESNET(pretrained=False, scale_down_exponential=scale_down_exponential, is_mode_mimic=True)
         net_student.train()
+        net_student = gpu_handler.cast_cuda_if_possible(net_student)
 
         optimizer = optim.Adam(net_student.parameters(), lr=learning_rate, weight_decay=0.0002)
 
@@ -101,6 +104,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
 
                 outputs_student = net_student.forward(inputs_student)
                 outputs_student = outputs_student[-1]
+                outputs_student = gpu_handler.cast_cuda_if_possible(outputs_student)
 
                 loss = criterion(outputs_student, outputs_teacher)
                 loss.backward()
