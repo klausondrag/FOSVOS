@@ -35,18 +35,19 @@ class DummyProvider:
         self.network = net
 
 
-def get_suffix(scale_down_exponential: int, sequence_name: Optional[str], learning_rate: float, criterion: str) -> str:
-    s = 'sequence={1},sde={0},lr={2:0.1e},criterion={3}'
+def get_suffix(scale_down_exponential: int, sequence_name: Optional[str], learning_rate: float, criterion: str,
+               criterion_from: str, learn_from: str) -> str:
+    s = 'sequence={1},sde={0},lr={2:0.1e},criterion={3},criterion_from={4},learn_from={5}'
     return s.format(str(scale_down_exponential), 'offline' if sequence_name is None else sequence_name,
-                    learning_rate, criterion)
+                    learning_rate, criterion, criterion_from, learn_from)
 
 
 def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale_down_exponential: int,
-         learning_rate: float, no_training: bool, criterion: str) -> None:
+         learning_rate: float, no_training: bool, criterion: str, criterion_from: str, learn_from: str) -> None:
     if mimic_offline:
         sequence_name = None
 
-    suffix = get_suffix(scale_down_exponential, sequence_name, learning_rate, criterion)
+    suffix = get_suffix(scale_down_exponential, sequence_name, learning_rate, criterion, criterion_from, learn_from)
     log.info('Suffix: %s', suffix)
 
     path_stem = 'resnet18/11/mimic/' + suffix
@@ -107,15 +108,21 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
                 inputs_teacher, inputs_student = gpu_handler.cast_cuda_if_possible([inputs_teacher, inputs_student])
 
                 outputs_teacher = net_teacher.forward(inputs_teacher)
-                outputs_teacher = outputs_teacher[-1]
-                outputs_teacher = outputs_teacher.detach()
-                outputs_teacher = gpu_handler.cast_cuda_if_possible(outputs_teacher)
-
                 outputs_student = net_student.forward(inputs_student)
-                outputs_student = outputs_student[-1]
-                outputs_student = gpu_handler.cast_cuda_if_possible(outputs_student)
 
-                loss = criterion(outputs_student, outputs_teacher)
+                losses = [0] * len(outputs_student)
+                for i in range(0, len(outputs_student)):
+                    o_teacher = outputs_teacher[i]
+                    o_teacher = o_teacher.detach()
+                    o_teacher = gpu_handler.cast_cuda_if_possible(o_teacher)
+
+                    o_student = outputs_student[i]
+                    o_student = gpu_handler.cast_cuda_if_possible(o_student)
+
+                    losses[i] = criterion(o_student, o_teacher)
+
+                loss = (1 - epoch / n_epochs) * sum(losses[:-1]) + losses[-1]  # type: Variable
+
                 loss_training += loss.data[0]
                 loss.backward()
                 optimizer.step()
@@ -140,7 +147,15 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
                     outputs_student = outputs_student[-1]
                     outputs_student = gpu_handler.cast_cuda_if_possible(outputs_student)
 
-                    loss = criterion(outputs_student, inputs_ground_truth)
+                    losses = [0] * len(outputs_student)
+                    for i in range(0, len(outputs_student)):
+                        o_student = outputs_student[i]
+                        o_student = gpu_handler.cast_cuda_if_possible(o_student)
+
+                        losses[i] = criterion(o_student, inputs_ground_truth)
+
+                    loss = (1 - epoch / n_epochs) * sum(losses[:-1]) + losses[-1]  # type: Variable
+
                     loss_validation += loss.data[0]
 
                 loss_validation /= len(data_loader_test)
@@ -192,4 +207,5 @@ if __name__ == '__main__':
         vals = [10 ** -i for i in range(2, 5)]
         vals += [5 * i for i in vals]
         for lr in vals:
-            main(args.n_epochs, args.object, args.mimic_offline, sde, lr, args.no_training, args.criterion)
+            main(args.n_epochs, args.object, args.mimic_offline, sde, lr, args.no_training, args.criterion,
+                 criterion_from='all', learn_from='teacher')
