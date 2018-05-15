@@ -35,19 +35,19 @@ class DummyProvider:
         self.network = net
 
 
-def get_suffix(scale_down_exponential: int, sequence_name: Optional[str], learning_rate: float, criterion: str,
+def get_suffix(scale_down_exponent: int, sequence_name: Optional[str], learning_rate: float, criterion: str,
                criterion_from: str, learn_from: str) -> str:
     s = 'sequence={1},sde={0},lr={2:0.1e},criterion={3},criterion_from={4},learn_from={5}'
-    return s.format(str(scale_down_exponential), 'offline' if sequence_name is None else sequence_name,
+    return s.format(str(scale_down_exponent), 'offline' if sequence_name is None else sequence_name,
                     learning_rate, criterion, criterion_from, learn_from)
 
 
-def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale_down_exponential: int,
+def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale_down_exponent: int,
          learning_rate: float, no_training: bool, criterion: str, criterion_from: str, learn_from: str) -> None:
     if mimic_offline:
         sequence_name = None
 
-    suffix = get_suffix(scale_down_exponential, sequence_name, learning_rate, criterion, criterion_from, learn_from)
+    suffix = get_suffix(scale_down_exponent, sequence_name, learning_rate, criterion, criterion_from, learn_from)
     log.info('Suffix: %s', suffix)
 
     path_stem = 'resnet18/11/mimic/' + suffix
@@ -69,7 +69,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
         net_teacher.is_mode_mimic = True
         net_teacher = gpu_handler.cast_cuda_if_possible(net_teacher)
 
-        net_student = OSVOS_RESNET(pretrained=False, scale_down_exponential=scale_down_exponential, is_mode_mimic=True)
+        net_student = OSVOS_RESNET(pretrained=False, scale_down_exponent=scale_down_exponent, is_mode_mimic=True)
         net_student.train()
         net_student = gpu_handler.cast_cuda_if_possible(net_student)
 
@@ -168,7 +168,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
         log.info('Saving model to %s', str(path_output_model))
         torch.save(net_student.state_dict(), str(path_output_model))
 
-    net_student = OSVOS_RESNET(pretrained=False, scale_down_exponential=scale_down_exponential, is_mode_mimic=True)
+    net_student = OSVOS_RESNET(pretrained=False, scale_down_exponent=scale_down_exponent, is_mode_mimic=True)
     log.info('Loading model from %s', str(path_output_model))
     net_student.load_state_dict(torch.load(str(path_output_model), map_location=lambda storage, loc: storage))
     net_student = gpu_handler.cast_cuda_if_possible(net_student)
@@ -194,7 +194,7 @@ if __name__ == '__main__':
     parser.add_argument('--gpu-id', default=1, type=int, help='The gpu id to use')
     parser.add_argument('-o', '--object', default='blackswan', type=str, help='The object to train on')
     parser.add_argument('--mimic-offline', action='store_true', help='')
-    parser.add_argument('--scale-down-exponential', default=0, type=int, help='')
+    parser.add_argument('--scale-down-exponent', default=0, type=int, help='')
     parser.add_argument('--learning-rate', default=1e-2, type=float, help='')
     parser.add_argument('--no-training', action='store_true',
                         help='True if the program should train the model, else False')
@@ -204,17 +204,17 @@ if __name__ == '__main__':
 
     gpu_handler.select_gpu(args.gpu_id)
 
-    scale_down_exponentials = list(range(0, 7))[::-1]
+    scale_down_exponents = list(range(0, 7))[::-1]
     learning_rates = [10 ** -i for i in range(2, 5)]
     learning_rates = [(i, 5 * i) for i in learning_rates]
     learning_rates = [lr
                       for v in learning_rates
                       for lr in v]
     log.info('HP search')
-    log.info('Scale Down Exponentials: %s', str(scale_down_exponentials))
+    log.info('Scale Down Exponents: %s', str(scale_down_exponents))
     log.info('Learning Rates: %s', str(learning_rates))
 
-    for sde in scale_down_exponentials:
+    for sde in scale_down_exponents:
         for lr in learning_rates:
             main(args.n_epochs, args.object, args.mimic_offline, sde, lr, args.no_training, args.criterion,
                  criterion_from='all', learn_from='teacher')
