@@ -188,8 +188,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     gpu_handler.select_gpu(args.gpu_id)
-    for sde in [0, 1, 2, 3, 4, 5, 6]:
-        vals = [10 ** -i for i in range(2, 7)]
+    for sde in list(range(0, 7))[::-1]:
+        vals = [10 ** -i for i in range(2, 5)]
         vals += [5 * i for i in vals]
         for lr in vals:
             main(args.n_epochs, args.object, args.mimic_offline, sde, lr, args.no_training, args.criterion)
