@@ -203,9 +203,18 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     gpu_handler.select_gpu(args.gpu_id)
-    for sde in list(range(0, 7))[::-1]:
-        vals = [10 ** -i for i in range(2, 5)]
-        vals += [5 * i for i in vals]
-        for lr in vals:
+
+    scale_down_exponentials = list(range(0, 7))[::-1]
+    learning_rates = [10 ** -i for i in range(2, 5)]
+    learning_rates = [(i, 5 * i) for i in learning_rates]
+    learning_rates = [lr
+                      for v in learning_rates
+                      for lr in v]
+    log.info('HP search')
+    log.info('Scale Down Exponentials: %s', str(scale_down_exponentials))
+    log.info('Learning Rates: %s', str(learning_rates))
+
+    for sde in scale_down_exponentials:
+        for lr in learning_rates:
             main(args.n_epochs, args.object, args.mimic_offline, sde, lr, args.no_training, args.criterion,
                  criterion_from='all', learn_from='teacher')
