@@ -64,11 +64,6 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
         data_loader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=5,
                                                             seq_name=sequence_name)
 
-        net_teacher = get_net(sequence_name, mimic_offline)
-        net_teacher.train()
-        net_teacher.is_mode_mimic = True
-        net_teacher = gpu_handler.cast_cuda_if_possible(net_teacher)
-
         net_student = OSVOS_RESNET(pretrained=False, scale_down_exponent=scale_down_exponent, is_mode_mimic=True)
         net_student.train()
         net_student = gpu_handler.cast_cuda_if_possible(net_student)
@@ -102,24 +97,20 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
                 net_student.zero_grad()
                 optimizer.zero_grad()
 
-                inputs_teacher, inputs_student = minibatch['image'], minibatch['image']
-                inputs_teacher, inputs_student = (Variable(inputs_teacher, requires_grad=False),
-                                                  Variable(inputs_student, requires_grad=True))
-                inputs_teacher, inputs_student = gpu_handler.cast_cuda_if_possible([inputs_teacher, inputs_student])
+                inputs_image, ground_truth = minibatch['image'], minibatch['gt']
+                inputs_image, ground_truth = (Variable(inputs_image, requires_grad=True),
+                                              Variable(ground_truth, requires_grad=False))
+                inputs_image, ground_truth = gpu_handler.cast_cuda_if_possible([inputs_image,
+                                                                                ground_truth])
 
-                outputs_teacher = net_teacher.forward(inputs_teacher)
-                outputs_student = net_student.forward(inputs_student)
+                outputs_student = net_student.forward(inputs_image)
 
                 losses = [0] * len(outputs_student)
                 for i in range(0, len(outputs_student)):
-                    o_teacher = outputs_teacher[i]
-                    o_teacher = o_teacher.detach()
-                    o_teacher = gpu_handler.cast_cuda_if_possible(o_teacher)
-
                     o_student = outputs_student[i]
                     o_student = gpu_handler.cast_cuda_if_possible(o_student)
 
-                    losses[i] = criterion(o_student, o_teacher)
+                    losses[i] = criterion(o_student, ground_truth)
 
                 loss = (1 - epoch / n_epochs) * sum(losses[:-1]) + losses[-1]  # type: Variable
 
@@ -130,18 +121,18 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
             loss_training /= len(data_loader_train)
             writer.add_scalar('data/training/loss', loss_training, epoch)
 
-            if epoch % 25 == 0:
+            if epoch % 10 == 0:
                 log.info('Training: epoch {0}, loss == {1}'.format(epoch, loss.data[0]))
                 log.info('Validating...')
                 loss_validation = 0.0
                 for minibatch in data_loader_train:
-                    inputs_image, inputs_ground_truth = minibatch['image'], minibatch['gt']
-                    inputs_image, inputs_ground_truth = (Variable(inputs_image, requires_grad=False,
-                                                                  volatile=True),
-                                                         Variable(inputs_ground_truth, requires_grad=False,
-                                                                  volatile=True))
-                    inputs_image, inputs_ground_truth = gpu_handler.cast_cuda_if_possible(
-                        [inputs_image, inputs_ground_truth])
+                    inputs_image, ground_truth = minibatch['image'], minibatch['gt']
+                    inputs_image, ground_truth = (Variable(inputs_image, requires_grad=False,
+                                                           volatile=True),
+                                                  Variable(ground_truth, requires_grad=False,
+                                                           volatile=True))
+                    inputs_image, ground_truth = gpu_handler.cast_cuda_if_possible([inputs_image,
+                                                                                    ground_truth])
 
                     outputs_student = net_student.forward(inputs_image)
                     outputs_student = outputs_student[-1]
@@ -152,7 +143,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
                         o_student = outputs_student[i]
                         o_student = gpu_handler.cast_cuda_if_possible(o_student)
 
-                        losses[i] = criterion(o_student, inputs_ground_truth)
+                        losses[i] = criterion(o_student, ground_truth)
 
                     loss = (1 - epoch / n_epochs) * sum(losses[:-1]) + losses[-1]  # type: Variable
 
@@ -206,10 +197,6 @@ if __name__ == '__main__':
 
     scale_down_exponents = list(range(0, 7))[::-1]
     learning_rates = [10 ** -i for i in range(2, 5)]
-    learning_rates = [(i, 5 * i) for i in learning_rates]
-    learning_rates = [lr
-                      for v in learning_rates
-                      for lr in v]
     log.info('HP search')
     log.info('Scale Down Exponents: %s', str(scale_down_exponents))
     log.info('Learning Rates: %s', str(learning_rates))
@@ -217,4 +204,4 @@ if __name__ == '__main__':
     for sde in scale_down_exponents:
         for lr in learning_rates:
             main(args.n_epochs, args.object, args.mimic_offline, sde, lr, args.no_training, args.criterion,
-                 criterion_from='all', learn_from='teacher')
+                 criterion_from='all', learn_from='ground_truth')
