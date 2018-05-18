@@ -1,20 +1,14 @@
 [[source]]
-
 url = "https://pypi.python.org/simple"
 verify_ssl = true
 name = "pypi"
 
-
 [dev-packages]
-
 jupyterlab = "*"
 jupyter-contrib-nbextensions = "*"
 jupyter-nbextensions-configurator = "*"
 
-
 [packages]
-
-"b6fe2cf" = {file = "http://download.pytorch.org/whl/cu90/torch-0.3.0.post4-cp35-cp35m-linux_x86_64.whl"}
 numpy = "*"
 scipy = "*"
 matplotlib = "*"
@@ -31,7 +25,5 @@ moviepy = "*"
 tqdm = "*"
 click = "*"
 
-
 [requires]
-
 python_version = "3.5"
