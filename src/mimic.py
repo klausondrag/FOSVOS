@@ -134,6 +134,13 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
 
 def calculate_loss(criterion, epoch, n_epochs, learn_from, net_student, net_teacher, dataloader, optimizer,
                    mode, writer):
+    if mode == 'train':
+        net_student.train()
+        net_teacher.train()
+    else:
+        net_student.eval()
+        net_teacher.eval()
+
     loss_epoch = 0.0
     for minibatch in dataloader:
         if mode == 'train':
