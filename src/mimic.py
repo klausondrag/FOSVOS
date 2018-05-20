@@ -35,8 +35,8 @@ class DummyProvider:
         self.network = net
 
 
-def get_suffix(scale_down_exponent: int, sequence_name: Optional[str], learning_rate: float, criterion: str,
-               criterion_from: str, learn_from: str) -> str:
+def get_experiment_id(scale_down_exponent: int, sequence_name: Optional[str], learning_rate: float, criterion: str,
+                      criterion_from: str, learn_from: str) -> str:
     s = 'sequence={1},sde={0},lr={2:0.1e},criterion={3},criterion_from={4},learn_from={5}'
     return s.format(str(scale_down_exponent), 'offline' if sequence_name is None else sequence_name,
                     learning_rate, criterion, criterion_from, learn_from)
@@ -47,16 +47,18 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
     if mimic_offline:
         sequence_name = None
 
-    suffix = get_suffix(scale_down_exponent, sequence_name, learning_rate, criterion, criterion_from, learn_from)
-    log.info('Suffix: %s', suffix)
+    experiment_id = get_experiment_id(scale_down_exponent, sequence_name, learning_rate, criterion, criterion_from,
+                                      learn_from)
+    log.info('Experiment ID: %s', experiment_id)
+    path_stem = 'resnet18/11'
+    path_stem += '/' + 'mimic'
+    path_stem += '/' + experiment_id
+    path_stem += '/' + ('offline' if mimic_offline else 'online')
+    log.info('Path stem: %s', str(path_stem))
 
-    path_stem = 'resnet18/11/mimic/' + suffix
-    log.info('Path steam: %s', str(path_stem))
+    path_output_model_base = Path('models') / path_stem
+    path_output_model_base.mkdir(parents=True, exist_ok=True)
 
-    path_output_model = Path('models') / path_stem
-    path_output_model.mkdir(parents=True, exist_ok=True)
-    path_output_model = path_output_model / (str(n_epochs) + '.pth')
-    log.info('Path of model: %s', str(path_output_model))
     dataloader_val = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1,
                                                     seq_name=sequence_name)
 
@@ -109,6 +111,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
         writer.close()
         log.info('Finished Training')
 
+        path_output_model = path_output_model_base / (str(n_epochs) + '.pth')
         log.info('Saving model to %s', str(path_output_model))
         torch.save(net_student.state_dict(), str(path_output_model))
 

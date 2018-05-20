@@ -462,7 +462,7 @@ def prune_batchnorm(batchnorm_old, filter_index, layer_index, net):
 def get_candidates_to_prune(pruner: FilterPruner, n_filters_to_prune: int, net: nn.Module,
                             data_loader: data.DataLoader):
     pruner.reset()
-    train(pruner, data_loader, n_epochs=args.n_epochs_train)
+    train(pruner, data_loader, n_epochs=args.n_epochs_select)
     pruner.normalize_ranks_per_layer()
     return pruner.get_prunning_plan(n_filters_to_prune)
 
@@ -472,23 +472,31 @@ class DummyProvider:
         self.network = net
 
 
-def get_suffix(percentage_pruned, prune_per_iter, n_epochs_finetune, n_epochs_train, prune_offline):
-    return '_{4}_min_{0}_{1}_{2}_{3}'.format(percentage_pruned, prune_per_iter,
-                                             n_epochs_finetune, n_epochs_train,
-                                             ('offline' if prune_offline else 'online'))
+def get_experiment_id(prune_per_iter: int, n_epochs_select: int, n_epochs_finetune: int) -> str:
+    format_string = 'prune_per_iter={0},epochs_select={1},epochs_finetune={2}'
+    return format_string.format(prune_per_iter, n_epochs_select, n_epochs_finetune)
 
 
-def main(n_epochs_train, n_epochs_finetune, prune_per_iter,
+def main(n_epochs_select, n_epochs_finetune, prune_per_iter,
          seq_name: Optional[str] = None, prune_offline: bool = False) -> None:
     if prune_offline:
         seq_name = None
+
     percentage_prune_max = 90
     percentage_prune_steps = 10
 
-    suffix = get_suffix(percentage_prune_max, prune_per_iter, n_epochs_finetune, n_epochs_train, prune_offline)
-    log.info('Suffix: %s', suffix)
-    net = get_net(seq_name, prune_offline)
+    experiment_id = get_experiment_id(prune_per_iter, n_epochs_finetune, n_epochs_select)
+    log.info('Experiment ID: %s', experiment_id)
+    path_stem = 'resnet18/11'
+    path_stem += '/' + 'prune'
+    path_stem += '/' + experiment_id
+    path_stem += '/' + ('offline' if prune_offline else 'online')
+    log.info('Path stem: %s', str(path_stem))
 
+    path_output_model_base = Path('models') / path_stem
+    path_output_model_base.mkdir(parents=True, exist_ok=True)
+
+    net = get_net(seq_name, prune_offline)
     n_filters = total_num_filters(net)
     n_filters_to_prune_per_iter = prune_per_iter
     n_iterations = 1 + int(n_filters / n_filters_to_prune_per_iter * percentage_prune_steps / 100)
@@ -501,15 +509,16 @@ def main(n_epochs_train, n_epochs_finetune, prune_per_iter,
 
     pruner = FilterPruner(net)
 
-    data_loader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=seq_name)
-    data_loader_test = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=seq_name)
+    dataloader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=seq_name)
+    dataloader_test = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=seq_name)
 
     for index_percentage in range(percentage_prune_steps, percentage_prune_max + 1, percentage_prune_steps):
         log.info('Remaining filters in model: %d', total_num_filters(net))
         log.info('Pruning to percentage: %d', index_percentage)
         log.debug('Plan to prune %d...%s', 0, str(net))
+
         for index_iteration in tqdm(range(n_iterations)):
-            prune_targets = get_candidates_to_prune(pruner, n_filters_to_prune_per_iter, net, data_loader_train)
+            prune_targets = get_candidates_to_prune(pruner, n_filters_to_prune_per_iter, net, dataloader_train)
 
             # net = net.cpu()
             layer_index_prev = -1
@@ -522,34 +531,29 @@ def main(n_epochs_train, n_epochs_finetune, prune_per_iter,
             net = gpu_handler.cast_cuda_if_possible(net)
             log.debug('Plan to prune %d...%s', index_iteration, str(net))
 
-            fine_tune(net, data_loader_train, n_epochs=args.n_epochs_finetune)
+            fine_tune(net, dataloader_train, n_epochs=args.n_epochs_finetune)
 
-        suffix = get_suffix(index_percentage, prune_per_iter, n_epochs_finetune, n_epochs_train, prune_offline)
-        log.info('Suffix: %s', suffix)
-
-        if prune_offline:
-            path_output_model = Path('./models/resnet18_11' + suffix + '.pth')
-        else:
-            path_output_model = Path('./models/resnet18_11_11_' + seq_name + '_epoch-9999' + suffix + '.pth')
+        path_output_model = path_output_model_base / (str(index_percentage) + '.pth')
         log.info('Saving model to %s', str(path_output_model))
         torch.save(net, str(path_output_model))
 
         net_provider = DummyProvider(net)
 
-        path_output_images = Path('./results/resnet18/11' + suffix)
+        path_output_images = Path('results') / path_stem / str(index_percentage)
+        log.info('Saving images to %s', str(path_output_images))
 
         # first time to measure the speed
-        experiment_helper.test(net_provider, data_loader_test, path_output_images, is_visualizing_results=False,
+        experiment_helper.test(net_provider, dataloader_test, path_output_images, is_visualizing_results=False,
                                eval_speeds=True, seq_name=seq_name)
 
         # second time for image output
-        experiment_helper.test(net_provider, data_loader_test, path_output_images, is_visualizing_results=False,
+        experiment_helper.test(net_provider, dataloader_test, path_output_images, is_visualizing_results=False,
                                eval_speeds=False, seq_name=seq_name)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument('--n-epochs-train', default=20, type=int, help='version to try')
+    parser.add_argument('--n-epochs-select', default=20, type=int, help='version to try')
     parser.add_argument('--n-epochs-finetune', default=20, type=int, help='version to try')
     # parser.add_argument('--percentage-prune', default=50, type=int, help='version to try')
     parser.add_argument('--gpu-id', default=1, type=int, help='The gpu id to use')
@@ -559,11 +563,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # args.gpu_id = 1
-    # args.n_epochs_train = 10
+    # args.n_epochs_select = 10
     # args.n_epochs_finetune = 200
     # args.prune_per_iter = 64
     # args.percentage_prune = 66
 
     gpu_handler.select_gpu(args.gpu_id)
 
-    main(args.n_epochs_train, args.n_epochs_finetune, args.prune_per_iter, args.object, args.prune_offline)
+    main(args.n_epochs_select, args.n_epochs_finetune, args.prune_per_iter, args.object, args.prune_offline)
