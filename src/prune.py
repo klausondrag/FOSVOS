@@ -3,7 +3,6 @@
 # which itself is adopted from https://github.com/jacobgil/pytorch-pruning
 
 from pathlib import Path
-import sys
 from typing import Optional
 
 import operator
@@ -19,13 +18,6 @@ from torch.autograd import Variable
 from torch.utils import data
 from torch import optim
 
-if sys.path[0] != '..':
-    sys.path.insert(0, '..')
-
-path_ros = '/opt/ros/kinetic/lib/python2.7/dist-packages'
-if path_ros in sys.path:
-    del sys.path[sys.path.index(path_ros)]
-
 from networks.osvos_resnet import OSVOS_RESNET, BasicBlockDummy
 from util import io_helper, experiment_helper, gpu_handler
 from layers.osvos_layers import class_balanced_cross_entropy_loss, center_crop
@@ -37,9 +29,9 @@ log = get_logger(__file__)
 def get_net(seq_name, train_offline: bool) -> nn.Module:
     net = OSVOS_RESNET(pretrained=True)
     # if train_offline:
-    #     path_model = '../models/resnet18_11_epoch-239.pth'
+    #     path_model = './models/resnet18_11_epoch-239.pth'
     # else:
-    #     path_model = '../models/resnet18_11_11_' + seq_name + '_epoch-9999.pth'
+    #     path_model = './models/resnet18_11_11_' + seq_name + '_epoch-9999.pth'
     # path_model = Path(path_model)
     # parameters = torch.load(str(path_model), map_location=lambda storage, loc: storage)
     # net.load_state_dict(parameters)
@@ -536,15 +528,15 @@ def main(n_epochs_train, n_epochs_finetune, prune_per_iter,
         log.info('Suffix: %s', suffix)
 
         if prune_offline:
-            path_output_model = Path('../models/resnet18_11' + suffix + '.pth')
+            path_output_model = Path('./models/resnet18_11' + suffix + '.pth')
         else:
-            path_output_model = Path('../models/resnet18_11_11_' + seq_name + '_epoch-9999' + suffix + '.pth')
+            path_output_model = Path('./models/resnet18_11_11_' + seq_name + '_epoch-9999' + suffix + '.pth')
         log.info('Saving model to %s', str(path_output_model))
         torch.save(net, str(path_output_model))
 
         net_provider = DummyProvider(net)
 
-        path_output_images = Path('../results/resnet18/11' + suffix)
+        path_output_images = Path('./results/resnet18/11' + suffix)
 
         # first time to measure the speed
         experiment_helper.test(net_provider, data_loader_test, path_output_images, is_visualizing_results=False,
