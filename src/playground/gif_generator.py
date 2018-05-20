@@ -58,8 +58,8 @@ sequences_all = list(set(sequences_train + sequences_val))
 
 
 @click.command()
-@click.option('--path-base-input', type=str, default='../results/resnet18/11/')
-@click.option('--path-base-output', type=str, default='../results/gifs')
+@click.option('--path-base-input', type=str, default='../results/resnet18/11/mimic')
+@click.option('--path-base-output', type=str, default='../results/gifs/mimic')
 @click.option('--output-format', type=click.Choice(['gif', 'mp4']), default='gif')
 def convert_folder(path_base_input, path_base_output, output_format):
     path_base_input = Path(path_base_input)
@@ -68,9 +68,9 @@ def convert_folder(path_base_input, path_base_output, output_format):
         path_output = path_base_output / sequence_name
         path_output.mkdir(parents=True, exist_ok=True)
         for path_variant in sorted(path_base_input.iterdir()):
-            path_input = path_variant / sequence_name
+            path_input = path_variant / '300' / sequence_name
             if path_input.exists():
-                generate_gif(path_input, path_output / (path_variant.stem + '.' + output_format), output_format)
+                generate_gif(path_input, path_output / (path_variant.name + '.' + output_format), output_format)
 
 
 if __name__ == '__main__':
