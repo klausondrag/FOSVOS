@@ -10,11 +10,11 @@ import heapq
 import argparse
 
 import numpy as np
+from tensorboardX import SummaryWriter
 from tqdm import tqdm
 
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 from torch.utils import data
 from torch import optim
 
@@ -209,28 +209,40 @@ def train(pruner: FilterPruner, data_loader: data.DataLoader, n_epochs: int = 1)
             loss.backward()
 
 
-def fine_tune(net: nn.Module(), data_loader: data.DataLoader, n_epochs: int = 1) -> None:
+def fine_tune(net: nn.Module, data_loader: data.DataLoader, n_epochs: int, summary_writer: SummaryWriter,
+              iteration: int) -> None:
     optimizer = optim.Adam(net.parameters(), lr=1e-4, weight_decay=0.0002)
-    avg_grad_every_n = 5
-    counter_gradient = 0
 
-    for epoch in range(n_epochs):
-        for minibatch in data_loader:
-            net.zero_grad()
-            inputs, gts = minibatch['image'], minibatch['gt']
-            inputs, gts = Variable(inputs), Variable(gts)
-            inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
+    epoch_start = iteration * n_epochs + 1
+    epoch_end = epoch_start + n_epochs + 1
+    for epoch in range(epoch_start, epoch_end):
+        calculate_loss(epoch, net, data_loader, optimizer, summary_writer)
 
-            outputs = net.forward(inputs)
-            loss = class_balanced_cross_entropy_loss(outputs[-1], gts, size_average=False)
-            loss /= avg_grad_every_n
-            loss.backward()
-            counter_gradient += 1
 
-            if counter_gradient % avg_grad_every_n == 0:
-                counter_gradient = 0
-                optimizer.step()
-                optimizer.zero_grad()
+def calculate_loss(epoch, net, dataloader, optimizer, summary_writer):
+    net.train()
+
+    loss_epoch = 0.0
+    for minibatch in dataloader:
+        optimizer.zero_grad()
+
+        loss = _get_loss_minibatch(minibatch, net)
+        loss_epoch += loss.item()
+
+        loss.backward()
+        optimizer.step()
+
+    loss_epoch /= len(dataloader.dataset)
+    summary_writer.add_scalar('data/train/loss', loss_epoch, epoch)
+
+
+def _get_loss_minibatch(minibatch, net):
+    inputs, gts = minibatch['image'], minibatch['gt']
+    inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
+
+    outputs = net.forward(inputs)
+    loss = class_balanced_cross_entropy_loss(outputs[-1], gts, size_average=False)
+    return loss
 
 
 def prune_resnet18_conv_layer(net: OSVOS_RESNET, layer_index: int, filter_index: int) -> OSVOS_RESNET:
@@ -492,6 +504,9 @@ def main(n_epochs_select, n_epochs_finetune, prune_per_iter,
     path_output_model_base = Path('models') / path_stem
     path_output_model_base.mkdir(parents=True, exist_ok=True)
 
+    path_tensorboard = Path('tensorboard') / path_stem
+    summary_writer = io_helper.get_summary_writer(path_tensorboard)
+
     net = get_net(seq_name, is_offline_mode)
     n_filters = total_num_filters(net)
     n_filters_to_prune_per_iter = prune_per_iter
@@ -508,6 +523,7 @@ def main(n_epochs_select, n_epochs_finetune, prune_per_iter,
     dataloader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=seq_name)
     dataloader_test = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=seq_name)
 
+    fine_tune_calls = 0
     for index_percentage in range(percentage_prune_steps, percentage_prune_max + 1, percentage_prune_steps):
         log.info('Remaining filters in model: %d', total_num_filters(net))
         log.info('Pruning to percentage: %d', index_percentage)
@@ -527,7 +543,8 @@ def main(n_epochs_select, n_epochs_finetune, prune_per_iter,
             net = gpu_handler.cast_cuda_if_possible(net)
             log.debug('Plan to prune %d...%s', index_iteration, str(net))
 
-            fine_tune(net, dataloader_train, n_epochs=args.n_epochs_finetune)
+            fine_tune(net, dataloader_train, args.n_epochs_finetune, summary_writer, fine_tune_calls)
+            fine_tune_calls += 1
 
         path_output_model = path_output_model_base / (str(index_percentage) + '.pth')
         log.info('Saving model to %s', str(path_output_model))
