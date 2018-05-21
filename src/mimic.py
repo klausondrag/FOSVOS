@@ -201,17 +201,36 @@ if __name__ == '__main__':
                         help='True if the program should train the model, else False')
     parser.add_argument('--criterion', default='MSE', type=str, help='The loss to use',
                         choices=['MSE', 'L1', 'CBCEL'])
+    parser.add_argument('-b', '--batch', default=None, type=int, help='The batch of objects to train')
+    parser.add_argument('-bs', '--batch-size', default=None, type=int, help='The batch size of objects to train')
     args = parser.parse_args()
 
     gpu_handler.select_gpu(args.gpu_id)
 
-    scale_down_exponents = list(range(0, 7))[::-1]
-    learning_rates = [10 ** -i for i in range(2, 5)]
-    log.info('HP search')
-    log.info('Scale Down Exponents: %s', str(scale_down_exponents))
-    log.info('Learning Rates: %s', str(learning_rates))
+    if args.object == 'all':
+        sequences_val = ['blackswan', 'bmx-trees', 'breakdance', 'camel', 'car-roundabout', 'car-shadow', 'cows',
+                         'dance-twirl', 'dog', 'drift-chicane', 'drift-straight', 'goat', 'horsejump-high', 'kite-surf',
+                         'libby', 'motocross-jump', 'paragliding-launch', 'parkour', 'scooter-black', 'soapbox']
 
-    for sde in scale_down_exponents:
-        for lr in learning_rates:
-            main(args.n_epochs, args.object, args.mimic_offline, sde, lr, args.no_training, args.criterion,
-                 criterion_from='all', learn_from='ground_truth')
+        sequences_train = ['bear', 'bmx-bumps', 'boat', 'breakdance-flare', 'bus', 'car-turn', 'dance-jump',
+                           'dog-agility', 'drift-turn', 'elephant', 'flamingo', 'hike', 'hockey', 'horsejump-low',
+                           'kite-walk', 'lucia', 'mallard-fly', 'mallard-water', 'motocross-bumps', 'motorbike',
+                           'paragliding', 'rhino', 'rollerblade', 'scooter-gray', 'soccerball', 'stroller', 'surf',
+                           'swing', 'tennis', 'train']
+
+        sequences_all = list(set(sequences_train + sequences_val))
+
+        if args.batch is None:
+            already_done = []
+            # already_done = ['blackswan']
+            sequences = [s for s in sequences_val if s not in already_done]
+        else:
+            sequences = [s for i, s in enumerate(sequences_val) if i % args.batch_size == args.batch]
+
+        [main(args.n_epochs, s, args.mimic_offline, args.scale_down_exponent, args.learning_rate,
+              args.no_training, args.criterion, criterion_from='all', learn_from='ground_truth')
+         for s in sequences]
+
+    else:
+        main(args.n_epochs, args.object, args.mimic_offline, args.scale_down_exponent, args.learning_rate,
+             args.no_training, args.criterion, criterion_from='all', learn_from='ground_truth')

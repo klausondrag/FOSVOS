@@ -560,6 +560,8 @@ if __name__ == '__main__':
     parser.add_argument('--prune-per-iter', default=64, type=int, help='filters to prune per iteration')
     parser.add_argument('-o', '--object', default='blackswan', type=str, help='The object to train on')
     parser.add_argument('--prune-offline', action='store_true', help='')
+    parser.add_argument('-b', '--batch', default=None, type=int, help='The batch of objects to train')
+    parser.add_argument('-bs', '--batch-size', default=None, type=int, help='The batch size of objects to train')
     args = parser.parse_args()
 
     # args.gpu_id = 1
@@ -570,4 +572,28 @@ if __name__ == '__main__':
 
     gpu_handler.select_gpu(args.gpu_id)
 
-    main(args.n_epochs_select, args.n_epochs_finetune, args.prune_per_iter, args.object, args.prune_offline)
+    if args.object == 'all':
+        sequences_val = ['blackswan', 'bmx-trees', 'breakdance', 'camel', 'car-roundabout', 'car-shadow', 'cows',
+                         'dance-twirl', 'dog', 'drift-chicane', 'drift-straight', 'goat', 'horsejump-high', 'kite-surf',
+                         'libby', 'motocross-jump', 'paragliding-launch', 'parkour', 'scooter-black', 'soapbox']
+
+        sequences_train = ['bear', 'bmx-bumps', 'boat', 'breakdance-flare', 'bus', 'car-turn', 'dance-jump',
+                           'dog-agility', 'drift-turn', 'elephant', 'flamingo', 'hike', 'hockey', 'horsejump-low',
+                           'kite-walk', 'lucia', 'mallard-fly', 'mallard-water', 'motocross-bumps', 'motorbike',
+                           'paragliding', 'rhino', 'rollerblade', 'scooter-gray', 'soccerball', 'stroller', 'surf',
+                           'swing', 'tennis', 'train']
+
+        sequences_all = list(set(sequences_train + sequences_val))
+
+        if args.batch is None:
+            already_done = []
+            # already_done = ['blackswan']
+            sequences = [s for s in sequences_val if s not in already_done]
+        else:
+            sequences = [s for i, s in enumerate(sequences_val) if i % args.batch_size == args.batch]
+
+        [main(args.n_epochs_select, args.n_epochs_finetune, args.prune_per_iter, s, args.prune_offline)
+         for s in sequences]
+
+    else:
+        main(args.n_epochs_select, args.n_epochs_finetune, args.prune_per_iter, args.object, args.prune_offline)
