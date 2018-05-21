@@ -141,7 +141,7 @@ if __name__ == '__main__':
         net_provider = provider_class(args.network, save_dir_models, settings, variant_offline=args.variant_offline,
                                       variant_online=args.variant_online)
 
-    if args.object == 'all':
+    if not args.offline and args.sequence_name is None:
         sequences_val = ['blackswan', 'bmx-trees', 'breakdance', 'camel', 'car-roundabout', 'car-shadow', 'cows',
                          'dance-twirl', 'dog', 'drift-chicane', 'drift-straight', 'goat', 'horsejump-high', 'kite-surf',
                          'libby', 'motocross-jump', 'paragliding-launch', 'parkour', 'scooter-black', 'soapbox']
@@ -154,15 +154,18 @@ if __name__ == '__main__':
 
         sequences_all = list(set(sequences_train + sequences_val))
 
-        if args.batch is None:
+        if args.sequence_group is None:
             already_done = []
-            # already_done = ['blackswan']
-            sequences = [s for s in sequences_val if s not in already_done]
+            sequences = [s
+                         for s in sequences_val
+                         if s not in already_done]
         else:
-            sequences = [s for i, s in enumerate(sequences_val) if i % args.batch_size == args.batch]
+            sequences = [s
+                         for i, s in enumerate(sequences_val)
+                         if i % args.sequence_group_size == args.sequence_group]
 
         [train_and_test(net_provider, s, settings)
          for s in sequences]
 
     else:
-        train_and_test(net_provider, args.object, settings)
+        train_and_test(net_provider, args.sequence_name, settings)
