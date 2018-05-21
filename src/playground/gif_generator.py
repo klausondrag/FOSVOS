@@ -58,17 +58,25 @@ sequences_all = list(set(sequences_train + sequences_val))
 
 
 @click.command()
-@click.option('--path-base-input', type=str, default='../results/resnet18/11/mimic')
-@click.option('--path-base-output', type=str, default='../results/gifs/mimic')
+@click.option('--path-base-input', type=str, default='../results/resnet18/11')
+@click.option('--path-base-output', type=str, default='../results/gifs')
 @click.option('--output-format', type=click.Choice(['gif', 'mp4']), default='gif')
-def convert_folder(path_base_input, path_base_output, output_format):
-    path_base_input = Path(path_base_input)
-    path_base_output = Path(path_base_output)
+@click.option('--mode', type=click.Choice(['prune', 'mimic']), default='prune')
+def convert_folder(path_base_input, path_base_output, output_format, mode):
+    path_base_input = Path(path_base_input) / mode
+    path_base_output = Path(path_base_output) / mode
+
     for sequence_name in sequences_all:
         path_output = path_base_output / sequence_name
         path_output.mkdir(parents=True, exist_ok=True)
         for path_variant in sorted(path_base_input.iterdir()):
-            path_input = path_variant / '300' / sequence_name
+            if mode == 'mimic':
+                path_input = path_variant / '300' / sequence_name
+            elif mode == 'prune':
+                path_input = path_variant / sequence_name
+            else:
+                raise Exception('Unknown mode')
+
             if path_input.exists():
                 generate_gif(path_input, path_output / (path_variant.name + '.' + output_format), output_format)
 
