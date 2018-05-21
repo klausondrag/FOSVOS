@@ -202,7 +202,6 @@ def train(pruner: FilterPruner, data_loader: data.DataLoader, n_epochs: int = 1)
         for minibatch in data_loader:
             pruner.net.zero_grad()
             inputs, gts = minibatch['image'], minibatch['gt']
-            inputs, gts = Variable(inputs), Variable(gts)
             inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
             outputs = pruner.forward(inputs)
