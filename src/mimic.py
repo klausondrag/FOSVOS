@@ -147,7 +147,7 @@ def calculate_loss(criterion, epoch, n_epochs, learn_from, net_student, net_teac
             loss.backward()
             optimizer.step()
 
-        loss_epoch /= len(dataloader.dataset)
+    loss_epoch /= len(dataloader.dataset)
     summary_writer.add_scalar('data/{mode}/loss'.format(mode=mode), loss_epoch, epoch)
 
 
