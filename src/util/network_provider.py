@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional, Dict, Type
 from abc import ABC, abstractmethod
 
 import torch
@@ -537,4 +537,4 @@ provider_mapping = {
     ('online', 'resnet18'): ResNetOnlineProvider,
     ('offline', 'resnet34'): ResNetOfflineProvider,
     ('online', 'resnet34'): ResNetOnlineProvider
-}  # type: Dict[(str, str), NetworkProvider]
+}  # type: Dict[(str, str), Type[NetworkProvider]]
