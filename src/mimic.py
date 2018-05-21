@@ -87,13 +87,7 @@ def main(n_epochs: int, sequence_name: Optional[str], is_offline_mode: bool, sca
             raise Exception('Unknown loss function')
 
         path_tensorboard = Path('tensorboard') / path_stem
-        if path_tensorboard.exists():
-            log.warn('Deleting existing tensorboard directory: %s', str(path_tensorboard))
-            shutil.rmtree(str(path_tensorboard))
-
-        path_tensorboard = str(path_tensorboard)
-        log.info('Logging for tensorboard in directory: %s', path_tensorboard)
-        writer = SummaryWriter(path_tensorboard)
+        writer = io_helper.get_summary_writer(path_tensorboard)
 
         log.info('Starting Training')
         for epoch in range(1, n_epochs + 1):
