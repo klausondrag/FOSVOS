@@ -23,11 +23,12 @@ log = get_logger(__file__)
 def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: OnlineSettings) -> None:
     io_helper.write_settings(save_dir_models, net_provider.name, settings, variant_offline=settings.variant_offline,
                              variant_online=settings.variant_online)
+    summary_writer = _get_summary_writer(path_stem)
+
     if settings.is_training:
         net_provider.load_network_train()
         data_loader = io_helper.get_data_loader_train(db_root_dir, settings.batch_size_train, seq_name)
         optimizer = net_provider.get_optimizer()
-        summary_writer = _get_summary_writer(seq_name)
 
         _train(net_provider, data_loader, optimizer, summary_writer, seq_name, settings.start_epoch, settings.n_epochs,
                settings.avg_grad_every_n, settings.snapshot_every_n)
@@ -54,14 +55,14 @@ def _get_summary_writer(seq_name: str) -> SummaryWriter:
     return io_helper.get_summary_writer(path_tensorboard)
 
 
-def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: optim.SGD, summary_writer: SummaryWriter,
+def _train(net_provider: NetworkProvider, dataloader: DataLoader, optimizer: optim.SGD, summary_writer: SummaryWriter,
            seq_name: str, start_epoch: int, n_epochs: int, avg_grad_every_n: int, snapshot_every_n: int) -> None:
     log.info('Start of Online Training, sequence: ' + seq_name)
 
     net = net_provider.network
 
     speeds_training = []
-    n_samples = len(data_loader)
+    n_samples = len(dataloader)
     loss_tr = []
     counter_gradient = 0
 
@@ -70,9 +71,9 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: op
         time_epoch_start = timeit.default_timer()
 
         running_loss_tr = 0
-        for minibatch_index, minibatch in enumerate(data_loader):
+        loss_epoch = 0.0
+        for minibatch_index, minibatch in enumerate(dataloader):
             inputs, gts = minibatch['image'], minibatch['gt']
-            inputs, gts = Variable(inputs), Variable(gts)
             inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
             outputs = net.forward(inputs)
@@ -90,6 +91,7 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: op
 
             loss /= avg_grad_every_n
             loss.backward()
+            loss_epoch += loss.item()
             counter_gradient += 1
 
             if counter_gradient % avg_grad_every_n == 0:
@@ -97,6 +99,9 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: op
                 optimizer.step()
                 optimizer.zero_grad()
                 counter_gradient = 0
+
+        loss_epoch /= len(dataloader.dataset)
+        summary_writer.add_scalar('data/{mode}/loss'.format(mode='train'), loss_epoch, epoch)
 
         if (epoch % snapshot_every_n) == snapshot_every_n - 1:  # and epoch != 0:
             net_provider.save_model(epoch, sequence=seq_name)
@@ -107,7 +112,7 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: op
 
     time_all_stop = timeit.default_timer()
     time_for_all = time_all_stop - time_all_start
-    n_images = len(data_loader)
+    n_images = len(dataloader)
     time_per_sample = time_for_all / n_images
     log.info('Train {0}: total time {1} sec'.format(seq_name, str(time_for_all)))
     log.info('Train {0}: {1} images'.format(seq_name, str(n_images)))
@@ -116,6 +121,7 @@ def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: op
 
 if __name__ == '__main__':
     from playground.pruning_resource_efficient_inference import BasicBlockDummy
+
     args = args_helper.parse_args(is_online=True)
     gpu_handler.select_gpu(args.gpu_id)
 
@@ -147,11 +153,14 @@ if __name__ == '__main__':
 
     provider_class = provider_mapping[('online', args.network)]
     if args.network == 'resnet34':
-        net_provider = provider_class(args.network, save_dir_models, settings, variant_offline=args.variant_offline,
-                                      variant_online=args.variant_online, version=34)
+        net_provider = provider_class(name=args.network, save_dir=(path_input_model, path_output_model_base),
+                                      settings=settings,
+                                      variant_offline=args.variant_offline, variant_online=args.variant_online,
+                                      version=34)
     else:
-        net_provider = provider_class(args.network, save_dir_models, settings, variant_offline=args.variant_offline,
-                                      variant_online=args.variant_online)
+        net_provider = provider_class(name=args.network, save_dir=(path_input_model, path_output_model_base),
+                                      settings=settings,
+                                      variant_offline=args.variant_offline, variant_online=args.variant_online)
 
     if not args.offline and args.sequence_name is None:
         sequences_val = ['blackswan', 'bmx-trees', 'breakdance', 'camel', 'car-roundabout', 'car-shadow', 'cows',

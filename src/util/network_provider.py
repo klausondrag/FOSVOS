@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, Dict, Type
+from typing import Optional, Dict, Type, Tuple
 from abc import ABC, abstractmethod
 
 import torch
@@ -17,7 +17,7 @@ log = get_logger(__file__)
 
 class NetworkProvider(ABC):
 
-    def __init__(self, name: str, save_dir: Path, network_type: type, settings: Settings,
+    def __init__(self, name: str, save_dir: Tuple[Path, Path], network_type: type, settings: Settings,
                  variant_offline: Optional[int] = None, variant_online: Optional[int] = None) -> None:
         self.name = name
         self.save_dir = save_dir
@@ -51,12 +51,10 @@ class NetworkProvider(ABC):
         return file_path
 
     def load_model(self, epoch: int, sequence: Optional[str] = None) -> None:
-        file_path = self._get_file_path(epoch - 1, sequence)
-        log.info("Loading weights from: {0}".format(str(file_path)))
-        if not file_path.exists():
-            log.error('Model {0} does not exist!'.format(str(file_path)))
+        model_path = str(self.save_dir[0])
+        log.info("Loading weights from: {0}".format(model_path))
         # self.network = torch.load(str(file_path))
-        self.network.load_state_dict(torch.load(str(file_path), map_location=lambda storage, loc: storage))
+        self.network.load_state_dict(torch.load(model_path, map_location=lambda storage, loc: storage))
         self.network = gpu_handler.cast_cuda_if_possible(self.network, verbose=True)
 
     def save_model(self, epoch: int, sequence: Optional[str] = None) -> None:
