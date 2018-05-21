@@ -478,10 +478,7 @@ def get_experiment_id(prune_per_iter: int, n_epochs_select: int, n_epochs_finetu
 
 
 def main(n_epochs_select, n_epochs_finetune, prune_per_iter,
-         seq_name: Optional[str] = None, prune_offline: bool = False) -> None:
-    if prune_offline:
-        seq_name = None
-
+         seq_name: Optional[str] = None, is_offline_mode: bool = False) -> None:
     percentage_prune_max = 90
     percentage_prune_steps = 10
 
@@ -490,13 +487,13 @@ def main(n_epochs_select, n_epochs_finetune, prune_per_iter,
     path_stem = 'resnet18/11'
     path_stem += '/' + 'prune'
     path_stem += '/' + experiment_id
-    path_stem += '/' + ('offline' if prune_offline else 'online')
+    path_stem += '/' + ('offline' if is_offline_mode else 'online')
     log.info('Path stem: %s', str(path_stem))
 
     path_output_model_base = Path('models') / path_stem
     path_output_model_base.mkdir(parents=True, exist_ok=True)
 
-    net = get_net(seq_name, prune_offline)
+    net = get_net(seq_name, is_offline_mode)
     n_filters = total_num_filters(net)
     n_filters_to_prune_per_iter = prune_per_iter
     n_iterations = 1 + int(n_filters / n_filters_to_prune_per_iter * percentage_prune_steps / 100)
@@ -553,26 +550,24 @@ def main(n_epochs_select, n_epochs_finetune, prune_per_iter,
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--gpu-id', default=None, type=int, help='The gpu id to use')
+    parser.add_argument('--offline', action='store_true')
+    parser.add_argument('-s', '--sequence-name', default=None, type=Optional[str])
+    parser.add_argument('-sg', '--sequence-group', default=None, type=Optional[int])
+    parser.add_argument('-sgs', '--sequence-group-size', default=None, type=Optional[int])
+
     parser.add_argument('--n-epochs-select', default=20, type=int, help='version to try')
     parser.add_argument('--n-epochs-finetune', default=20, type=int, help='version to try')
-    # parser.add_argument('--percentage-prune', default=50, type=int, help='version to try')
-    parser.add_argument('--gpu-id', default=1, type=int, help='The gpu id to use')
     parser.add_argument('--prune-per-iter', default=64, type=int, help='filters to prune per iteration')
-    parser.add_argument('-o', '--object', default='blackswan', type=str, help='The object to train on')
-    parser.add_argument('--prune-offline', action='store_true', help='')
-    parser.add_argument('-b', '--batch', default=None, type=int, help='The batch of objects to train')
-    parser.add_argument('-bs', '--batch-size', default=None, type=int, help='The batch size of objects to train')
-    args = parser.parse_args()
 
-    # args.gpu_id = 1
-    # args.n_epochs_select = 10
-    # args.n_epochs_finetune = 200
-    # args.prune_per_iter = 64
-    # args.percentage_prune = 66
+    args = parser.parse_args()
 
     gpu_handler.select_gpu(args.gpu_id)
 
-    if args.object == 'all':
+    if args.offline:
+        seq_name = None
+
+    if not args.offline and args.sequence_name is None:
         sequences_val = ['blackswan', 'bmx-trees', 'breakdance', 'camel', 'car-roundabout', 'car-shadow', 'cows',
                          'dance-twirl', 'dog', 'drift-chicane', 'drift-straight', 'goat', 'horsejump-high', 'kite-surf',
                          'libby', 'motocross-jump', 'paragliding-launch', 'parkour', 'scooter-black', 'soapbox']
@@ -585,15 +580,18 @@ if __name__ == '__main__':
 
         sequences_all = list(set(sequences_train + sequences_val))
 
-        if args.batch is None:
+        if args.sequence_group is None:
             already_done = []
-            # already_done = ['blackswan']
-            sequences = [s for s in sequences_val if s not in already_done]
+            sequences = [s
+                         for s in sequences_val
+                         if s not in already_done]
         else:
-            sequences = [s for i, s in enumerate(sequences_val) if i % args.batch_size == args.batch]
+            sequences = [s
+                         for i, s in enumerate(sequences_val)
+                         if i % args.sequence_group_size == args.sequence_group]
 
-        [main(args.n_epochs_select, args.n_epochs_finetune, args.prune_per_iter, s, args.prune_offline)
+        [main(args.n_epochs_select, args.n_epochs_finetune, args.prune_per_iter, s, args.offline)
          for s in sequences]
 
     else:
-        main(args.n_epochs_select, args.n_epochs_finetune, args.prune_per_iter, args.object, args.prune_offline)
+        main(args.n_epochs_select, args.n_epochs_finetune, args.prune_per_iter, args.object, args.offline)

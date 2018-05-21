@@ -16,9 +16,9 @@ from util.logger import get_logger
 log = get_logger(__file__)
 
 
-def get_net(sequence_name: Optional[str], mimic_offline: bool) -> nn.Module:
+def get_net(sequence_name: Optional[str], is_offline_mode: bool) -> nn.Module:
     net = OSVOS_RESNET(pretrained=False)
-    if mimic_offline:
+    if is_offline_mode:
         path_model = './models/resnet18_11_epoch-239.pth'
     else:
         path_model = './models/resnet18_11_11_' + sequence_name + '_epoch-9999.pth'
@@ -42,18 +42,15 @@ def get_experiment_id(scale_down_exponent: int, sequence_name: Optional[str], le
                     learning_rate, criterion, criterion_from, learn_from)
 
 
-def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale_down_exponent: int,
+def main(n_epochs: int, sequence_name: Optional[str], is_offline_mode: bool, scale_down_exponent: int,
          learning_rate: float, no_training: bool, criterion: str, criterion_from: str, learn_from: str) -> None:
-    if mimic_offline:
-        sequence_name = None
-
     experiment_id = get_experiment_id(scale_down_exponent, sequence_name, learning_rate, criterion, criterion_from,
                                       learn_from)
     log.info('Experiment ID: %s', experiment_id)
     path_stem = 'resnet18/11'
     path_stem += '/' + 'mimic'
     path_stem += '/' + experiment_id
-    path_stem += '/' + ('offline' if mimic_offline else 'online')
+    path_stem += '/' + ('offline' if is_offline_mode else 'online')
     log.info('Path stem: %s', str(path_stem))
 
     path_output_model_base = Path('models') / path_stem
@@ -67,7 +64,7 @@ def main(n_epochs: int, sequence_name: Optional[str], mimic_offline: bool, scale
                                                            seq_name=sequence_name)
         net_teacher = None
         if learn_from == 'teacher':
-            net_teacher = get_net(sequence_name, mimic_offline)
+            net_teacher = get_net(sequence_name, is_offline_mode)
             net_teacher.train()
             net_teacher.is_mode_mimic = True
             net_teacher = gpu_handler.cast_cuda_if_possible(net_teacher)
@@ -191,23 +188,28 @@ def _get_loss_minibatch(criterion, epoch, n_epochs, learn_from, minibatch, net_s
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--gpu-id', default=None, type=int, help='The gpu id to use')
+    parser.add_argument('--offline', action='store_true')
+    parser.add_argument('-s', '--sequence-name', default=None, type=Optional[str])
+    parser.add_argument('-sg', '--sequence-group', default=None, type=Optional[int])
+    parser.add_argument('-sgs', '--sequence-group-size', default=None, type=Optional[int])
+
     parser.add_argument('--n-epochs', default=300, type=int, help='')
-    parser.add_argument('--gpu-id', default=1, type=int, help='The gpu id to use')
-    parser.add_argument('-o', '--object', default='blackswan', type=str, help='The object to train on')
-    parser.add_argument('--mimic-offline', action='store_true', help='')
     parser.add_argument('--scale-down-exponent', default=0, type=int, help='')
     parser.add_argument('--learning-rate', default=1e-2, type=float, help='')
     parser.add_argument('--no-training', action='store_true',
                         help='True if the program should train the model, else False')
     parser.add_argument('--criterion', default='MSE', type=str, help='The loss to use',
                         choices=['MSE', 'L1', 'CBCEL'])
-    parser.add_argument('-b', '--batch', default=None, type=int, help='The batch of objects to train')
-    parser.add_argument('-bs', '--batch-size', default=None, type=int, help='The batch size of objects to train')
+
     args = parser.parse_args()
 
     gpu_handler.select_gpu(args.gpu_id)
 
-    if args.object == 'all':
+    if args.offline:
+        args.sequence_name = None
+
+    if not args.offline and args.sequence_name is None:
         sequences_val = ['blackswan', 'bmx-trees', 'breakdance', 'camel', 'car-roundabout', 'car-shadow', 'cows',
                          'dance-twirl', 'dog', 'drift-chicane', 'drift-straight', 'goat', 'horsejump-high', 'kite-surf',
                          'libby', 'motocross-jump', 'paragliding-launch', 'parkour', 'scooter-black', 'soapbox']
@@ -220,17 +222,20 @@ if __name__ == '__main__':
 
         sequences_all = list(set(sequences_train + sequences_val))
 
-        if args.batch is None:
+        if args.sequence_group is None:
             already_done = []
-            # already_done = ['blackswan']
-            sequences = [s for s in sequences_val if s not in already_done]
+            sequences = [s
+                         for s in sequences_val
+                         if s not in already_done]
         else:
-            sequences = [s for i, s in enumerate(sequences_val) if i % args.batch_size == args.batch]
+            sequences = [s
+                         for i, s in enumerate(sequences_val)
+                         if i % args.sequence_group_size == args.sequence_group]
 
-        [main(args.n_epochs, s, args.mimic_offline, args.scale_down_exponent, args.learning_rate,
+        [main(args.n_epochs, s, args.offline, args.scale_down_exponent, args.learning_rate,
               args.no_training, args.criterion, criterion_from='all', learn_from='ground_truth')
          for s in sequences]
 
     else:
-        main(args.n_epochs, args.object, args.mimic_offline, args.scale_down_exponent, args.learning_rate,
+        main(args.n_epochs, args.sequence_name, args.offline, args.scale_down_exponent, args.learning_rate,
              args.no_training, args.criterion, criterion_from='all', learn_from='ground_truth')
