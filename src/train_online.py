@@ -50,7 +50,8 @@ def train_and_test(net_provider: NetworkProvider, seq_name: str, settings: Onlin
 
 
 def _get_summary_writer(seq_name: str) -> SummaryWriter:
-    return io_helper.get_summary_writer(save_dir_models, postfix=seq_name)
+    path_tensorboard = Path('tensorboard') / path_stem
+    return io_helper.get_summary_writer(path_tensorboard)
 
 
 def _train(net_provider: NetworkProvider, data_loader: DataLoader, optimizer: optim.SGD, summary_writer: SummaryWriter,
@@ -125,6 +126,17 @@ if __name__ == '__main__':
     save_dir_models.mkdir(parents=True, exist_ok=True)
     save_dir_results = Path('results')
     save_dir_results.mkdir(parents=True, exist_ok=True)
+
+    path_stem = 'resnet18/11'
+    path_stem += '/' + 'prune'
+    path_stem += '/' + 'exp'
+    path_stem += '/' + 'offline'
+    path_input_model = Path('models') / path_stem / 'percentage.pth'
+    path_stem += '/' + 'online'
+    log.info('Path stem: %s', str(path_stem))
+
+    path_output_model_base = Path('models') / path_stem
+    path_output_model_base.mkdir(parents=True, exist_ok=True)
 
     settings = OnlineSettings(is_training=args.is_training, is_testing=args.is_testing, start_epoch=0, n_epochs=10000,
                               avg_grad_every_n=5, snapshot_every_n=10000, is_testing_while_training=False,

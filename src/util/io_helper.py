@@ -3,6 +3,7 @@ import socket
 from pathlib import Path
 from typing import Optional
 
+import shutil
 import torch
 import yaml
 from tensorboardX import SummaryWriter
@@ -27,13 +28,18 @@ def visualize_network(net):
     g.view()
 
 
-def get_summary_writer(save_dir: Path, postfix: Optional[str] = None, comment: str = '') -> SummaryWriter:
-    name_parts = [_get_timestamp(), socket.gethostname()]
-    if postfix is not None:
-        name_parts.append(postfix)
-    dir_name = '_'.join(name_parts)
-    log_dir = save_dir / 'runs' / dir_name
-    summary_writer = SummaryWriter(log_dir=str(log_dir), comment=comment)
+def get_summary_writer(path_tensorboard: Path, delete_dir: bool = True) -> SummaryWriter:
+    if delete_dir and path_tensorboard.exists():
+        log.warn('Deleting existing tensorboard directory: %s', str(path_tensorboard))
+        try:
+            shutil.rmtree(str(path_tensorboard))
+        except:
+            log.warn('Failed to delete the directory')
+
+    path_tensorboard = path_tensorboard / _get_timestamp()
+    path_tensorboard = str(path_tensorboard)
+    log.info('Logging for tensorboard in directory: %s', path_tensorboard)
+    summary_writer = SummaryWriter(path_tensorboard)
     return summary_writer
 
 
