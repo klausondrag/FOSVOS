@@ -87,19 +87,19 @@ def main(n_epochs: int, sequence_name: Optional[str], is_offline_mode: bool, sca
             raise Exception('Unknown loss function')
 
         path_tensorboard = Path('tensorboard') / path_stem
-        writer = io_helper.get_summary_writer(path_tensorboard)
+        summary_writer = io_helper.get_summary_writer(path_tensorboard)
 
         log.info('Starting Training')
         for epoch in range(1, n_epochs + 1):
             calculate_loss(criterion, epoch, n_epochs, learn_from, net_student, net_teacher, dataloader_train,
-                           optimizer, 'train', writer)
+                           optimizer, 'train', summary_writer)
 
             if epoch % 10 == 0:
                 log.info('Validating...')
                 calculate_loss(criterion, epoch, n_epochs, learn_from, net_student, net_teacher, dataloader_val,
-                               optimizer, 'val', writer)
+                               optimizer, 'val', summary_writer)
 
-        writer.close()
+        summary_writer.close()
         log.info('Finished Training')
 
         path_output_model = path_output_model_base / (str(n_epochs) + '.pth')
@@ -127,7 +127,7 @@ def main(n_epochs: int, sequence_name: Optional[str], is_offline_mode: bool, sca
 
 
 def calculate_loss(criterion, epoch, n_epochs, learn_from, net_student, net_teacher, dataloader, optimizer,
-                   mode, writer):
+                   mode, summary_writer):
     if mode == 'train':
         net_student.train()
         net_teacher.train()
@@ -138,7 +138,6 @@ def calculate_loss(criterion, epoch, n_epochs, learn_from, net_student, net_teac
     loss_epoch = 0.0
     for minibatch in dataloader:
         if mode == 'train':
-            net_student.zero_grad()
             optimizer.zero_grad()
 
         loss = _get_loss_minibatch(criterion, epoch, n_epochs, learn_from, minibatch, net_student, net_teacher)
@@ -149,7 +148,7 @@ def calculate_loss(criterion, epoch, n_epochs, learn_from, net_student, net_teac
             optimizer.step()
 
         loss_epoch /= len(dataloader.dataset)
-    writer.add_scalar('data/{mode}/loss'.format(mode=mode), loss_epoch, epoch)
+    summary_writer.add_scalar('data/{mode}/loss'.format(mode=mode), loss_epoch, epoch)
 
 
 def _get_loss_minibatch(criterion, epoch, n_epochs, learn_from, minibatch, net_student, net_teacher):
