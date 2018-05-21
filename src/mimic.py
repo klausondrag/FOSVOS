@@ -102,7 +102,11 @@ def main(n_epochs: int, sequence_name: Optional[str], is_offline_mode: bool, sca
         summary_writer.close()
         log.info('Finished Training')
 
-        path_output_model = path_output_model_base / (str(n_epochs) + '.pth')
+        if is_offline_mode:
+            path_output_model = path_output_model_base / 'offline' / (str(n_epochs) + '.pth')
+        else:
+            path_output_model = path_output_model_base / sequence_name / (str(n_epochs) + '.pth')
+
         log.info('Saving model to %s', str(path_output_model))
         torch.save(net_student.state_dict(), str(path_output_model))
 
@@ -114,7 +118,10 @@ def main(n_epochs: int, sequence_name: Optional[str], is_offline_mode: bool, sca
 
     net_provider = DummyProvider(net_student)
 
-    path_output_images = Path('results') / path_stem / str(n_epochs)
+    if is_offline_mode:
+        path_output_images = Path('results') / path_stem / 'offline' / sequence_name
+    else:
+        path_output_images = Path('results') / path_stem / sequence_name
     log.info('Saving images to %s', str(path_output_images))
 
     # first time to measure the speed

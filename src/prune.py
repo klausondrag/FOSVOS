@@ -488,8 +488,8 @@ def get_experiment_id(prune_per_iter: int, n_epochs_select: int, n_epochs_finetu
     return format_string.format(prune_per_iter, n_epochs_select, n_epochs_finetune)
 
 
-def main(n_epochs_select, n_epochs_finetune, prune_per_iter,
-         seq_name: Optional[str] = None, is_offline_mode: bool = False) -> None:
+def main(n_epochs_select: int, n_epochs_finetune: int, prune_per_iter: int, sequence_name: Optional[str] = None,
+         is_offline_mode: bool = False) -> None:
     percentage_prune_max = 90
     percentage_prune_steps = 10
 
@@ -507,7 +507,7 @@ def main(n_epochs_select, n_epochs_finetune, prune_per_iter,
     path_tensorboard = Path('tensorboard') / path_stem
     summary_writer = io_helper.get_summary_writer(path_tensorboard)
 
-    net = get_net(seq_name, is_offline_mode)
+    net = get_net(sequence_name, is_offline_mode)
     n_filters = total_num_filters(net)
     n_filters_to_prune_per_iter = prune_per_iter
     n_iterations = 1 + int(n_filters / n_filters_to_prune_per_iter * percentage_prune_steps / 100)
@@ -520,13 +520,15 @@ def main(n_epochs_select, n_epochs_finetune, prune_per_iter,
 
     pruner = FilterPruner(net)
 
-    dataloader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=seq_name)
-    dataloader_test = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1, seq_name=seq_name)
+    dataloader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=1,
+                                                       seq_name=sequence_name)
+    dataloader_test = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1,
+                                                     seq_name=sequence_name)
 
     fine_tune_calls = 0
-    for index_percentage in range(percentage_prune_steps, percentage_prune_max + 1, percentage_prune_steps):
+    for percentage in range(percentage_prune_steps, percentage_prune_max + 1, percentage_prune_steps):
         log.info('Remaining filters in model: %d', total_num_filters(net))
-        log.info('Pruning to percentage: %d', index_percentage)
+        log.info('Pruning to percentage: %d', percentage)
         log.debug('Plan to prune %d...%s', 0, str(net))
 
         for index_iteration in tqdm(range(n_iterations)):
@@ -546,22 +548,30 @@ def main(n_epochs_select, n_epochs_finetune, prune_per_iter,
             fine_tune(net, dataloader_train, args.n_epochs_finetune, summary_writer, fine_tune_calls)
             fine_tune_calls += 1
 
-        path_output_model = path_output_model_base / (str(index_percentage) + '.pth')
+        if is_offline_mode:
+            path_output_model = path_output_model_base / str(percentage) / 'offline' / '240.pth'
+        else:
+            path_output_model = path_output_model_base / str(percentage) / sequence_name / '10000.pth'
+
         log.info('Saving model to %s', str(path_output_model))
         torch.save(net, str(path_output_model))
 
         net_provider = DummyProvider(net)
 
-        path_output_images = Path('results') / path_stem / str(index_percentage)
+        if is_offline_mode:
+            path_output_images = Path('results') / path_stem / str(percentage) / 'offline' / sequence_name
+        else:
+            path_output_images = path_output_model_base / str(percentage) / sequence_name
+
         log.info('Saving images to %s', str(path_output_images))
 
         # first time to measure the speed
         experiment_helper.test(net_provider, dataloader_test, path_output_images, is_visualizing_results=False,
-                               eval_speeds=True, seq_name=seq_name)
+                               eval_speeds=True, seq_name=sequence_name)
 
         # second time for image output
         experiment_helper.test(net_provider, dataloader_test, path_output_images, is_visualizing_results=False,
-                               eval_speeds=False, seq_name=seq_name)
+                               eval_speeds=False, seq_name=sequence_name)
 
 
 if __name__ == '__main__':
