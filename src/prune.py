@@ -17,6 +17,7 @@ import torch
 import torch.nn as nn
 from torch.utils import data
 from torch import optim
+from torch.autograd import Variable
 
 from networks.osvos_resnet import OSVOS_RESNET, BasicBlockDummy
 from util import io_helper, experiment_helper, gpu_handler
@@ -204,6 +205,7 @@ def train_for_pruning(pruner: FilterPruner, dataloader: data.DataLoader, n_epoch
         for minibatch in dataloader:
             pruner.net.zero_grad()
             inputs, gts = minibatch['image'], minibatch['gt']
+            inputs, gts = Variable(inputs, requires_grad=True), Variable(gts, requires_grad=False)
             inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
             outputs = pruner.forward(inputs)
@@ -253,6 +255,7 @@ def calculate_loss(epoch, net, dataloader, optimizer, summary_writer, is_offline
 
 def _get_loss_minibatch(minibatch, net: nn.Module, is_offline: bool) -> torch.FloatTensor:
     inputs, gts = minibatch['image'], minibatch['gt']
+    inputs, gts = Variable(inputs, requires_grad=True), Variable(gts, requires_grad=False)
     inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
     outputs = net.forward(inputs)
