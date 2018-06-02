@@ -3,7 +3,7 @@
 # which itself is adopted from https://github.com/jacobgil/pytorch-pruning
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Tuple
 
 import operator
 import heapq
@@ -197,51 +197,72 @@ class FilterPruner:
         return filters_to_prune
 
 
-def train(pruner: FilterPruner, data_loader: data.DataLoader, n_epochs: int = 1) -> None:
+def train_for_pruning(pruner: FilterPruner, dataloader: data.DataLoader, n_epochs: int, summary_writer: SummaryWriter,
+                      is_offline: bool) -> None:
     for epoch in range(n_epochs):
-        for minibatch in data_loader:
+        loss_epoch = 0.0
+        for minibatch in dataloader:
             pruner.net.zero_grad()
             inputs, gts = minibatch['image'], minibatch['gt']
             inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
             outputs = pruner.forward(inputs)
-            loss = class_balanced_cross_entropy_loss(outputs[-1], gts, size_average=False)
+            if is_offline:
+                losses = [0] * len(outputs)
+                for i in range(0, len(outputs)):
+                    losses[i] = class_balanced_cross_entropy_loss(outputs[i], gts, size_average=False)
+                loss = sum(losses[:-1]) + losses[-1]  # type: Variable
+            else:
+                loss = class_balanced_cross_entropy_loss(outputs[-1], gts, size_average=False)
+            print(inputs.shape, outputs[-1].shape, gts.shape)
+            raise Exception('done')
+
+            loss_epoch += loss.item()
             loss.backward()
+
+        loss_epoch /= len(dataloader.dataset)
+        summary_writer.add_scalar('train_pruning/loss', loss_epoch, epoch)
 
 
 def fine_tune(net: nn.Module, data_loader: data.DataLoader, n_epochs: int, summary_writer: SummaryWriter,
-              iteration: int) -> None:
+              iteration: int, is_offline: bool) -> None:
     optimizer = optim.Adam(net.parameters(), lr=1e-4, weight_decay=0.0002)
 
     epoch_start = iteration * n_epochs + 1
     epoch_end = epoch_start + n_epochs + 1
     for epoch in range(epoch_start, epoch_end):
-        calculate_loss(epoch, net, data_loader, optimizer, summary_writer)
+        calculate_loss(epoch, net, data_loader, optimizer, summary_writer, is_offline)
 
 
-def calculate_loss(epoch, net, dataloader, optimizer, summary_writer):
+def calculate_loss(epoch, net, dataloader, optimizer, summary_writer, is_offline: bool) -> None:
     net.train()
 
     loss_epoch = 0.0
     for minibatch in dataloader:
         optimizer.zero_grad()
 
-        loss = _get_loss_minibatch(minibatch, net)
+        loss = _get_loss_minibatch(minibatch, net, is_offline)
         loss_epoch += loss.item()
 
         loss.backward()
         optimizer.step()
 
     loss_epoch /= len(dataloader.dataset)
-    summary_writer.add_scalar('data/train/loss', loss_epoch, epoch)
+    summary_writer.add_scalar('finetune/loss', loss_epoch, epoch)
 
 
-def _get_loss_minibatch(minibatch, net):
+def _get_loss_minibatch(minibatch, net: nn.Module, is_offline: bool) -> torch.FloatTensor:
     inputs, gts = minibatch['image'], minibatch['gt']
     inputs, gts = gpu_handler.cast_cuda_if_possible([inputs, gts])
 
     outputs = net.forward(inputs)
-    loss = class_balanced_cross_entropy_loss(outputs[-1], gts, size_average=False)
+    if is_offline:
+        losses = [0] * len(outputs)
+        for i in range(0, len(outputs)):
+            losses[i] = class_balanced_cross_entropy_loss(outputs[i], gts, size_average=False)
+        loss = sum(losses[:-1]) + losses[-1]  # type: torch.FloatTensor
+    else:
+        loss = class_balanced_cross_entropy_loss(outputs[-1], gts, size_average=False)
     return loss
 
 
@@ -470,10 +491,11 @@ def prune_batchnorm(batchnorm_old, filter_index, layer_index, net):
 
 # net.layer_base[1]
 
-def get_candidates_to_prune(pruner: FilterPruner, n_filters_to_prune: int, net: nn.Module,
-                            data_loader: data.DataLoader):
-    pruner.reset()
-    train(pruner, data_loader, n_epochs=args.n_epochs_select)
+def get_candidates_to_prune(net: nn.Module, n_filters_to_prune: int, dataloader: data.DataLoader,
+                            n_epochs_select: int, summary_writer: SummaryWriter,
+                            is_offline_mode: bool) -> List[Tuple[int, int]]:
+    pruner = FilterPruner(net)
+    train_for_pruning(pruner, dataloader, n_epochs_select, summary_writer, is_offline_mode)
     pruner.normalize_ranks_per_layer()
     return pruner.get_prunning_plan(n_filters_to_prune)
 
@@ -518,8 +540,6 @@ def main(n_epochs_select: int, n_epochs_finetune: int, prune_per_iter: int, sequ
     log.info('Number of iterations per percentage step: %d', n_iterations)
     log.info('Prune n filters per iteration: %d', n_filters_to_prune_per_iter)
 
-    pruner = FilterPruner(net)
-
     dataloader_train = io_helper.get_data_loader_train(Path('/usr/stud/ondrag/DAVIS'), batch_size=1,
                                                        seq_name=sequence_name)
     dataloader_test = io_helper.get_data_loader_test(Path('/usr/stud/ondrag/DAVIS'), batch_size=1,
@@ -532,7 +552,8 @@ def main(n_epochs_select: int, n_epochs_finetune: int, prune_per_iter: int, sequ
         log.debug('Plan to prune %d...%s', 0, str(net))
 
         for index_iteration in tqdm(range(n_iterations)):
-            prune_targets = get_candidates_to_prune(pruner, n_filters_to_prune_per_iter, net, dataloader_train)
+            prune_targets = get_candidates_to_prune(net, n_filters_to_prune_per_iter, dataloader_train,
+                                                    n_epochs_select, summary_writer, is_offline_mode)
 
             # net = net.cpu()
             layer_index_prev = -1
@@ -545,7 +566,7 @@ def main(n_epochs_select: int, n_epochs_finetune: int, prune_per_iter: int, sequ
             net = gpu_handler.cast_cuda_if_possible(net)
             log.debug('Plan to prune %d...%s', index_iteration, str(net))
 
-            fine_tune(net, dataloader_train, args.n_epochs_finetune, summary_writer, fine_tune_calls)
+            fine_tune(net, dataloader_train, args.n_epochs_finetune, summary_writer, fine_tune_calls, is_offline_mode)
             fine_tune_calls += 1
 
         if is_offline_mode:
