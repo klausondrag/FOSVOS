@@ -11,6 +11,7 @@ import argparse
 
 import numpy as np
 from tensorboardX import SummaryWriter
+from torchvision.models.resnet import BasicBlock
 from tqdm import tqdm
 
 import torch
@@ -64,6 +65,11 @@ def total_num_filters_old(net: nn.Module) -> int:
 class FilterPruner:
     def __init__(self, net: nn.Module):
         self.net = net
+        self.filter_ranks = {}
+        self.activations = []
+        self.gradients = []
+        self.grad_index = 0
+        self.activation_to_layer = {}
         self.reset()
 
     def reset(self) -> None:
@@ -145,15 +151,16 @@ class FilterPruner:
     def compute_rank(self, grad):
         activation_index = len(self.activations) - self.grad_index - 1
         activation = self.activations[activation_index]
-        values = torch.sum((activation * grad), dim=0, keepdim=True).sum(dim=2, keepdim=True).sum(dim=3, keepdim=True)[
-                 0, :, 0, 0].data
+        values = activation * grad
+        values = values.sum(dim=3).sum(dim=2).sum(dim=0)
+        values = values.data
 
         # Normalize the rank by the filter dimensions
-        values = values / (activation.size(0) * activation.size(2) * activation.size(3))
+        values = values / (activation.shape[0] * activation.shape[2] * activation.shape[3])
 
         if activation_index not in self.filter_ranks:
-            self.filter_ranks[activation_index] = gpu_handler.cast_cuda_if_possible(
-                torch.FloatTensor(activation.size(1)).zero_())
+            default_value = torch.FloatTensor(values.shape[0]).zero_()
+            self.filter_ranks[activation_index] = gpu_handler.cast_cuda_if_possible(default_value)
 
         self.filter_ranks[activation_index] += values
         self.grad_index += 1
@@ -164,7 +171,9 @@ class FilterPruner:
             divisor = np.sqrt(torch.sum(v * v))
             if divisor > 1e-5:
                 v = v / divisor
-                self.filter_ranks[i] = v.cpu()
+            else:
+                log.info('filter norm is zero: {0}'.format(str(i)))
+            self.filter_ranks[i] = v.cpu()
 
     def lowest_ranking_filters(self, n_filters_to_prune_per_iter):
         data = []
@@ -216,10 +225,8 @@ def train_for_pruning(pruner: FilterPruner, dataloader: data.DataLoader, n_epoch
                 loss = sum(losses[:-1]) + losses[-1]  # type: Variable
             else:
                 loss = class_balanced_cross_entropy_loss(outputs[-1], gts, size_average=False)
-            print(inputs.shape, outputs[-1].shape, gts.shape)
-            raise Exception('done')
 
-            loss_epoch += loss.item()
+            loss_epoch += loss.data[0]
             loss.backward()
 
         loss_epoch /= len(dataloader.dataset)
@@ -244,7 +251,7 @@ def calculate_loss(epoch, net, dataloader, optimizer, summary_writer, is_offline
         optimizer.zero_grad()
 
         loss = _get_loss_minibatch(minibatch, net, is_offline)
-        loss_epoch += loss.item()
+        loss_epoch += loss.data[0]
 
         loss.backward()
         optimizer.step()
