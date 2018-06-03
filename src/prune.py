@@ -588,8 +588,8 @@ def main(n_epochs_select: int, n_epochs_finetune: int, prune_per_iter: int, sequ
     for percentage in range(percentage_prune_steps, percentage_prune_max + 1, percentage_prune_steps):
         n_filters = total_num_filters(net)
         log.info('Remaining filters in model: %d', n_filters)
+        log.info('Pruned percentage so far: %d', 100 * (1 - n_filters / n_filters_start))
         log.info('Pruning to percentage: %d', percentage)
-        log.info('Pruned percentage so far: %d', (1 - n_filters / n_filters_start))
         log.debug('Plan to prune %d...%s', 0, str(net))
 
         for index_iteration in tqdm(range(n_iterations)):
