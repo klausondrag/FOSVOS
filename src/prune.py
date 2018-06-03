@@ -619,7 +619,7 @@ def main(n_epochs_select: int, n_epochs_finetune: int, prune_per_iter: int, sequ
         net_provider = DummyProvider(net)
 
         if is_offline_mode:
-            path_output_images = Path('results') / path_stem / str(percentage) / 'offline' / sequence_name
+            path_output_images = Path('results') / path_stem / str(percentage) / 'offline'
         else:
             path_output_images = path_output_model_base / str(percentage) / sequence_name
 

@@ -119,7 +119,7 @@ def main(n_epochs: int, sequence_name: Optional[str], is_offline_mode: bool, sca
     net_provider = DummyProvider(net_student)
 
     if is_offline_mode:
-        path_output_images = Path('results') / path_stem / 'offline' / sequence_name
+        path_output_images = Path('results') / path_stem / 'offline'
     else:
         path_output_images = Path('results') / path_stem / sequence_name
     log.info('Saving images to %s', str(path_output_images))
