@@ -651,4 +651,4 @@ if __name__ == '__main__':
          for s in sequences]
 
     else:
-        main(args.n_epochs_select, args.n_epochs_finetune, args.prune_per_iter, args.object, args.offline)
+        main(args.n_epochs_select, args.n_epochs_finetune, args.prune_per_iter, args.sequence_name, args.offline)
