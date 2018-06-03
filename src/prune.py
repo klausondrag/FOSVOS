@@ -224,8 +224,10 @@ class FilterPruner:
 
 
 def train_for_pruning(pruner: FilterPruner, dataloader: data.DataLoader, n_epochs: int, summary_writer: SummaryWriter,
-                      is_offline: bool) -> None:
-    for epoch in range(n_epochs):
+                      iteration: int, is_offline: bool) -> None:
+    epoch_start = iteration * n_epochs + 1
+    epoch_end = epoch_start + n_epochs + 1
+    for epoch in range(epoch_start, epoch_end):
         loss_epoch = 0.0
         for minibatch in dataloader:
             pruner.net.zero_grad()
@@ -530,9 +532,9 @@ def prune_batchnorm(batchnorm_old, filter_index, layer_index, net):
 
 def get_candidates_to_prune(net: nn.Module, n_filters_to_prune: int, dataloader: data.DataLoader,
                             n_epochs_select: int, summary_writer: SummaryWriter,
-                            is_offline_mode: bool) -> List[Tuple[int, int]]:
+                            iterations: int, is_offline_mode: bool) -> List[Tuple[int, int]]:
     pruner = FilterPruner(net)
-    train_for_pruning(pruner, dataloader, n_epochs_select, summary_writer, is_offline_mode)
+    train_for_pruning(pruner, dataloader, n_epochs_select, summary_writer, iterations, is_offline_mode)
     pruner.normalize_ranks_per_layer()
     return pruner.get_prunning_plan(n_filters_to_prune)
 
@@ -590,7 +592,7 @@ def main(n_epochs_select: int, n_epochs_finetune: int, prune_per_iter: int, sequ
 
         for index_iteration in tqdm(range(n_iterations)):
             prune_targets = get_candidates_to_prune(net, n_filters_to_prune_per_iter, dataloader_train,
-                                                    n_epochs_select, summary_writer, is_offline_mode)
+                                                    n_epochs_select, summary_writer, fine_tune_calls, is_offline_mode)
 
             # net = net.cpu()
             layer_index_prev = -1
@@ -647,6 +649,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     gpu_handler.select_gpu(args.gpu_id)
+
+    args.offline = True
+    args.n_epochs_select = 1
+    args.n_epochs_finetune = 1
 
     if args.offline:
         seq_name = None
