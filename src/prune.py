@@ -544,7 +544,7 @@ class DummyProvider:
         self.network = net
 
 
-def get_experiment_id(prune_per_iter: int, n_epochs_select: int, n_epochs_finetune: int) -> str:
+def get_experiment_id(n_epochs_select: int, n_epochs_finetune: int, prune_per_iter: int) -> str:
     format_string = 'prune_per_iter={0},epochs_select={1},epochs_finetune={2}'
     return format_string.format(prune_per_iter, n_epochs_select, n_epochs_finetune)
 
@@ -554,7 +554,7 @@ def main(n_epochs_select: int, n_epochs_finetune: int, prune_per_iter: int, sequ
     percentage_prune_max = 90
     percentage_prune_steps = 10
 
-    experiment_id = get_experiment_id(prune_per_iter, n_epochs_finetune, n_epochs_select)
+    experiment_id = get_experiment_id(n_epochs_select, n_epochs_finetune, prune_per_iter)
     log.info('Experiment ID: %s', experiment_id)
     path_stem = 'resnet18/11'
     path_stem += '/' + 'prune'
