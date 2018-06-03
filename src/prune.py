@@ -611,9 +611,13 @@ def main(n_epochs_select: int, n_epochs_finetune: int, prune_per_iter: int, sequ
             fine_tune_calls += 1
 
         if is_offline_mode:
-            path_output_model = path_output_model_base / str(percentage) / 'offline' / '240.pth'
+            path_output_model = path_output_model_base / str(percentage) / 'offline'
+            path_output_model.mkdir(parents=True, exist_ok=True)
+            path_output_model /= '240.pth'
         else:
-            path_output_model = path_output_model_base / str(percentage) / sequence_name / '10000.pth'
+            path_output_model = path_output_model_base / str(percentage) / sequence_name
+            path_output_model.mkdir(parents=True, exist_ok=True)
+            path_output_model /= '10000.pth'
 
         log.info('Saving model to %s', str(path_output_model))
         torch.save(net, str(path_output_model))
