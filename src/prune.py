@@ -27,6 +27,8 @@ from util.logger import get_logger
 
 log = get_logger(__file__)
 
+N_MIN_CHANNELS = 4
+
 
 def get_net(seq_name, train_offline: bool) -> nn.Module:
     net = OSVOS_RESNET(pretrained=True)
@@ -72,6 +74,7 @@ class FilterPruner:
         self.gradients = []
         self.grad_index = 0
         self.activation_to_layer = {}
+        self.skip_layer = []
         self.reset()
 
     def reset(self) -> None:
@@ -84,6 +87,7 @@ class FilterPruner:
         self.activation_to_layer = {}
         activation_index = 0
         kk = 0
+        self.skip_layer = []
 
         crop_h, crop_w = int(x.size()[-2]), int(x.size()[-1])
 
@@ -93,6 +97,8 @@ class FilterPruner:
                 x.register_hook(self.compute_rank)
                 self.activations.append(x)
                 self.activation_to_layer[activation_index] = kk
+                if l.out_channels <= N_MIN_CHANNELS:
+                    self.skip_layer.append(kk)
                 activation_index += 1
                 kk += 1
         # x = self.net.layer_base(x)
@@ -110,6 +116,8 @@ class FilterPruner:
                 x.register_hook(self.compute_rank)
                 self.activations.append(x)
                 self.activation_to_layer[activation_index] = kk
+                if layer_stage[kt].conv1.out_channels <= N_MIN_CHANNELS:
+                    self.skip_layer.append(kk)
                 activation_index += 1
                 kk += 1
                 x = layer_stage[kt].bn1(x)
@@ -118,6 +126,8 @@ class FilterPruner:
                 x.register_hook(self.compute_rank)
                 self.activations.append(x)
                 self.activation_to_layer[activation_index] = kk
+                if layer_stage[kt].conv2.out_channels <= N_MIN_CHANNELS:
+                    self.skip_layer.append(kk)
                 activation_index += 1
                 kk += 1
                 x = layer_stage[kt].bn2(x)
@@ -171,17 +181,21 @@ class FilterPruner:
         for i in self.filter_ranks:
             v = torch.abs(self.filter_ranks[i])
             divisor = np.sqrt(torch.sum(v * v))
-            if divisor > 1e-5:
-                v = v / divisor
-            else:
+            if divisor < 1e-5:
                 log.info('filter norm is zero: {0}'.format(str(i)))
+            else:
+                v = v / divisor
             self.filter_ranks[i] = v.cpu()
 
     def lowest_ranking_filters(self, n_filters_to_prune_per_iter):
         data = []
         for i in sorted(self.filter_ranks.keys()):
             for j in range(self.filter_ranks[i].size(0)):
-                data.append((self.activation_to_layer[i], j, self.filter_ranks[i][j]))
+                index_layer = self.activation_to_layer[i]
+                if index_layer in self.skip_layer:
+                    log.info('Skipping layer {0}'.format(str(index_layer)))
+                else:
+                    data.append((index_layer, j, self.filter_ranks[i][j]))
 
         return heapq.nsmallest(n_filters_to_prune_per_iter, data, operator.itemgetter(2))
 
