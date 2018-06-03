@@ -650,9 +650,9 @@ if __name__ == '__main__':
 
     gpu_handler.select_gpu(args.gpu_id)
 
-    args.offline = True
-    args.n_epochs_select = 1
-    args.n_epochs_finetune = 1
+    # args.offline = True
+    # args.n_epochs_select = 1
+    # args.n_epochs_finetune = 1
 
     if args.offline:
         seq_name = None
