@@ -46,9 +46,11 @@ def total_num_filters(net: OSVOS_RESNET) -> int:
     for m in net.layer_base.modules():
         if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
             n_filters += m.out_channels
-    for m in net.layer_stages.modules():
-        if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
-            n_filters += m.out_channels
+    for l in net.layer_stages:
+        for b in l:
+            if isinstance(b, BasicBlock) or isinstance(b, BasicBlockDummy):
+                n_filters += b.conv1.out_channels
+                n_filters += b.conv2.out_channels
     return n_filters
 
 
