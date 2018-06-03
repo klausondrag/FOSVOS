@@ -569,11 +569,11 @@ def main(n_epochs_select: int, n_epochs_finetune: int, prune_per_iter: int, sequ
     summary_writer = io_helper.get_summary_writer(path_tensorboard)
 
     net = get_net(sequence_name, is_offline_mode)
-    n_filters = total_num_filters(net)
+    n_filters_start = total_num_filters(net)
     n_filters_to_prune_per_iter = prune_per_iter
-    n_iterations = 1 + int(n_filters / n_filters_to_prune_per_iter * percentage_prune_steps / 100)
+    n_iterations = 1 + int(n_filters_start / n_filters_to_prune_per_iter * percentage_prune_steps / 100)
 
-    log.info('Filters in model: %d', n_filters)
+    log.info('Filters in model: %d', n_filters_start)
     log.info('Pruning maximal percentage: %d', percentage_prune_max)
     log.info('Output every percentage: %d', percentage_prune_steps)
     log.info('Number of iterations per percentage step: %d', n_iterations)
@@ -586,8 +586,10 @@ def main(n_epochs_select: int, n_epochs_finetune: int, prune_per_iter: int, sequ
 
     fine_tune_calls = 0
     for percentage in range(percentage_prune_steps, percentage_prune_max + 1, percentage_prune_steps):
-        log.info('Remaining filters in model: %d', total_num_filters(net))
+        n_filters = total_num_filters(net)
+        log.info('Remaining filters in model: %d', n_filters)
         log.info('Pruning to percentage: %d', percentage)
+        log.info('Pruned percentage so far: %d', (n_filters / n_filters_start))
         log.debug('Plan to prune %d...%s', 0, str(net))
 
         for index_iteration in tqdm(range(n_iterations)):
