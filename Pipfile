@@ -24,6 +24,7 @@ plotly = "*"
 moviepy = "*"
 tqdm = "*"
 click = "*"
+tensorflow = "*"
 
 [requires]
 python_version = "3.5"

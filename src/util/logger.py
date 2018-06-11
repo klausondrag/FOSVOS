@@ -1,23 +1,12 @@
 import logging
 from pathlib import Path
 
-from colorlog import ColoredFormatter
+import colorlog
 
-_formatter = ColoredFormatter(
-    "%(asctime)s %(log_color)s%(levelname)-8s%(reset)s [%(name)s]%(reset)s %(message)s",
-    datefmt=None,
-    reset=True,
-    log_colors={
-        'DEBUG': 'cyan',
-        'INFO': 'green',
-        'WARNING': 'yellow',
-        'ERROR': 'red',
-        'CRITICAL': 'red',
-    }
-)
+_formatter = colorlog.ColoredFormatter('%(asctime)s %(log_color)s%(levelname)-8s%(reset)s [%(name)s] %(message)s')
 
 
-def get_logger(module_name, log_level=logging.INFO):
+def get_logger(module_name: str, log_level: int = logging.INFO):
     """
     Get a logger for this module.
     :param module_name: the path to the python file, or simply the module name
@@ -25,12 +14,12 @@ def get_logger(module_name, log_level=logging.INFO):
     :return: the logger
     """
     module_name = Path(module_name).stem
-    logger = logging.getLogger(module_name)
-    if not logger.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(_formatter)
-        logger.addHandler(handler)
+    logger = colorlog.getLogger(module_name)
+    handler = colorlog.StreamHandler()
+    handler.setFormatter(_formatter)
+    logger.addHandler(handler)
     logger.setLevel(log_level)
+
     return logger
 
 
