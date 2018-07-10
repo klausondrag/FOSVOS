@@ -45,15 +45,23 @@ def apply_network(img, net):
 
 
 @click.command()
-@click.option('--use-resnet', type=bool, default=True)
-def main(use_resnet):
-    if use_resnet:
-        # net = OSVOS_RESNET(pretrained=False)
-        # net.load_state_dict(torch.load('resnet18.pth', map_location=lambda storage, loc: storage))
-        net = torch.load('prune_64_1_60.pth', map_location=lambda storage, loc: storage)
-    else:
+@click.option('--variant', type=click.Choice(['vgg16', 'resnet34', 'resnet18', 'prune60', 'mimic3']),
+              default='prune60')
+def main(variant):
+    if variant == 'vgg16':
         net = OSVOS_VGG(pretrained=False)
         net.load_state_dict(torch.load('vgg16.pth', map_location=lambda storage, loc: storage))
+    elif variant == 'resnet34':
+        raise Exception('Not yet implemented')
+    elif variant == 'resnet18':
+        net = OSVOS_RESNET(pretrained=False)
+        net.load_state_dict(torch.load('resnet18.pth', map_location=lambda storage, loc: storage))
+    elif variant == 'prune60':
+        net = torch.load('prune_64_1_60.pth', map_location=lambda storage, loc: storage)
+    elif variant == 'mimic3':
+        raise Exception('Not yet implemented')
+    else:
+        raise Exception('Click should have prevented this')
 
     net = net.cuda()
     show_webcam(net, mirror=True)
