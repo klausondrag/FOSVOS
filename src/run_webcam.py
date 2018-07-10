@@ -22,7 +22,14 @@ def show_webcam(net, mirror=False):
 def apply_network(img, net):
     return img
 
-def main():
+def main(use_resnet=True):
+    if use_resnet:
+        net = OSVOS_RESNET(pretrained=False)
+        net.load_state_dict(torch.load('resnet18.pth', map_location=lambda storage, loc: storage))
+    else:
+        pass
+
+    net = net.cuda()
     show_webcam(None, mirror=True)
 
 
