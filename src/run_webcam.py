@@ -27,7 +27,8 @@ def main(use_resnet=True):
         net = OSVOS_RESNET(pretrained=False)
         net.load_state_dict(torch.load('resnet18.pth', map_location=lambda storage, loc: storage))
     else:
-        pass
+        net = OSVOS_VGG(pretrained=False)
+        net.load_state_dict(torch.load('vgg16.pth', map_location=lambda storage, loc: storage))
 
     net = net.cuda()
     show_webcam(None, mirror=True)
