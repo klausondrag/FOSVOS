@@ -19,14 +19,14 @@ from networks.osvos_vgg import OSVOS_VGG
               default='prune60')
 @click.option('--webcam', type=int, default=0)
 @click.option('--mirror/--no-mirror', default=True)
-def main(variant, webcam, mirror):
+def main(variant: str, webcam: int, mirror: bool) -> None:
     net = get_network(variant)
     cam = cv2.VideoCapture(webcam)
     loop_video(net, cam, mirror)
     cv2.destroyAllWindows()
 
 
-def get_network(variant):
+def get_network(variant: str) -> torch.nn.Module:
     if variant == 'vgg16':
         net = OSVOS_VGG(pretrained=False)
         net.load_state_dict(torch.load('vgg16.pth', map_location=lambda storage, loc: storage))
@@ -45,7 +45,7 @@ def get_network(variant):
     return net
 
 
-def loop_video(net, cam, mirror):
+def loop_video(net: torch.nn.Module, cam: cv2.VideoCapture, mirror: bool) -> None:
     while True:
         ret_val, img = cam.read()
         if mirror:
@@ -56,7 +56,7 @@ def loop_video(net, cam, mirror):
             break  # esc to quit
 
 
-def apply_network(img, net):
+def apply_network(img: np.ndarray, net: torch.nn.Module) -> np.ndarray:
     img = img[np.newaxis, ...]
     img = torch.from_numpy(img.transpose((0, 3, 1, 2)))
     if isinstance(img, torch.ByteTensor):
