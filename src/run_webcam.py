@@ -4,6 +4,7 @@ Simply display the contents of the webcam with optional mirroring using OpenCV
 via the new Pythonic cv2 interface.  Press <esc> to quit.
 """
 
+import click
 import numpy as np
 import cv2
 import torch
@@ -41,7 +42,9 @@ def apply_network(img, net):
     pred = np.squeeze(pred)
     return pred
 
-def main(use_resnet=True):
+@click.command()
+@click.option('--use-resnet', type=bool, default=True)
+def main(use_resnet):
     if use_resnet:
         # net = OSVOS_RESNET(pretrained=False)
         # net.load_state_dict(torch.load('resnet18.pth', map_location=lambda storage, loc: storage))
