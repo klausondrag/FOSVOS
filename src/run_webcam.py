@@ -13,6 +13,8 @@ from torch.autograd import Variable
 from networks.osvos_resnet import OSVOS_RESNET
 from networks.osvos_vgg import OSVOS_VGG
 
+mean_value = np.array((104.00699, 116.66877, 122.67892), dtype=np.float32)
+
 
 @click.command()
 @click.option('--variant', type=click.Choice(['vgg16', 'resnet34', 'resnet18', 'prune60', 'mimic3']),
@@ -57,6 +59,7 @@ def loop_video(net: torch.nn.Module, cam: cv2.VideoCapture, mirror: bool) -> Non
 
 
 def apply_network(net: torch.nn.Module, img: np.ndarray, use_net: bool) -> np.ndarray:
+    img = img - mean_value
     img = img[np.newaxis, ...]
     img = torch.from_numpy(img.transpose((0, 3, 1, 2)))
     if isinstance(img, torch.ByteTensor):
