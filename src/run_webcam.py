@@ -60,22 +60,34 @@ def loop_video(net: torch.nn.Module, cam: cv2.VideoCapture, mirror: bool) -> Non
 
 def apply_network(net: torch.nn.Module, img: np.ndarray, use_net: bool) -> np.ndarray:
     img = img - mean_value
+    img = to_tensor(img)
+
+    if use_net:
+        outputs = net.forward(img)
+        output = outputs[-1]
+    else:
+        output = img
+
+    output = to_numpy(output)
+    return output
+
+
+def to_tensor(img: np.ndarray) -> torch.nn.Module:
     img = img[np.newaxis, ...]
     img = torch.from_numpy(img.transpose((0, 3, 1, 2)))
     if isinstance(img, torch.ByteTensor):
         img = img.float().div(255)
     img = Variable(img, volatile=True)
     img = img.cuda()
-    if use_net:
-        outputs = net.forward(img)
-        pred = outputs[-1]
-    else:
-        pred = img
-    pred = pred.cpu().data.numpy()[0, :, :, :]
-    pred = np.transpose(pred, (1, 2, 0))
-    pred = 1 / (1 + np.exp(-pred))
-    pred = np.squeeze(pred)
-    return pred
+    return img
+
+
+def to_numpy(output: torch.nn.Module) -> np.ndarray:
+    output = output.cpu().data.numpy()[0, :, :, :]
+    output = np.transpose(output, (1, 2, 0))
+    output = 1 / (1 + np.exp(-output))
+    output = np.squeeze(output)
+    return output
 
 
 if __name__ == '__main__':
