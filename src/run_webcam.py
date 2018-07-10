@@ -56,7 +56,7 @@ def main(use_resnet):
         net.load_state_dict(torch.load('vgg16.pth', map_location=lambda storage, loc: storage))
 
     net = net.cuda()
-    show_webcam(None, mirror=True)
+    show_webcam(net, mirror=True)
 
 
 if __name__ == '__main__':
