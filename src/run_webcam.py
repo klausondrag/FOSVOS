@@ -24,8 +24,9 @@ def apply_network(img, net):
 
 def main(use_resnet=True):
     if use_resnet:
-        net = OSVOS_RESNET(pretrained=False)
-        net.load_state_dict(torch.load('resnet18.pth', map_location=lambda storage, loc: storage))
+        # net = OSVOS_RESNET(pretrained=False)
+        # net.load_state_dict(torch.load('resnet18.pth', map_location=lambda storage, loc: storage))
+        net = torch.load('prune_64_1_60.pth', map_location=lambda storage, loc: storage)
     else:
         net = OSVOS_VGG(pretrained=False)
         net.load_state_dict(torch.load('vgg16.pth', map_location=lambda storage, loc: storage))
