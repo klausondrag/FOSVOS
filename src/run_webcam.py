@@ -14,7 +14,7 @@ from networks.osvos_resnet import OSVOS_RESNET
 from networks.osvos_vgg import OSVOS_VGG
 
 
-def show_webcam(net, webcam, mirror=False):
+def show_webcam(net, webcam, mirror):
     cam = cv2.VideoCapture(webcam)
     while True:
         ret_val, img = cam.read()
@@ -48,7 +48,8 @@ def apply_network(img, net):
 @click.option('--variant', type=click.Choice(['vgg16', 'resnet34', 'resnet18', 'prune60', 'mimic3']),
               default='prune60')
 @click.option('--webcam', type=int, default=0)
-def main(variant, webcam):
+@click.option('--mirror/--no-mirror', default=True)
+def main(variant, webcam, mirror):
     if variant == 'vgg16':
         net = OSVOS_VGG(pretrained=False)
         net.load_state_dict(torch.load('vgg16.pth', map_location=lambda storage, loc: storage))
@@ -65,7 +66,7 @@ def main(variant, webcam):
         raise Exception('Click should have prevented this')
 
     net = net.cuda()
-    show_webcam(net, webcam, mirror=True)
+    show_webcam(net, webcam, mirror)
 
 
 if __name__ == '__main__':
