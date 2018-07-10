@@ -20,6 +20,13 @@ from networks.osvos_vgg import OSVOS_VGG
 @click.option('--webcam', type=int, default=0)
 @click.option('--mirror/--no-mirror', default=True)
 def main(variant, webcam, mirror):
+    net = get_network(variant)
+    cam = cv2.VideoCapture(webcam)
+    loop_video(net, cam, mirror)
+    cv2.destroyAllWindows()
+
+
+def get_network(variant):
     if variant == 'vgg16':
         net = OSVOS_VGG(pretrained=False)
         net.load_state_dict(torch.load('vgg16.pth', map_location=lambda storage, loc: storage))
@@ -34,10 +41,11 @@ def main(variant, webcam, mirror):
         raise Exception('Not yet implemented')
     else:
         raise Exception('Click should have prevented this')
-
     net = net.cuda()
+    return net
 
-    cam = cv2.VideoCapture(webcam)
+
+def loop_video(net, cam, mirror):
     while True:
         ret_val, img = cam.read()
         if mirror:
@@ -46,7 +54,6 @@ def main(variant, webcam, mirror):
         cv2.imshow('my webcam', img)
         if cv2.waitKey(1) == 27:
             break  # esc to quit
-    cv2.destroyAllWindows()
 
 
 def apply_network(img, net):
