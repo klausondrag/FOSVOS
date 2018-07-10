@@ -18,13 +18,14 @@ def show_webcam(net, mirror=False):
     cam = cv2.VideoCapture(0)
     while True:
         ret_val, img = cam.read()
-        if mirror: 
+        if mirror:
             img = cv2.flip(img, 1)
         img = apply_network(img, net)
         cv2.imshow('my webcam', img)
-        if cv2.waitKey(1) == 27: 
+        if cv2.waitKey(1) == 27:
             break  # esc to quit
     cv2.destroyAllWindows()
+
 
 def apply_network(img, net):
     img = img[np.newaxis, ...]
@@ -41,6 +42,7 @@ def apply_network(img, net):
     pred = 1 / (1 + np.exp(-pred))
     pred = np.squeeze(pred)
     return pred
+
 
 @click.command()
 @click.option('--use-resnet', type=bool, default=True)
