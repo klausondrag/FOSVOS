@@ -50,13 +50,13 @@ def loop_video(net: torch.nn.Module, cam: cv2.VideoCapture, mirror: bool) -> Non
         ret_val, img = cam.read()
         if mirror:
             img = cv2.flip(img, 1)
-        img = apply_network(img, net)
+        img = apply_network(net, img)
         cv2.imshow('my webcam', img)
         if cv2.waitKey(1) == 27:
             break  # esc to quit
 
 
-def apply_network(img: np.ndarray, net: torch.nn.Module) -> np.ndarray:
+def apply_network(net: torch.nn.Module, img: np.ndarray) -> np.ndarray:
     img = img[np.newaxis, ...]
     img = torch.from_numpy(img.transpose((0, 3, 1, 2)))
     if isinstance(img, torch.ByteTensor):
