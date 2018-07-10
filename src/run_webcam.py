@@ -5,6 +5,10 @@ via the new Pythonic cv2 interface.  Press <esc> to quit.
 """
 
 import cv2
+import torch
+
+from networks.osvos_resnet import OSVOS_RESNET
+from networks.osvos_vgg import OSVOS_VGG
 
 
 def show_webcam(net, mirror=False):
