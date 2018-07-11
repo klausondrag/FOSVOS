@@ -1,4 +1,5 @@
 from typing import Optional
+import time
 
 import click
 import numpy as np
@@ -52,12 +53,14 @@ def get_network(variant: str) -> torch.nn.Module:
 def loop_video(net: Optional[torch.nn.Module], cam: cv2.VideoCapture, mirror: bool, use_cuda: bool) -> None:
     use_network = net is not None
     while True:
+        start_time = time.time()
         ret_val, img = cam.read()
         if mirror:
             img = cv2.flip(img, 1)
         if use_network:
             img = apply_network(net, img, use_cuda)
         cv2.imshow('my webcam', img)
+        print('FPS: {0:0.1f}'.format(1.0 / (time.time() - start_time)))
         if cv2.waitKey(1) == 27:
             break  # esc to quit
 
