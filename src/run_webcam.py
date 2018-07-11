@@ -13,7 +13,7 @@ mean_value = np.array((104.00699, 116.66877, 122.67892), dtype=np.float32)
 
 
 @click.command()
-@click.option('--variant', '-var', type=click.Choice(['vgg16', 'resnet34', 'prune', 'mimic']), default='prune')
+@click.option('--variant', '-var', type=click.Choice(['vgg16', 'resnet', 'prune', 'mimic']), default='prune')
 @click.option('--version', '-ver', type=int)
 @click.option('--webcam', '-wc', type=int, default=0)
 @click.option('--mirror/--no-mirror', '-m/-nm', default=True)
