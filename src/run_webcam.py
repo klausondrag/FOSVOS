@@ -13,12 +13,12 @@ mean_value = np.array((104.00699, 116.66877, 122.67892), dtype=np.float32)
 
 
 @click.command()
-@click.option('--variant', type=click.Choice(['vgg16', 'resnet34', 'prune', 'mimic']), default='prune')
-@click.option('--version', type=int)
-@click.option('--webcam', type=int, default=0)
-@click.option('--mirror/--no-mirror', default=True)
-@click.option('--use-network/--no-use-network', default=True)
-@click.option('--use-cuda/--no-use-cuda', default=True)
+@click.option('--variant', '-var', type=click.Choice(['vgg16', 'resnet34', 'prune', 'mimic']), default='prune')
+@click.option('--version', '-ver', type=int)
+@click.option('--webcam', '-wc', type=int, default=0)
+@click.option('--mirror/--no-mirror', '-m/-nm', default=True)
+@click.option('--use-network/--no-use-network', '-n/-nn', default=True)
+@click.option('--use-cuda/--no-use-cuda', '-c/-nc', default=True)
 def main(variant: str, version: int, webcam: int, mirror: bool, use_network: bool, use_cuda: bool) -> None:
     if use_network:
         net = get_network(variant, version)
