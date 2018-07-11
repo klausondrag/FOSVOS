@@ -22,8 +22,9 @@ mean_value = np.array((104.00699, 116.66877, 122.67892), dtype=np.float32)
 @click.option('--overlay/--no-overlay', '-o/-no', default=True)
 @click.option('--boolean-mask/--no-boolean-mask', '-bm/-nbm', default=True)
 @click.option('--overlay-color', '-oc', type=click.Choice(['r', 'g', 'b']), default='r')
+@click.option('--overlay-alpha', '-oa', type=float, default=1.0)
 def main(variant: str, version: int, webcam: int, mirror: bool, use_network: bool, use_cuda: bool,
-         overlay: bool, boolean_mask: bool, overlay_color: str) -> None:
+         overlay: bool, boolean_mask: bool, overlay_color: str, overlay_alpha: int) -> None:
     if use_network:
         net = get_network(variant, version)
         if use_cuda:
@@ -31,7 +32,7 @@ def main(variant: str, version: int, webcam: int, mirror: bool, use_network: boo
     else:
         net = None
     cam = cv2.VideoCapture(webcam)
-    loop_video(net, cam, mirror, use_cuda, overlay, boolean_mask, overlay_color)
+    loop_video(net, cam, mirror, use_cuda, overlay, boolean_mask, overlay_color, overlay_alpha)
     cv2.destroyAllWindows()
 
 
@@ -54,7 +55,7 @@ def get_network(variant: str, version: int) -> torch.nn.Module:
 
 
 def loop_video(net: Optional[torch.nn.Module], cam: cv2.VideoCapture, mirror: bool, use_cuda: bool,
-               overlay: bool, boolean_mask: bool, overlay_color: str) -> None:
+               overlay: bool, boolean_mask: bool, overlay_color: str, overlay_alpha: int) -> None:
     use_network = net is not None
     while True:
         start_time = time.time()
@@ -62,7 +63,7 @@ def loop_video(net: Optional[torch.nn.Module], cam: cv2.VideoCapture, mirror: bo
         if mirror:
             img = cv2.flip(img, 1)
         if use_network:
-            img = apply_network(net, img, use_cuda, overlay, boolean_mask, overlay_color)
+            img = apply_network(net, img, use_cuda, overlay, boolean_mask, overlay_color, overlay_alpha)
         cv2.imshow('my webcam', img)
         print('FPS: {0:0.1f}'.format(1.0 / (time.time() - start_time)))
         if cv2.waitKey(1) == 27:
@@ -70,7 +71,7 @@ def loop_video(net: Optional[torch.nn.Module], cam: cv2.VideoCapture, mirror: bo
 
 
 def apply_network(net: torch.nn.Module, img: np.ndarray, use_cuda: bool, overlay: bool,
-                  boolean_mask: bool, overlay_color: str) -> np.ndarray:
+                  boolean_mask: bool, overlay_color: str, overlay_alpha: int) -> np.ndarray:
     input_img = img
     img = img - mean_value
     img = to_tensor(img)
@@ -94,10 +95,9 @@ def apply_network(net: torch.nn.Module, img: np.ndarray, use_cuda: bool, overlay
         else:
             raise Exception('Click should have prevented this')
 
-        alpha = 1
         mask = np.zeros(input_img.shape, dtype=float)
         mask[..., color_index] = 255
-        output = input_img + alpha * mask * prediction[..., np.newaxis]
+        output = input_img + overlay_alpha * mask * prediction[..., np.newaxis]
         output[output > 255] = 255
         output = output.astype('uint8')
     else:
