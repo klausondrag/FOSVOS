@@ -82,7 +82,6 @@ def to_tensor(img: np.ndarray) -> torch.autograd.Variable:
     img = torch.from_numpy(img.transpose((0, 3, 1, 2)))
     if isinstance(img, torch.ByteTensor):
         img = img.float().div(255)
-    img = img.cuda()
     img = torch.autograd.Variable(img, volatile=True)
     return img
 
