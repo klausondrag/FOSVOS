@@ -80,29 +80,13 @@ def apply_network(net: torch.nn.Module, img: np.ndarray, use_cuda: bool, overlay
     network_output = net.forward(img)
     prediction = network_output[-1]
     prediction = to_numpy(prediction)
-
     if boolean_mask:
         prediction[prediction >= 0.5] = 1
         prediction[prediction < 0.5] = 0
-
     if overlay:
-        if overlay_color == 'r':
-            color_index = 2
-        elif overlay_color == 'g':
-            color_index = 1
-        elif overlay_color == 'b':
-            color_index = 0
-        else:
-            raise Exception('Click should have prevented this')
-
-        mask = np.zeros(input_img.shape, dtype=float)
-        mask[..., color_index] = 255
-        output = input_img + overlay_alpha * mask * prediction[..., np.newaxis]
-        output[output > 255] = 255
-        output = output.astype('uint8')
+        output = perform_overlay(input_img, prediction, overlay_alpha, overlay_color)
     else:
         output = prediction
-
     return output
 
 
@@ -120,6 +104,24 @@ def to_numpy(output: torch.nn.Module) -> np.ndarray:
     output = np.transpose(output, (1, 2, 0))
     output = 1 / (1 + np.exp(-output))
     output = np.squeeze(output)
+    return output
+
+
+def perform_overlay(input_img: np.ndarray, prediction: np.ndarray, overlay_alpha: float,
+                    overlay_color: str) -> np.ndarray:
+    if overlay_color == 'r':
+        color_index = 2
+    elif overlay_color == 'g':
+        color_index = 1
+    elif overlay_color == 'b':
+        color_index = 0
+    else:
+        raise Exception('Click should have prevented this')
+    mask = np.zeros(input_img.shape, dtype=float)
+    mask[..., color_index] = 255
+    output = input_img + overlay_alpha * mask * prediction[..., np.newaxis]
+    output[output > 255] = 255
+    output = output.astype('uint8')
     return output
 
 
