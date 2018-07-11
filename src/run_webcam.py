@@ -8,6 +8,9 @@ import torch
 
 from networks.osvos_resnet import OSVOS_RESNET
 from networks.osvos_vgg import OSVOS_VGG
+from util.logger import get_logger
+
+log = get_logger(__file__)
 
 mean_value = np.array((104.00699, 116.66877, 122.67892), dtype=np.float32)
 
@@ -65,7 +68,7 @@ def loop_video(net: Optional[torch.nn.Module], cam: cv2.VideoCapture, mirror: bo
         if use_network:
             img = apply_network(net, img, use_cuda, overlay, boolean_mask, overlay_color, overlay_alpha)
         cv2.imshow('my webcam', img)
-        print('FPS: {0:0.1f}'.format(1.0 / (time.time() - start_time)))
+        log.info('FPS: {0:0.1f}'.format(1.0 / (time.time() - start_time)))
         if cv2.waitKey(1) == 27:
             break  # esc to quit
 
