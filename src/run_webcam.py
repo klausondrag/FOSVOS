@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Optional
 import time
 
@@ -39,17 +40,21 @@ def main(variant: str, version: int, webcam: int, mirror: bool, use_network: boo
     cv2.destroyAllWindows()
 
 
-def get_network(variant: str, version: int) -> torch.nn.Module:
+def get_network(variant: str, version: int, path_models: str = 'models') -> torch.nn.Module:
+    path_models = Path(path_models)
     if variant == 'vgg':
         net = OSVOS_VGG(pretrained=False)
-        net.load_state_dict(torch.load('vgg16.pth', map_location=lambda storage, loc: storage))
+        path_file = path_models / 'vgg16.pth'
+        net.load_state_dict(torch.load(str(path_file), map_location=lambda storage, loc: storage))
     elif variant == 'resnet':
         if version != 34:
             version = 18
         net = OSVOS_RESNET(pretrained=False, version=version)
-        net.load_state_dict(torch.load('resnet{}.pth'.format(str(version)), map_location=lambda storage, loc: storage))
+        path_file = path_models / 'resnet{}.pth'.format(str(version))
+        net.load_state_dict(torch.load(str(path_file), map_location=lambda storage, loc: storage))
     elif variant == 'prune':
-        net = torch.load('prune_64_1_{}.pth'.format(version), map_location=lambda storage, loc: storage)
+        path_file = path_models / 'prune_64_1_{}.pth'.format(version)
+        net = torch.load(str(path_file), map_location=lambda storage, loc: storage)
     elif variant == 'mimic':
         raise Exception('Not yet implemented')
     else:
