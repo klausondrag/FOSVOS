@@ -20,8 +20,9 @@ mean_value = np.array((104.00699, 116.66877, 122.67892), dtype=np.float32)
 @click.option('--use-network/--no-network', '-n/-nn', default=True)
 @click.option('--use-cuda/--no-cuda', '-c/-nc', default=True)
 @click.option('--overlay/--no-overlay', '-o/-no', default=True)
+@click.option('--boolean-mask/--no-boolean-mask', '-bm/-nbm', default=True)
 def main(variant: str, version: int, webcam: int, mirror: bool, use_network: bool, use_cuda: bool,
-         overlay: bool) -> None:
+         overlay: bool, boolean_mask: bool) -> None:
     if use_network:
         net = get_network(variant, version)
         if use_cuda:
@@ -29,7 +30,7 @@ def main(variant: str, version: int, webcam: int, mirror: bool, use_network: boo
     else:
         net = None
     cam = cv2.VideoCapture(webcam)
-    loop_video(net, cam, mirror, use_cuda, overlay)
+    loop_video(net, cam, mirror, use_cuda, overlay, boolean_mask)
     cv2.destroyAllWindows()
 
 
@@ -52,7 +53,7 @@ def get_network(variant: str, version: int) -> torch.nn.Module:
 
 
 def loop_video(net: Optional[torch.nn.Module], cam: cv2.VideoCapture, mirror: bool, use_cuda: bool,
-               overlay: bool) -> None:
+               overlay: bool, boolean_mask: bool) -> None:
     use_network = net is not None
     while True:
         start_time = time.time()
@@ -60,14 +61,15 @@ def loop_video(net: Optional[torch.nn.Module], cam: cv2.VideoCapture, mirror: bo
         if mirror:
             img = cv2.flip(img, 1)
         if use_network:
-            img = apply_network(net, img, use_cuda, overlay)
+            img = apply_network(net, img, use_cuda, overlay, boolean_mask)
         cv2.imshow('my webcam', img)
         print('FPS: {0:0.1f}'.format(1.0 / (time.time() - start_time)))
         if cv2.waitKey(1) == 27:
             break  # esc to quit
 
 
-def apply_network(net: torch.nn.Module, img: np.ndarray, use_cuda: bool, overlay: bool) -> np.ndarray:
+def apply_network(net: torch.nn.Module, img: np.ndarray, use_cuda: bool, overlay: bool,
+                  boolean_mask: bool) -> np.ndarray:
     input_img = img
     img = img - mean_value
     img = to_tensor(img)
@@ -77,9 +79,11 @@ def apply_network(net: torch.nn.Module, img: np.ndarray, use_cuda: bool, overlay
     prediction = network_output[-1]
     prediction = to_numpy(prediction)
 
-    if overlay:
+    if boolean_mask:
         prediction[prediction >= 0.5] = 1
         prediction[prediction < 0.5] = 0
+
+    if overlay:
         alpha = 1
         mask = np.zeros(input_img.shape, dtype=float)
         mask[..., 2] = 255
