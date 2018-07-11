@@ -13,15 +13,15 @@ mean_value = np.array((104.00699, 116.66877, 122.67892), dtype=np.float32)
 
 
 @click.command()
-@click.option('--variant', type=click.Choice(['vgg16', 'resnet34', 'resnet18', 'prune60', 'mimic3']),
-              default='prune60')
+@click.option('--variant', type=click.Choice(['vgg16', 'resnet34', 'prune', 'mimic']), default='prune')
+@click.option('--version', type=int)
 @click.option('--webcam', type=int, default=0)
 @click.option('--mirror/--no-mirror', default=True)
 @click.option('--use-network/--no-use-network', default=True)
 @click.option('--use-cuda/--no-use-cuda', default=True)
-def main(variant: str, webcam: int, mirror: bool, use_network: bool, use_cuda: bool) -> None:
+def main(variant: str, version: int, webcam: int, mirror: bool, use_network: bool, use_cuda: bool) -> None:
     if use_network:
-        net = get_network(variant)
+        net = get_network(variant, version)
         if use_cuda:
             net = net.cuda()
     else:
@@ -31,19 +31,18 @@ def main(variant: str, webcam: int, mirror: bool, use_network: bool, use_cuda: b
     cv2.destroyAllWindows()
 
 
-def get_network(variant: str) -> torch.nn.Module:
-    if variant == 'vgg16':
+def get_network(variant: str, version: int) -> torch.nn.Module:
+    if variant == 'vgg':
         net = OSVOS_VGG(pretrained=False)
         net.load_state_dict(torch.load('vgg16.pth', map_location=lambda storage, loc: storage))
-    elif variant == 'resnet34':
-        net = OSVOS_RESNET(pretrained=False, version=34)
-        net.load_state_dict(torch.load('resnet34.pth', map_location=lambda storage, loc: storage))
-    elif variant == 'resnet18':
-        net = OSVOS_RESNET(pretrained=False)
-        net.load_state_dict(torch.load('resnet18.pth', map_location=lambda storage, loc: storage))
-    elif variant == 'prune60':
-        net = torch.load('prune_64_1_60.pth', map_location=lambda storage, loc: storage)
-    elif variant == 'mimic3':
+    elif variant == 'resnet':
+        if version != 34:
+            version = 18
+        net = OSVOS_RESNET(pretrained=False, version=version)
+        net.load_state_dict(torch.load('resnet{}.pth'.format(str(version)), map_location=lambda storage, loc: storage))
+    elif variant == 'prune':
+        net = torch.load('prune_64_1_{}.pth'.format(version), map_location=lambda storage, loc: storage)
+    elif variant == 'mimic':
         raise Exception('Not yet implemented')
     else:
         raise Exception('Click should have prevented this')
