@@ -35,7 +35,8 @@ def get_network(variant: str) -> torch.nn.Module:
         net = OSVOS_VGG(pretrained=False)
         net.load_state_dict(torch.load('vgg16.pth', map_location=lambda storage, loc: storage))
     elif variant == 'resnet34':
-        raise Exception('Not yet implemented')
+        net = OSVOS_RESNET(pretrained=False, version=34)
+        net.load_state_dict(torch.load('resnet34.pth', map_location=lambda storage, loc: storage))
     elif variant == 'resnet18':
         net = OSVOS_RESNET(pretrained=False)
         net.load_state_dict(torch.load('resnet18.pth', map_location=lambda storage, loc: storage))
