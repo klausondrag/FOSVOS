@@ -70,8 +70,8 @@ def apply_network(net: torch.nn.Module, img: np.ndarray, use_cuda: bool) -> np.n
     img = to_tensor(img)
     if use_cuda:
         img = img.cuda()
-    predictions = net.forward(img)
-    prediction = predictions[-1]
+    network_output = net.forward(img)
+    prediction = network_output[-1]
     prediction = to_numpy(prediction)
 
     prediction[prediction >= 0.5] = 1
