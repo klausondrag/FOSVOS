@@ -74,6 +74,8 @@ def apply_network(net: torch.nn.Module, img: np.ndarray, use_cuda: bool) -> np.n
     prediction = predictions[-1]
     prediction = to_numpy(prediction)
 
+    prediction[prediction >= 0.5] = 1
+    prediction[prediction < 0.5] = 0
     alpha = 1
     mask = np.zeros(input_img.shape, dtype=float)
     mask[..., 2] = 255
