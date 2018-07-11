@@ -3,6 +3,7 @@
 Simply display the contents of the webcam with optional mirroring using OpenCV 
 via the new Pythonic cv2 interface.  Press <esc> to quit.
 """
+from typing import Optional
 
 import click
 import numpy as np
@@ -21,8 +22,12 @@ mean_value = np.array((104.00699, 116.66877, 122.67892), dtype=np.float32)
               default='prune60')
 @click.option('--webcam', type=int, default=0)
 @click.option('--mirror/--no-mirror', default=True)
-def main(variant: str, webcam: int, mirror: bool) -> None:
-    net = get_network(variant)
+@click.option('--use-network/--no-use-network', default=True)
+def main(variant: str, webcam: int, mirror: bool, use_network: bool) -> None:
+    if use_network:
+        net = get_network(variant)
+    else:
+        net = None
     cam = cv2.VideoCapture(webcam)
     loop_video(net, cam, mirror)
     cv2.destroyAllWindows()
@@ -47,27 +52,24 @@ def get_network(variant: str) -> torch.nn.Module:
     return net
 
 
-def loop_video(net: torch.nn.Module, cam: cv2.VideoCapture, mirror: bool) -> None:
+def loop_video(net: Optional[torch.nn.Module], cam: cv2.VideoCapture, mirror: bool) -> None:
+    use_network = net is not None
     while True:
         ret_val, img = cam.read()
         if mirror:
             img = cv2.flip(img, 1)
-        img = apply_network(net, img, use_net=True)
+        if use_network:
+            img = apply_network(net, img)
         cv2.imshow('my webcam', img)
         if cv2.waitKey(1) == 27:
             break  # esc to quit
 
 
-def apply_network(net: torch.nn.Module, img: np.ndarray, use_net: bool) -> np.ndarray:
+def apply_network(net: torch.nn.Module, img: np.ndarray) -> np.ndarray:
     img = img - mean_value
     img = to_tensor(img)
-
-    if use_net:
-        outputs = net.forward(img)
-        output = outputs[-1]
-    else:
-        output = img
-
+    outputs = net.forward(img)
+    output = outputs[-1]
     output = to_numpy(output)
     return output
 
