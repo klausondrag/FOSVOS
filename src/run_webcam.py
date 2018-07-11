@@ -65,13 +65,22 @@ def loop_video(net: Optional[torch.nn.Module], cam: cv2.VideoCapture, mirror: bo
 
 
 def apply_network(net: torch.nn.Module, img: np.ndarray, use_cuda: bool) -> np.ndarray:
+    input_img = img
     img = img - mean_value
     img = to_tensor(img)
     if use_cuda:
         img = img.cuda()
-    outputs = net.forward(img)
-    output = outputs[-1]
-    output = to_numpy(output)
+    predictions = net.forward(img)
+    prediction = predictions[-1]
+    prediction = to_numpy(prediction)
+
+    alpha = 1
+    mask = np.zeros(input_img.shape, dtype=float)
+    mask[..., 2] = 255
+    output = input_img + alpha * mask * prediction[..., np.newaxis]
+    output[output > 255] = 255
+    output = output.astype('uint8')
+
     return output
 
 
