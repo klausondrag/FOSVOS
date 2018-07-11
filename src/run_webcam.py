@@ -1,8 +1,3 @@
-# https://gist.github.com/tedmiston/6060034
-"""
-Simply display the contents of the webcam with optional mirroring using OpenCV 
-via the new Pythonic cv2 interface.  Press <esc> to quit.
-"""
 from typing import Optional
 
 import click
