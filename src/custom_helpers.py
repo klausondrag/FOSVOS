@@ -43,5 +43,22 @@ def mean(ctx: click.core.Context) -> None:
     log.info('Calculated mean: {}'.format(str(mean)))
 
 
+@cli.command()
+@click.pass_context
+def filter(ctx: click.core.Context) -> None:
+    dataset_dir = ctx.obj['dataset_dir']
+    dataset_dir = Path(dataset_dir)
+
+    n_images = 0
+    source_path = dataset_dir / 'source'
+    annotations = dataset_dir / 'annotations'
+    for annotation_file in annotations.iterdir():
+        image = cv2.imread(str(annotation_file))
+
+        n_images += 1
+
+    log.info('Found n images: {}'.format(n_images))
+
+
 if __name__ == '__main__':
     cli(obj={})
