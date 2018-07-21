@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import click
+import numpy as np
 import cv2
 
 from util.logger import get_logger
@@ -21,11 +22,25 @@ def mean(ctx: click.core.Context) -> None:
     dataset_dir = ctx.obj['dataset_dir']
     dataset_dir = Path(dataset_dir)
 
+    mean = np.zeros(3)
+    n_images = 0
     for directory in ['Images']:
         p = dataset_dir / directory
         for file in p.iterdir():
             image = cv2.imread(str(file))
-            log.info(image.mean())
+
+            assert len(image.shape) == 3
+            channel_dimension = np.where(np.asarray(image.shape) == 3)[0][0]
+            channels = list(range(3))
+            del channels[channel_dimension]
+
+            image_mean = image.mean(axis=channels[1]).mean(axis=channels[0])
+            mean += image_mean
+            n_images += 1
+
+    mean /= n_images
+    log.info('Found n images: {:d}'.format(n_images))
+    log.info(mean)
 
 
 if __name__ == '__main__':
