@@ -10,7 +10,7 @@ log = get_logger(__file__)
 
 
 @click.group()
-@click.option('--dataset-dir', '-d', type=click.Path(file_okay=False), default='/home/klaus/dev/datasets/Me')
+@click.option('--dataset-dir', '-d', type=click.Path(file_okay=False), default='/home/klaus/dev/datasets/Me1080')
 @click.pass_context
 def cli(ctx: click.core.Context, dataset_dir: str) -> None:
     ctx.obj['dataset_dir'] = dataset_dir
@@ -24,7 +24,7 @@ def mean(ctx: click.core.Context) -> None:
 
     mean = np.zeros(3)
     n_images = 0
-    for directory in ['Images']:
+    for directory in ['background', 'source']:
         p = dataset_dir / directory
         for file in p.iterdir():
             image = cv2.imread(str(file))
