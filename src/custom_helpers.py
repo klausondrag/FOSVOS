@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import click
+import cv2
 
 from util.logger import get_logger
 
@@ -19,6 +20,12 @@ def cli(ctx: click.core.Context, dataset_dir: str) -> None:
 def mean(ctx: click.core.Context) -> None:
     dataset_dir = ctx.obj['dataset_dir']
     dataset_dir = Path(dataset_dir)
+
+    for directory in ['Images']:
+        p = dataset_dir / directory
+        for file in p.iterdir():
+            image = cv2.imread(str(file))
+            log.info(image.mean())
 
 
 if __name__ == '__main__':
