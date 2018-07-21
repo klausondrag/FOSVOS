@@ -39,8 +39,8 @@ def mean(ctx: click.core.Context) -> None:
             n_images += 1
 
     mean /= n_images
-    log.info('Found n images: {:d}'.format(n_images))
-    log.info(mean)
+    log.info('Found n images: {}'.format(n_images))
+    log.info('Calculated mean: {}'.format(str(mean)))
 
 
 if __name__ == '__main__':
