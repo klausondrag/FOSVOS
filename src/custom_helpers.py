@@ -51,16 +51,19 @@ def filter(ctx: click.core.Context) -> None:
 
     n_images = 0
     source_path = dataset_dir / 'source'
-    annotations = dataset_dir / 'annotations'
-    for annotation_file in annotations.iterdir():
+    annotations_path = dataset_dir / 'annotations'
+    foreground_path = dataset_dir / 'foreground'
+    foreground_path.mkdir(exist_ok=True)
+    for annotation_file in annotations_path.iterdir():
         annotation_image = cv2.imread(str(annotation_file))
-        source_file = source_path / (annotation_file.stem + '.jpg')
+        color_file_name = annotation_file.stem + '.jpg'
+        source_file = source_path / color_file_name
         source_image = cv2.imread(str(source_file))
 
-        log.info('{} {}'.format(annotation_image.shape, source_image.shape))
-        filtered_image = np.where((annotation_image >= 1), source_image, annotation_image)
-
-        show_image(filtered_image)
+        foreground_image = np.where((annotation_image >= 1), source_image, annotation_image)
+        foreground_file = foreground_path / color_file_name
+        cv2.imwrite(str(foreground_file), foreground_image)
+        # show_image(filtered_image)
 
         n_images += 1
 
