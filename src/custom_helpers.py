@@ -2,6 +2,7 @@ from pathlib import Path
 import itertools
 
 import click
+from tqdm import tqdm
 import numpy as np
 import cv2
 
@@ -27,7 +28,7 @@ def mean(ctx: click.core.Context) -> None:
     n_images = 0
     for directory in ['background', 'source']:
         p = dataset_dir / directory
-        for file in p.iterdir():
+        for file in tqdm(list(p.iterdir())):
             image = cv2.imread(str(file))
 
             assert len(image.shape) == 3
@@ -55,7 +56,7 @@ def filter(ctx: click.core.Context) -> None:
     annotations_path = dataset_dir / 'foreground_annotations'
     foreground_path = dataset_dir / 'foreground'
     foreground_path.mkdir(exist_ok=True)
-    for annotation_file in annotations_path.iterdir():
+    for annotation_file in tqdm(list(annotations_path.iterdir())):
         annotation_image = cv2.imread(str(annotation_file))
         color_file_name = annotation_file.stem + '.jpg'
         source_file = source_path / color_file_name
@@ -85,8 +86,8 @@ def overlay(ctx: click.core.Context) -> None:
     output_annotations_path = dataset_dir / 'annotations'
     output_annotations_path.mkdir(exist_ok=True)
     n_images = 0
-    for index, (background_file, foreground_file) in enumerate(itertools.product(background_path.iterdir(),
-                                                                                 foreground_path.iterdir())):
+    pairs = list(itertools.product(background_path.iterdir(), foreground_path.iterdir()))
+    for index, (background_file, foreground_file) in enumerate(tqdm(pairs)):
         background_image = cv2.imread(str(background_file))
         foreground_image = cv2.imread(str(foreground_file))
         annotation_file = foreground_annotations_path / '{}.png'.format(foreground_file.stem)
