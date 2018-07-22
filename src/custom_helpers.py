@@ -1,4 +1,5 @@
 from pathlib import Path
+import itertools
 
 import click
 import numpy as np
@@ -64,6 +65,27 @@ def filter(ctx: click.core.Context) -> None:
         foreground_file = foreground_path / color_file_name
         cv2.imwrite(str(foreground_file), foreground_image)
         # show_image(filtered_image)
+
+        n_images += 1
+
+    log.info('Found n images: {}'.format(n_images))
+
+
+@cli.command()
+@click.pass_context
+def overlay(ctx: click.core.Context) -> None:
+    dataset_dir = ctx.obj['dataset_dir']
+    dataset_dir = Path(dataset_dir)
+
+    background_path = dataset_dir / 'background'
+    foreground_path = dataset_dir / 'foreground'
+    annotations_path = dataset_dir / 'annotations'
+    n_images = 0
+    for background_file, foreground_file in itertools.product(background_path.iterdir(), foreground_path.iterdir()):
+        background_image = cv2.imread(str(background_file))
+        foreground_image = cv2.imread(str(foreground_file))
+        annotation_file = annotations_path / foreground_file.name
+        annotation_image = cv2.imread(str(annotation_file))
 
         n_images += 1
 
