@@ -52,7 +52,7 @@ def filter(ctx: click.core.Context) -> None:
 
     n_images = 0
     source_path = dataset_dir / 'source'
-    annotations_path = dataset_dir / 'annotations'
+    annotations_path = dataset_dir / 'foreground_annotations'
     foreground_path = dataset_dir / 'foreground'
     foreground_path.mkdir(exist_ok=True)
     for annotation_file in annotations_path.iterdir():
@@ -79,21 +79,31 @@ def overlay(ctx: click.core.Context) -> None:
 
     background_path = dataset_dir / 'background'
     foreground_path = dataset_dir / 'foreground'
-    annotations_path = dataset_dir / 'annotations'
+    foreground_annotations_path = dataset_dir / 'foreground_annotations'
     output_path = dataset_dir / 'images'
     output_path.mkdir(exist_ok=True)
+    output_annotations_path = dataset_dir / 'annotations'
+    output_annotations_path.mkdir(exist_ok=True)
     n_images = 0
     for index, (background_file, foreground_file) in enumerate(itertools.product(background_path.iterdir(),
                                                                                  foreground_path.iterdir())):
         background_image = cv2.imread(str(background_file))
         foreground_image = cv2.imread(str(foreground_file))
-        annotation_file = annotations_path / foreground_file.name
+        annotation_file = foreground_annotations_path / '{}.png'.format(foreground_file.stem)
         annotation_image = cv2.imread(str(annotation_file))
 
-        output_image = background_image
-
+        scale_factor = 1 - np.random.ranf() / 2
+        output_image = cv2.resize(foreground_image, dsize=(0, 0), fx=scale_factor, fy=scale_factor,
+                                  interpolation=cv2.INTER_AREA)
         output_file = output_path / '{}.jpg'.format(index)
         cv2.imwrite(str(output_file), output_image)
+        # show_image(output_image)
+
+        output_annotation_image = cv2.resize(annotation_image, dsize=(0, 0), fx=scale_factor, fy=scale_factor,
+                                             interpolation=cv2.INTER_AREA)
+        output_annotation_file = output_annotations_path / '{}.png'.format(index)
+        cv2.imwrite(str(output_annotation_file), output_annotation_image)
+        # show_image(output_annotation_image)
 
         n_images += 1
 
