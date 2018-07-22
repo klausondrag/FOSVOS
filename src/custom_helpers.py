@@ -79,14 +79,14 @@ def overlay(ctx: click.core.Context) -> None:
     output_path.mkdir(exist_ok=True)
     output_annotations_path = dataset_dir / 'annotations'
     output_annotations_path.mkdir(exist_ok=True)
-    pairs = list(itertools.product(background_path.iterdir(), foreground_path.iterdir()))
-    for index, (background_file, foreground_file) in enumerate(tqdm(pairs)):
+    pairs = list(itertools.product(background_path.iterdir(), foreground_path.iterdir(), range(3)))
+    for index, (background_file, foreground_file, _) in enumerate(tqdm(pairs)):
         background_image = cv2.imread(str(background_file))
         foreground_image = cv2.imread(str(foreground_file))
         annotation_file = foreground_annotations_path / '{}.png'.format(foreground_file.stem)
         annotation_image = cv2.imread(str(annotation_file))
 
-        scale_factor = 1 - np.random.ranf() / 2
+        scale_factor = 1 - np.random.ranf() / 1.5
 
         output_annotation_image = cv2.resize(annotation_image, dsize=(0, 0), fx=scale_factor, fy=scale_factor,
                                              interpolation=cv2.INTER_AREA)
@@ -96,7 +96,8 @@ def overlay(ctx: click.core.Context) -> None:
 
         foreground_image = cv2.resize(foreground_image, dsize=(0, 0), fx=scale_factor, fy=scale_factor,
                                       interpolation=cv2.INTER_AREA)
-        x_offset = y_offset = 0
+        x_offset = np.random.randint(0, background_image.shape[1] - foreground_image.shape[1])
+        y_offset = np.random.randint(0, background_image.shape[0] - foreground_image.shape[0])
         y1, y2 = y_offset, y_offset + foreground_image.shape[0]
         x1, x2 = x_offset, x_offset + foreground_image.shape[1]
         alpha_s = (output_annotation_image.astype(float) / 255).mean(axis=2)
