@@ -80,12 +80,20 @@ def overlay(ctx: click.core.Context) -> None:
     background_path = dataset_dir / 'background'
     foreground_path = dataset_dir / 'foreground'
     annotations_path = dataset_dir / 'annotations'
+    output_path = dataset_dir / 'images'
+    output_path.mkdir(exist_ok=True)
     n_images = 0
-    for background_file, foreground_file in itertools.product(background_path.iterdir(), foreground_path.iterdir()):
+    for index, (background_file, foreground_file) in enumerate(itertools.product(background_path.iterdir(),
+                                                                                 foreground_path.iterdir())):
         background_image = cv2.imread(str(background_file))
         foreground_image = cv2.imread(str(foreground_file))
         annotation_file = annotations_path / foreground_file.name
         annotation_image = cv2.imread(str(annotation_file))
+
+        output_image = background_image
+
+        output_file = output_path / '{}.jpg'.format(index)
+        cv2.imwrite(str(output_file), output_image)
 
         n_images += 1
 
