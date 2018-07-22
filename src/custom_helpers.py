@@ -46,6 +46,7 @@ def mean(ctx: click.core.Context) -> None:
 @cli.command()
 @click.pass_context
 def filter(ctx: click.core.Context) -> None:
+    from matplotlib import pyplot as plt
     dataset_dir = ctx.obj['dataset_dir']
     dataset_dir = Path(dataset_dir)
 
@@ -53,7 +54,14 @@ def filter(ctx: click.core.Context) -> None:
     source_path = dataset_dir / 'source'
     annotations = dataset_dir / 'annotations'
     for annotation_file in annotations.iterdir():
-        image = cv2.imread(str(annotation_file))
+        annotation_image = cv2.imread(str(annotation_file))
+        source_file = source_path / (annotation_file.stem + '.jpg')
+        source_image = cv2.imread(str(source_file))
+
+        filtered_image = np.where(annotation_image >= 128, source_image, annotation_image)
+        plt.figure()
+        plt.imshow(filtered_image)
+        plt.show(block=True)
 
         n_images += 1
 
