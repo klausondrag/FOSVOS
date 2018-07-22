@@ -41,7 +41,6 @@ def mean(ctx: click.core.Context) -> None:
             n_images += 1
 
     mean /= n_images
-    log.info('Found n images: {}'.format(n_images))
     log.info('Calculated mean: {}'.format(str(mean)))
 
 
@@ -51,7 +50,6 @@ def filter(ctx: click.core.Context) -> None:
     dataset_dir = ctx.obj['dataset_dir']
     dataset_dir = Path(dataset_dir)
 
-    n_images = 0
     source_path = dataset_dir / 'source'
     annotations_path = dataset_dir / 'foreground_annotations'
     foreground_path = dataset_dir / 'foreground'
@@ -67,10 +65,6 @@ def filter(ctx: click.core.Context) -> None:
         cv2.imwrite(str(foreground_file), foreground_image)
         # show_image(filtered_image)
 
-        n_images += 1
-
-    log.info('Found n images: {}'.format(n_images))
-
 
 @cli.command()
 @click.pass_context
@@ -85,7 +79,6 @@ def overlay(ctx: click.core.Context) -> None:
     output_path.mkdir(exist_ok=True)
     output_annotations_path = dataset_dir / 'annotations'
     output_annotations_path.mkdir(exist_ok=True)
-    n_images = 0
     pairs = list(itertools.product(background_path.iterdir(), foreground_path.iterdir()))
     for index, (background_file, foreground_file) in enumerate(tqdm(pairs)):
         background_image = cv2.imread(str(background_file))
@@ -105,10 +98,6 @@ def overlay(ctx: click.core.Context) -> None:
         output_annotation_file = output_annotations_path / '{}.png'.format(index)
         cv2.imwrite(str(output_annotation_file), output_annotation_image)
         # show_image(output_annotation_image)
-
-        n_images += 1
-
-    log.info('Found n images: {}'.format(n_images))
 
 
 def show_image(image: np.ndarray) -> None:
