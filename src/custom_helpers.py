@@ -87,17 +87,28 @@ def overlay(ctx: click.core.Context) -> None:
         annotation_image = cv2.imread(str(annotation_file))
 
         scale_factor = 1 - np.random.ranf() / 2
-        output_image = cv2.resize(foreground_image, dsize=(0, 0), fx=scale_factor, fy=scale_factor,
-                                  interpolation=cv2.INTER_AREA)
-        output_file = output_path / '{}.jpg'.format(index)
-        cv2.imwrite(str(output_file), output_image)
-        # show_image(output_image)
 
         output_annotation_image = cv2.resize(annotation_image, dsize=(0, 0), fx=scale_factor, fy=scale_factor,
                                              interpolation=cv2.INTER_AREA)
         output_annotation_file = output_annotations_path / '{}.png'.format(index)
         cv2.imwrite(str(output_annotation_file), output_annotation_image)
         # show_image(output_annotation_image)
+
+        foreground_image = cv2.resize(foreground_image, dsize=(0, 0), fx=scale_factor, fy=scale_factor,
+                                      interpolation=cv2.INTER_AREA)
+        x_offset = y_offset = 0
+        y1, y2 = y_offset, y_offset + foreground_image.shape[0]
+        x1, x2 = x_offset, x_offset + foreground_image.shape[1]
+        alpha_s = (output_annotation_image.astype(float) / 255).mean(axis=2)
+        alpha_l = 1.0 - alpha_s
+        for c in range(0, 3):
+            background_image[y1:y2, x1:x2, c] = (alpha_s * foreground_image[:, :, c] +
+                                                 alpha_l * background_image[y1:y2, x1:x2, c])
+        output_image = background_image
+
+        output_file = output_path / '{}.jpg'.format(index)
+        cv2.imwrite(str(output_file), output_image)
+        # show_image(output_image)
 
 
 def show_image(image: np.ndarray) -> None:
